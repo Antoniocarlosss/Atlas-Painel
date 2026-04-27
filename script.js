@@ -94,7 +94,12 @@ function obterPreferenciasUsuario(idUsuario) {
     const padrao = obterPreferenciasPadraoUsuario(idUsuario);
     const cargo = obterCargoUsuarioPorId(idUsuario);
     if (cargo === 'operario' && !salvas.permissoesAdminDefinidas) {
-        return { ...padrao, tema: salvas.tema || padrao.tema };
+        const ocultosUsuarioOperario = Array.isArray(salvas.modulosOcultosUsuario) ? salvas.modulosOcultosUsuario : [];
+        return {
+            ...padrao,
+            tema: salvas.tema || padrao.tema,
+            modulosOcultosUsuario: ocultosUsuarioOperario
+        };
     }
     const modulosSalvos = Array.isArray(salvas.modulosVisiveis) ? salvas.modulosVisiveis : padrao.modulosVisiveis;
     const editaveisSalvos = Array.isArray(salvas.modulosEditaveis) ? salvas.modulosEditaveis : padrao.modulosEditaveis;

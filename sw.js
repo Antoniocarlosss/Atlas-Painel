@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v14-meus-modulos';
+const CACHE_NAME = 'atlas-v15-meus-modulos-operario';
 const assets = [
   '/',
   '/index.html',
