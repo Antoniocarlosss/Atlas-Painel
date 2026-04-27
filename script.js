@@ -4138,6 +4138,15 @@ function textoSeguroPermissoes(valor) {
         .replace(/'/g, '&#039;');
 }
 
+function removerBlocoUsuariosSenhasAntigo() {
+    document.querySelectorAll('#render-modulo h3').forEach(titulo => {
+        if (String(titulo.textContent || '').trim().toLowerCase() === 'usuarios e senhas') {
+            const bloco = titulo.closest('div[style*="background"]');
+            if (bloco) bloco.remove();
+        }
+    });
+}
+
 function renderizarPermissoesAdmin(idSelecionado = '') {
     if (!usuarioEhAdmin()) return alert('Apenas ADMIN pode acessar permissoes.');
     const render = document.getElementById('render-modulo');
@@ -4192,6 +4201,7 @@ function renderizarPermissoesAdmin(idSelecionado = '') {
             <button onclick="salvarPermissoesAdmin('${usuarioAlvo.id}')" style="width:100%; margin-top:15px; background:#10b981; color:white; border:none; padding:14px; border-radius:8px; font-weight:bold;">SALVAR PERMISSOES</button>
         </div>
     `;
+    removerBlocoUsuariosSenhasAntigo();
 }
 
 function salvarPermissoesAdmin(idUsuario) {

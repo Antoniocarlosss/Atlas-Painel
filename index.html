@@ -90,14 +90,14 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="script.js"></script>
-    <script src="historicos-admin.js"></script>
-    <script src="atlas-ajustes-fachadas.js"></script>
-    <script type="module" src="firebase-atlas.js"></script>
+    <script src="script.js?v=20260427-permissoes-2"></script>
+    <script src="historicos-admin.js?v=20260427-permissoes-2"></script>
+    <script src="atlas-ajustes-fachadas.js?v=20260427-permissoes-2"></script>
+    <script type="module" src="firebase-atlas.js?v=20260427-permissoes-2"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js')
+                navigator.serviceWorker.register('sw.js?v=20260427-permissoes-2')
                     .then(reg => console.log('Atlas PWA: Ativo!'))
                     .catch(err => console.log('Erro PWA:', err));
             });

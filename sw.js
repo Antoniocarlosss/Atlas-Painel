@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v3-permissoes';
+const CACHE_NAME = 'atlas-v4-permissoes-sem-lista';
 const assets = [
   '/',
   '/index.html',
