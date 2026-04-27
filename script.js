@@ -6686,8 +6686,13 @@ document.addEventListener('click', function(evento) {
         render.innerHTML = `
             <div style="padding:15px; color:white;">
                 <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:14px; margin-bottom:15px;">
-                    <input id="auditoria-busca" oninput="renderizarAuditoriaFiltradaAtlas(this.value)" placeholder="Pesquisar por usuario, secao, acao ou data"
-                        style="width:100%; padding:14px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; font-size:16px;">
+                    <div style="display:grid; grid-template-columns:1fr auto; gap:8px;">
+                        <input id="auditoria-busca" oninput="renderizarAuditoriaFiltradaAtlas(this.value)" onkeydown="if(event.key === 'Enter') renderizarAuditoriaFiltradaAtlas(this.value)" placeholder="Pesquisar por usuario, secao, acao ou data"
+                            style="width:100%; padding:14px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; font-size:16px;">
+                        <button onclick="renderizarAuditoriaFiltradaAtlas(document.getElementById('auditoria-busca')?.value || '')" style="background:#3b82f6; color:white; border:none; padding:0 16px; border-radius:8px; font-weight:bold;">
+                            BUSCAR
+                        </button>
+                    </div>
                 </div>
                 <div id="auditoria-lista"></div>
             </div>
@@ -6700,6 +6705,7 @@ document.addEventListener('click', function(evento) {
         if (!alvo) return;
         const lista = atlasRegistrosFiltrados(termo);
         const grupos = atlasAgruparRegistros(lista);
+        const expandir = String(termo || '').trim().length > 0;
 
         if (!lista.length) {
             alvo.innerHTML = `<div style="text-align:center; color:#94a3b8; padding:30px;">Nenhum registro encontrado.</div>`;
@@ -6714,7 +6720,7 @@ document.addEventListener('click', function(evento) {
                     <div onclick="togglePlanoElemento('reg-ano-${ano}')" style="background:#1e293b; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer; border:1px solid #334155; display:flex; justify-content:space-between;">
                         <span>ANO ${ano}</span><span>${Object.values(grupos[ano]).reduce((acc, meses) => acc + Object.keys(meses).length, 0)} dia(s)</span>
                     </div>
-                    <div id="reg-ano-${ano}" style="display:none; padding-left:10px; margin-top:6px; border-left:2px solid #3b82f6;">
+                    <div id="reg-ano-${ano}" style="display:${expandir ? 'block' : 'none'}; padding-left:10px; margin-top:6px; border-left:2px solid #3b82f6;">
             `;
 
             Object.keys(grupos[ano]).sort((a, b) => Number(b) - Number(a)).forEach(mes => {
@@ -6722,7 +6728,7 @@ document.addEventListener('click', function(evento) {
                     <div onclick="togglePlanoElemento('reg-mes-${ano}-${mes}')" style="cursor:pointer; padding:10px; color:#60a5fa; background:#0f172a; margin-top:6px; border-radius:6px; font-weight:bold;">
                         ${atlasMesNome(mes)}
                     </div>
-                    <div id="reg-mes-${ano}-${mes}" style="display:none; padding-left:10px;">
+                    <div id="reg-mes-${ano}-${mes}" style="display:${expandir ? 'block' : 'none'}; padding-left:10px;">
                 `;
 
                 Object.keys(grupos[ano][mes]).sort((a, b) => Number(b) - Number(a)).forEach(dia => {
@@ -6741,7 +6747,7 @@ document.addEventListener('click', function(evento) {
                                     RELATORIO DO DIA
                                 </button>
                             </div>
-                            <div id="${diaId}" style="display:none; border-top:1px solid #334155;">
+                            <div id="${diaId}" style="display:${expandir ? 'block' : 'none'}; border-top:1px solid #334155;">
                     `;
 
                     Object.keys(grupoDia.secoes).sort().forEach(secao => {
