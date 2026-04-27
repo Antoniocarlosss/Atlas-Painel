@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v22-registros-busca';
+const CACHE_NAME = 'atlas-v23-responsivo-geral';
 const assets = [
   '/',
   '/index.html',
