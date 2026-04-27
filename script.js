@@ -4258,6 +4258,44 @@ function abrirAjustesUsuario() {
     `;
 }
 
+function alterarMinhaSenha() {
+    if (!usuarioLogado) return alert('Usuario nao encontrado.');
+
+    const senhaAtual = document.getElementById('senha-atual-ajustes')?.value.trim();
+    const novaSenha = document.getElementById('nova-senha-ajustes')?.value.trim();
+    const confirmarSenha = document.getElementById('confirmar-senha-ajustes')?.value.trim();
+
+    if (!senhaAtual || !novaSenha || !confirmarSenha) {
+        alert('Preencha a senha atual, a nova senha e a confirmacao.');
+        return;
+    }
+
+    const indice = usuariosSistema.findIndex(u => String(u.id).toLowerCase() === String(usuarioLogado.id).toLowerCase());
+    if (indice < 0) {
+        alert('Usuario nao encontrado na lista.');
+        return;
+    }
+
+    if (String(usuariosSistema[indice].senha) !== String(senhaAtual)) {
+        alert('Senha atual incorreta.');
+        return;
+    }
+
+    if (novaSenha !== confirmarSenha) {
+        alert('A nova senha e a confirmacao nao conferem.');
+        return;
+    }
+
+    usuariosSistema[indice].senha = novaSenha;
+    usuarioLogado = usuariosSistema[indice];
+    localStorage.setItem('atlas_usuarios', JSON.stringify(usuariosSistema));
+
+    document.getElementById('senha-atual-ajustes').value = '';
+    document.getElementById('nova-senha-ajustes').value = '';
+    document.getElementById('confirmar-senha-ajustes').value = '';
+    alert('Senha alterada com sucesso.');
+}
+
 function abrirAjustesBackup() {
     if (!alternarAbaAjustes(true)) return;
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v11-data-nascimento';
+const CACHE_NAME = 'atlas-v12-alterar-senha';
 const assets = [
   '/',
   '/index.html',
