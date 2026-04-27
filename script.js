@@ -6634,15 +6634,59 @@ document.addEventListener('click', function(evento) {
         `;
     }
 
+    function atlasDataRegistro(item) {
+        const texto = String(item?.dataHora || '');
+        const partes = texto.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if (!partes) {
+            const hoje = new Date();
+            return {
+                ano: String(hoje.getFullYear()),
+                mes: String(hoje.getMonth() + 1).padStart(2, '0'),
+                dia: String(hoje.getDate()).padStart(2, '0'),
+                data: hoje.toLocaleDateString('pt-BR')
+            };
+        }
+
+        return {
+            ano: partes[3],
+            mes: String(partes[2]).padStart(2, '0'),
+            dia: String(partes[1]).padStart(2, '0'),
+            data: `${String(partes[1]).padStart(2, '0')}/${String(partes[2]).padStart(2, '0')}/${partes[3]}`
+        };
+    }
+
+    function atlasAgruparRegistros(lista) {
+        return lista.reduce((acc, item) => {
+            const data = atlasDataRegistro(item);
+            const secao = item.modulo || 'Sistema';
+            acc[data.ano] ||= {};
+            acc[data.ano][data.mes] ||= {};
+            acc[data.ano][data.mes][data.dia] ||= { data: data.data, secoes: {} };
+            acc[data.ano][data.mes][data.dia].secoes[secao] ||= [];
+            acc[data.ano][data.mes][data.dia].secoes[secao].push(item);
+            return acc;
+        }, {});
+    }
+
+    function atlasMesNome(numero) {
+        const nomes = ["", "Janeiro", "Fevereiro", "Marco", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+        return nomes[Number(numero)] || numero;
+    }
+
+    function atlasRegistrosFiltrados(termo = '') {
+        const busca = String(termo || '').toLowerCase();
+        return (JSON.parse(localStorage.getItem(AUDITORIA_KEY)) || [])
+            .filter(item => !busca || JSON.stringify(item).toLowerCase().includes(busca));
+    }
+
     function renderizarAuditoriaAtlas() {
         const render = document.getElementById('render-modulo');
         if (!render) return;
-        const lista = JSON.parse(localStorage.getItem(AUDITORIA_KEY)) || [];
 
         render.innerHTML = `
             <div style="padding:15px; color:white;">
                 <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:14px; margin-bottom:15px;">
-                    <input id="auditoria-busca" oninput="renderizarAuditoriaFiltradaAtlas(this.value)" placeholder="Pesquisar por usuario, modulo ou acao"
+                    <input id="auditoria-busca" oninput="renderizarAuditoriaFiltradaAtlas(this.value)" placeholder="Pesquisar por usuario, secao, acao ou data"
                         style="width:100%; padding:14px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; font-size:16px;">
                 </div>
                 <div id="auditoria-lista"></div>
@@ -6654,30 +6698,143 @@ document.addEventListener('click', function(evento) {
     window.renderizarAuditoriaFiltradaAtlas = function(termo) {
         const alvo = document.getElementById('auditoria-lista');
         if (!alvo) return;
-        const busca = String(termo || '').toLowerCase();
-        const lista = (JSON.parse(localStorage.getItem(AUDITORIA_KEY)) || [])
-            .filter(item => JSON.stringify(item).toLowerCase().includes(busca))
-            .slice(0, 120);
+        const lista = atlasRegistrosFiltrados(termo);
+        const grupos = atlasAgruparRegistros(lista);
 
-        alvo.innerHTML = lista.length ? lista.map(item => `
-            <div style="background:#111827; border:1px solid #334155; border-radius:10px; padding:12px; margin-bottom:8px;">
-                <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
-                    <b>${atlasTextoAuditoria(item.acao)}</b>
-                    <span style="color:#94a3b8; font-size:12px;">${atlasTextoAuditoria(item.dataHora)}</span>
-                </div>
-                <div style="color:#cbd5e1; font-size:13px; margin-top:6px;">
-                    Usuario: <b>${atlasTextoAuditoria(item.usuario)}</b> | Modulo: <b>${atlasTextoAuditoria(item.modulo)}</b><br>
-                    ${atlasTextoAuditoria(item.detalhes)}
-                </div>
-            </div>
-        `).join('') : `<div style="text-align:center; color:#94a3b8; padding:30px;">Nenhum registro encontrado.</div>`;
+        if (!lista.length) {
+            alvo.innerHTML = `<div style="text-align:center; color:#94a3b8; padding:30px;">Nenhum registro encontrado.</div>`;
+            return;
+        }
+
+        let html = '';
+
+        Object.keys(grupos).sort((a, b) => b.localeCompare(a)).forEach(ano => {
+            html += `
+                <div style="margin-bottom:10px;">
+                    <div onclick="togglePlanoElemento('reg-ano-${ano}')" style="background:#1e293b; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer; border:1px solid #334155; display:flex; justify-content:space-between;">
+                        <span>ANO ${ano}</span><span>${Object.values(grupos[ano]).reduce((acc, meses) => acc + Object.keys(meses).length, 0)} dia(s)</span>
+                    </div>
+                    <div id="reg-ano-${ano}" style="display:none; padding-left:10px; margin-top:6px; border-left:2px solid #3b82f6;">
+            `;
+
+            Object.keys(grupos[ano]).sort((a, b) => Number(b) - Number(a)).forEach(mes => {
+                html += `
+                    <div onclick="togglePlanoElemento('reg-mes-${ano}-${mes}')" style="cursor:pointer; padding:10px; color:#60a5fa; background:#0f172a; margin-top:6px; border-radius:6px; font-weight:bold;">
+                        ${atlasMesNome(mes)}
+                    </div>
+                    <div id="reg-mes-${ano}-${mes}" style="display:none; padding-left:10px;">
+                `;
+
+                Object.keys(grupos[ano][mes]).sort((a, b) => Number(b) - Number(a)).forEach(dia => {
+                    const grupoDia = grupos[ano][mes][dia];
+                    const diaId = `reg-dia-${ano}-${mes}-${dia}`;
+                    const totalDia = Object.values(grupoDia.secoes).reduce((acc, itens) => acc + itens.length, 0);
+
+                    html += `
+                        <div style="background:#111827; border:1px solid #334155; border-radius:10px; margin-top:8px; overflow:hidden;">
+                            <div onclick="togglePlanoElemento('${diaId}')" style="cursor:pointer; padding:12px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">
+                                <b>DIA ${grupoDia.data}</b>
+                                <span style="color:#f59e0b; font-weight:bold;">${totalDia} modificacao(oes)</span>
+                            </div>
+                            <div style="padding:0 12px 12px;">
+                                <button onclick="gerarRelatorioRegistrosDiaAtlas('${ano}','${mes}','${dia}')" style="width:100%; background:#10b981; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold;">
+                                    RELATORIO DO DIA
+                                </button>
+                            </div>
+                            <div id="${diaId}" style="display:none; border-top:1px solid #334155;">
+                    `;
+
+                    Object.keys(grupoDia.secoes).sort().forEach(secao => {
+                        html += `
+                            <div style="padding:12px; border-bottom:1px solid #1f2937;">
+                                <div style="color:#60a5fa; font-weight:bold; margin-bottom:8px; text-transform:uppercase;">${atlasTextoAuditoria(secao)}</div>
+                                ${grupoDia.secoes[secao].map(item => `
+                                    <div style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:10px; margin-bottom:8px;">
+                                        <div style="display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap;">
+                                            <b>${atlasTextoAuditoria(item.acao)}</b>
+                                            <span style="color:#94a3b8; font-size:12px;">${atlasTextoAuditoria(item.dataHora)}</span>
+                                        </div>
+                                        <div style="color:#cbd5e1; font-size:13px; margin-top:5px;">
+                                            Usuario: <b>${atlasTextoAuditoria(item.usuario)}</b><br>
+                                            ${atlasTextoAuditoria(item.detalhes)}
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        `;
+                    });
+
+                    html += `</div></div>`;
+                });
+
+                html += `</div>`;
+            });
+
+            html += `</div></div>`;
+        });
+
+        alvo.innerHTML = html;
+    };
+
+    window.gerarRelatorioRegistrosDiaAtlas = function(ano, mes, dia) {
+        const dataAlvo = `${String(dia).padStart(2, '0')}/${String(mes).padStart(2, '0')}/${ano}`;
+        const lista = atlasRegistrosFiltrados(document.getElementById('auditoria-busca')?.value || '')
+            .filter(item => atlasDataRegistro(item).data === dataAlvo);
+
+        const grupos = lista.reduce((acc, item) => {
+            const secao = item.modulo || 'Sistema';
+            acc[secao] ||= [];
+            acc[secao].push(item);
+            return acc;
+        }, {});
+
+        const janela = window.open('', '_blank');
+        janela.document.write(`
+            <html>
+            <head>
+                <title>Registros ${dataAlvo}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; color:#111; padding:24px; }
+                    h1 { margin:0 0 4px; }
+                    h2 { margin-top:24px; border-bottom:2px solid #111; padding-bottom:6px; }
+                    table { width:100%; border-collapse:collapse; margin-top:10px; font-size:12px; }
+                    th, td { border:1px solid #333; padding:8px; text-align:left; vertical-align:top; }
+                    th { background:#eee; }
+                    .meta { color:#555; margin-bottom:18px; }
+                    @media print { button { display:none; } }
+                </style>
+            </head>
+            <body>
+                <button onclick="window.print()" style="padding:10px 14px; margin-bottom:16px;">IMPRIMIR / SALVAR PDF</button>
+                <h1>Registros do dia</h1>
+                <div class="meta">Data: ${atlasTextoAuditoria(dataAlvo)} | Total: ${lista.length} modificacao(oes)</div>
+                ${Object.keys(grupos).sort().map(secao => `
+                    <h2>${atlasTextoAuditoria(secao)}</h2>
+                    <table>
+                        <thead><tr><th>Hora</th><th>Usuario</th><th>Acao</th><th>Detalhes</th></tr></thead>
+                        <tbody>
+                            ${grupos[secao].map(item => `
+                                <tr>
+                                    <td>${atlasTextoAuditoria(item.dataHora)}</td>
+                                    <td>${atlasTextoAuditoria(item.usuario)}</td>
+                                    <td>${atlasTextoAuditoria(item.acao)}</td>
+                                    <td>${atlasTextoAuditoria(item.detalhes)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `).join('')}
+            </body>
+            </html>
+        `);
+        janela.document.close();
     };
 
     const aplicarPreferenciasOriginalLembretes = window.aplicarPreferenciasVisuaisUsuario;
     window.aplicarPreferenciasVisuaisUsuario = function() {
         if (typeof aplicarPreferenciasOriginalLembretes === 'function') aplicarPreferenciasOriginalLembretes();
         atlasGarantirModuloOperacional('lembretes', 'Lembretes', 'fas fa-bell', "abrirModulo('lembretes')");
-        atlasGarantirModuloOperacional('auditoria', 'Auditoria', 'fas fa-list-check', "abrirModulo('auditoria')");
+        atlasGarantirModuloOperacional('auditoria', 'Registros', 'fas fa-list-check', "abrirModulo('auditoria')");
 
         const cardLembretes = document.getElementById('card-lembretes-atlas');
         const cardAuditoria = document.getElementById('card-auditoria-atlas');
@@ -6697,10 +6854,10 @@ document.addEventListener('click', function(evento) {
         }
 
         if (nome === 'auditoria') {
-            if (!atlasPodeVerAdminSupervisor() || !usuarioPodeVerModulo('auditoria')) return alert('Sem permissao para ver auditoria.');
+            if (!atlasPodeVerAdminSupervisor() || !usuarioPodeVerModulo('auditoria')) return alert('Sem permissao para ver registros.');
             document.getElementById('grid-home').style.display = 'none';
             document.getElementById('conteudo-modulo').style.display = 'block';
-            document.getElementById('titulo-modulo').innerText = 'AUDITORIA';
+            document.getElementById('titulo-modulo').innerText = 'REGISTROS';
             renderizarAuditoriaAtlas();
             return;
         }
@@ -6859,7 +7016,7 @@ document.addEventListener('click', function(evento) {
 
     setTimeout(() => {
         atlasGarantirModuloOperacional('lembretes', 'Lembretes', 'fas fa-bell', "abrirModulo('lembretes')");
-        atlasGarantirModuloOperacional('auditoria', 'Auditoria', 'fas fa-list-check', "abrirModulo('auditoria')");
+        atlasGarantirModuloOperacional('auditoria', 'Registros', 'fas fa-list-check', "abrirModulo('auditoria')");
         if (typeof aplicarPreferenciasVisuaisUsuario === 'function') aplicarPreferenciasVisuaisUsuario();
     }, 500);
 })();
