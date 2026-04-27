@@ -7170,10 +7170,15 @@ function renderizarLixeiraAtlas() {
     }
 
     Object.keys(porSecao).sort().forEach(secao => {
+        const itensSecao = porSecao[secao];
         html += `
-            <div style="margin-bottom:18px;">
-                <h3 style="font-size:14px; color:#fca5a5; margin:0 0 8px 0; text-transform:uppercase;">${textoSeguroConferencia(secao)}</h3>
-                ${porSecao[secao].map(item => `
+            <details style="background:#111827; border:1px solid #334155; border-radius:12px; margin-bottom:12px; overflow:hidden;">
+                <summary style="cursor:pointer; padding:14px; display:flex; justify-content:space-between; align-items:center; gap:10px; background:#1e293b; list-style:none;">
+                    <span style="font-size:14px; color:#fca5a5; text-transform:uppercase; font-weight:bold;">${textoSeguroConferencia(secao)}</span>
+                    <span style="background:#7f1d1d; color:white; border-radius:999px; padding:4px 10px; font-size:12px; font-weight:bold;">${itensSecao.length} item(ns)</span>
+                </summary>
+                <div style="padding:12px;">
+                ${itensSecao.map(item => `
                     <div style="background:#111827; border:1px solid #334155; border-left:5px solid #ef4444; border-radius:10px; padding:12px; margin-bottom:10px;">
                         <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
                             <b>${textoSeguroConferencia(item.titulo)}</b>
@@ -7189,7 +7194,8 @@ function renderizarLixeiraAtlas() {
                         </div>
                     </div>
                 `).join('')}
-            </div>
+                </div>
+            </details>
         `;
     });
 

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v24-permissoes-mobile';
+const CACHE_NAME = 'atlas-v25-lixeira-secoes';
 const assets = [
   '/',
   '/index.html',
