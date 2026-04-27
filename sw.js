@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v17-lembretes-auditoria';
+const CACHE_NAME = 'atlas-v18-lembretes-plano-limpo';
 const assets = [
   '/',
   '/index.html',
