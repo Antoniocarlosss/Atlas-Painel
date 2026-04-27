@@ -157,10 +157,11 @@ function chaveAniversarioUsuarioAtlas(usuario) {
 }
 
 function statusAniversarioUsuarioAtlas(usuario) {
-    if (!usuario?.aniversario) return null;
+    const dataNascimento = usuario?.nascimento || usuario?.aniversario;
+    if (!dataNascimento) return null;
 
     const hoje = new Date();
-    const partes = String(usuario.aniversario).split('-');
+    const partes = String(dataNascimento).split('-');
     if (partes.length < 3) return null;
 
     const mes = Number(partes[1]);
@@ -2954,8 +2955,8 @@ function exibirCriarUsuario() {
         <div style="background:#111827; padding:20px; border-radius:12px; border:1px solid #334155;">
             <h3 style="color:white; margin-top:0; margin-bottom:15px;">Criar usuario</h3>
             <input type="text" id="novo-nome-usuario" placeholder="Nome do usuario" style="width:100%; margin-bottom:10px; padding:12px; background:#1e293b; color:white; border:1px solid #334155; border-radius:6px;">
-            <label style="display:block; color:#94a3b8; font-size:12px; margin-bottom:6px;">Data de aniversario</label>
-            <input type="date" id="novo-aniversario-usuario" style="width:100%; margin-bottom:10px; padding:12px; background:#1e293b; color:white; border:1px solid #334155; border-radius:6px;">
+            <label style="display:block; color:#94a3b8; font-size:12px; margin-bottom:6px;">Data de nascimento</label>
+            <input type="date" id="novo-aniversario-usuario" title="Coloque a data completa de nascimento, com dia, mes e ano" style="width:100%; margin-bottom:10px; padding:12px; background:#1e293b; color:white; border:1px solid #334155; border-radius:6px;">
             <input type="text" id="novo-id-usuario" placeholder="ID de entrada / login" style="width:100%; margin-bottom:10px; padding:12px; background:#1e293b; color:white; border:1px solid #334155; border-radius:6px;">
             <input type="password" id="nova-senha-usuario" placeholder="Senha" style="width:100%; margin-bottom:10px; padding:12px; background:#1e293b; color:white; border:1px solid #334155; border-radius:6px;">
             <select id="novo-cargo-usuario" style="width:100%; margin-bottom:15px; padding:12px; background:#1e293b; color:white; border:1px solid #334155; border-radius:6px;">
@@ -2975,7 +2976,7 @@ function criarUsuarioSistema() {
     const cargo = document.getElementById('novo-cargo-usuario')?.value;
 
     if (!nome || !aniversario || !id || !senha) {
-        alert("Preencha nome, data de aniversario, ID de entrada e senha.");
+        alert("Preencha nome, data de nascimento, ID de entrada e senha.");
         return;
     }
 
@@ -2985,7 +2986,7 @@ function criarUsuarioSistema() {
         return;
     }
 
-    usuariosSistema.push({ nome, aniversario, id, senha, cargo, bloqueado: false });
+    usuariosSistema.push({ nome, nascimento: aniversario, aniversario, id, senha, cargo, bloqueado: false });
     localStorage.setItem('atlas_usuarios', JSON.stringify(usuariosSistema));
     alert("Usuario criado com sucesso!");
     exibirCriarUsuario();
@@ -3008,7 +3009,7 @@ function listarUsuariosSistema() {
                         <div>
                             <div style="color:white; font-weight:bold;">${u.id.toUpperCase()}</div>
                             <div style="color:#94a3b8; font-size:12px;">Nome: ${textoSeguroPermissoes(u.nome || u.id)}</div>
-                            <div style="color:#94a3b8; font-size:12px;">Aniversario: ${u.aniversario ? formatarDataPlanoBR(u.aniversario) : '-'}</div>
+                            <div style="color:#94a3b8; font-size:12px;">Nascimento: ${(u.nascimento || u.aniversario) ? formatarDataPlanoBR(u.nascimento || u.aniversario) : '-'}</div>
                             <div style="color:#94a3b8; font-size:12px;">Cargo atual: ${u.cargo.toUpperCase()}</div>
                         </div>
                         <div style="color:#94a3b8; font-size:12px;">
