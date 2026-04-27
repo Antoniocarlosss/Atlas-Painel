@@ -34,7 +34,7 @@ function obterCargoUsuarioPorId(idUsuario) {
 function obterPreferenciasPadraoUsuario(idUsuario) {
     const cargo = obterCargoUsuarioPorId(idUsuario);
     const basicos = ['injecao', 'bobines', 'serra', 'embalagem', 'plano', 'config'];
-    const restritos = ['gestao', 'conferencia', 'stock', 'lixeira', 'pesquisa_encomenda'];
+    const restritos = ['gestao', 'conferencia', 'stock', 'lixeira', 'pesquisa_encomenda', 'lembretes', 'auditoria'];
     const modulosVisiveis = cargo === 'admin'
         ? [...basicos, ...restritos, 'permissoes']
         : (cargo === 'supervisor' ? [...basicos, ...restritos] : basicos);
@@ -106,9 +106,15 @@ function obterPreferenciasUsuario(idUsuario) {
     const excluiveisSalvos = Array.isArray(salvas.modulosExcluiveis) ? salvas.modulosExcluiveis : (Array.isArray(salvas.modulosEditaveis) ? [] : padrao.modulosExcluiveis);
     const ocultosUsuario = Array.isArray(salvas.modulosOcultosUsuario) ? salvas.modulosOcultosUsuario : [];
 
+    const modulosVisiveisCargo = cargo === 'admin'
+        ? [...modulosSalvos, 'permissoes', 'lembretes', 'auditoria']
+        : (cargo === 'supervisor' && salvas.permissoesAdminDefinidas !== true
+            ? [...modulosSalvos, 'lembretes', 'auditoria']
+            : modulosSalvos);
+
     return {
         tema: salvas.tema || 'escuro',
-        modulosVisiveis: [...new Set(cargo === 'admin' ? [...modulosSalvos, 'permissoes'] : modulosSalvos)],
+        modulosVisiveis: [...new Set(modulosVisiveisCargo)],
         modulosEditaveis: [...new Set(cargo === 'admin' ? [...editaveisSalvos, ...MODULOS_SISTEMA.map(m => m.chave)] : editaveisSalvos)],
         modulosExcluiveis: [...new Set(cargo === 'admin' ? [...excluiveisSalvos, ...MODULOS_SISTEMA.map(m => m.chave)] : excluiveisSalvos)],
         modulosOcultosUsuario: ocultosUsuario,
@@ -6466,6 +6472,382 @@ document.addEventListener('click', function(evento) {
 
         return janela;
     };
+})();
+
+/* ==========================================================
+   LEMBRETES, AUDITORIA, PESQUISA GERAL E VALIDACOES
+   ========================================================== */
+
+(function() {
+    if (window.atlasMelhoriasOperacionaisAtivas) return;
+    window.atlasMelhoriasOperacionaisAtivas = true;
+
+    const AUDITORIA_KEY = 'atlas_auditoria';
+
+    function atlasTextoAuditoria(valor) {
+        return String(valor ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function atlasPodeVerAdminSupervisor() {
+        return usuarioEhAdminSupervisor();
+    }
+
+    function atlasRegistrarAuditoria(acao, modulo, detalhes = '') {
+        try {
+            const lista = JSON.parse(localStorage.getItem(AUDITORIA_KEY)) || [];
+            lista.unshift({
+                id: Date.now(),
+                usuario: usuarioLogado?.id || document.getElementById('user-display')?.innerText || 'SISTEMA',
+                cargo: usuarioLogado?.cargo || '',
+                modulo,
+                acao,
+                detalhes,
+                dataHora: new Date().toLocaleString('pt-BR')
+            });
+            localStorage.setItem(AUDITORIA_KEY, JSON.stringify(lista.slice(0, 500)));
+        } catch (erro) {
+            console.warn('Nao foi possivel registrar auditoria.', erro);
+        }
+    }
+
+    window.atlasRegistrarAuditoria = atlasRegistrarAuditoria;
+
+    function atlasGarantirModuloOperacional(chave, nome, icone, onclick) {
+        if (!MODULOS_SISTEMA.some(m => m.chave === chave)) {
+            MODULOS_SISTEMA.push({ chave, nome });
+        }
+
+        const grid = document.getElementById('grid-home');
+        const id = `card-${chave}-atlas`;
+        if (!grid || document.getElementById(id)) return;
+
+        const card = document.createElement('div');
+        card.id = id;
+        card.className = 'card';
+        card.setAttribute('onclick', onclick || `abrirModulo('${chave}')`);
+        card.innerHTML = `<i class="${icone}"></i><span>${nome}</span>`;
+        grid.appendChild(card);
+    }
+
+    function atlasContarPor(lista, campo) {
+        return (lista || []).reduce((acc, item) => {
+            const chave = String(item?.[campo] || 'Sem informacao');
+            acc[chave] = (acc[chave] || 0) + Number(item.qtd || 1);
+            return acc;
+        }, {});
+    }
+
+    function atlasLembretesAutomaticos() {
+        const lembretes = [];
+        const bobinas = JSON.parse(localStorage.getItem('atlas_stock_bobinas')) || [];
+        const filmes = JSON.parse(localStorage.getItem('atlas_stock_filmes')) || [];
+        const conferencias = JSON.parse(localStorage.getItem('atlas_conferencia_serra')) || [];
+        const planoLive = JSON.parse(localStorage.getItem('atlas_plano_live')) || {};
+
+        Object.entries(atlasContarPor(bobinas.filter(b => b.status !== 'acabada'), 'fornecedor')).forEach(([fornecedor, qtd]) => {
+            if (qtd < 10) lembretes.push({ nivel: 'critico', titulo: `Bobinas baixas - ${fornecedor}`, detalhe: `${qtd} unidade(s) em stock/andamento.` });
+        });
+
+        Object.entries(atlasContarPor(filmes, 'tipo')).forEach(([tipo, qtd]) => {
+            if (qtd < 10) lembretes.push({ nivel: 'critico', titulo: `Filme baixo - ${tipo}`, detalhe: `${qtd} unidade(s) disponiveis.` });
+        });
+
+        conferencias
+            .filter(p => p.status === 'stand_by')
+            .slice(0, 20)
+            .forEach(p => {
+                const motivos = (p.unidades || [])
+                    .filter(u => u.status === 'nao_ok')
+                    .map(u => u.motivo)
+                    .filter(Boolean)
+                    .join(' + ');
+                lembretes.push({
+                    nivel: 'aviso',
+                    titulo: `Pedido ${p.pedidoNumero || 'S/N'} em stand by`,
+                    detalhe: motivos || 'Conferencia com problema pendente.'
+                });
+            });
+
+        if ((planoLive.linhasAbertas || []).length > 0) {
+            lembretes.push({
+                nivel: 'aviso',
+                titulo: 'Plano com linhas abertas',
+                detalhe: `${planoLive.linhasAbertas.length} linha(s) ainda nao finalizada(s).`
+            });
+        }
+
+        return lembretes;
+    }
+
+    function renderizarLembretesAtlas() {
+        const render = document.getElementById('render-modulo');
+        if (!render) return;
+
+        const lembretes = atlasLembretesAutomaticos();
+        const cor = nivel => nivel === 'critico' ? '#ef4444' : '#f59e0b';
+
+        render.innerHTML = `
+            <div style="padding:15px; color:white;">
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; margin-bottom:15px;">
+                    <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:14px;">
+                        <div style="color:#94a3b8; font-size:12px;">Lembretes ativos</div>
+                        <strong style="font-size:28px; color:${lembretes.length ? '#f59e0b' : '#10b981'};">${lembretes.length}</strong>
+                    </div>
+                    <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:14px;">
+                        <div style="color:#94a3b8; font-size:12px;">Criticos</div>
+                        <strong style="font-size:28px; color:#ef4444;">${lembretes.filter(l => l.nivel === 'critico').length}</strong>
+                    </div>
+                </div>
+                ${lembretes.length ? lembretes.map(l => `
+                    <div style="background:#111827; border:1px solid #334155; border-left:5px solid ${cor(l.nivel)}; border-radius:10px; padding:13px; margin-bottom:10px;">
+                        <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                            <b>${atlasTextoAuditoria(l.titulo)}</b>
+                            <span style="color:${cor(l.nivel)}; font-weight:bold; text-transform:uppercase;">${l.nivel}</span>
+                        </div>
+                        <div style="color:#cbd5e1; font-size:13px; margin-top:6px;">${atlasTextoAuditoria(l.detalhe)}</div>
+                    </div>
+                `).join('') : `
+                    <div style="background:#052e16; border:1px solid #10b981; border-radius:12px; padding:18px; text-align:center; color:#bbf7d0;">
+                        Nenhum lembrete importante agora.
+                    </div>
+                `}
+            </div>
+        `;
+    }
+
+    function renderizarAuditoriaAtlas() {
+        const render = document.getElementById('render-modulo');
+        if (!render) return;
+        const lista = JSON.parse(localStorage.getItem(AUDITORIA_KEY)) || [];
+
+        render.innerHTML = `
+            <div style="padding:15px; color:white;">
+                <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:14px; margin-bottom:15px;">
+                    <input id="auditoria-busca" oninput="renderizarAuditoriaFiltradaAtlas(this.value)" placeholder="Pesquisar por usuario, modulo ou acao"
+                        style="width:100%; padding:14px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; font-size:16px;">
+                </div>
+                <div id="auditoria-lista"></div>
+            </div>
+        `;
+        renderizarAuditoriaFiltradaAtlas('');
+    }
+
+    window.renderizarAuditoriaFiltradaAtlas = function(termo) {
+        const alvo = document.getElementById('auditoria-lista');
+        if (!alvo) return;
+        const busca = String(termo || '').toLowerCase();
+        const lista = (JSON.parse(localStorage.getItem(AUDITORIA_KEY)) || [])
+            .filter(item => JSON.stringify(item).toLowerCase().includes(busca))
+            .slice(0, 120);
+
+        alvo.innerHTML = lista.length ? lista.map(item => `
+            <div style="background:#111827; border:1px solid #334155; border-radius:10px; padding:12px; margin-bottom:8px;">
+                <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
+                    <b>${atlasTextoAuditoria(item.acao)}</b>
+                    <span style="color:#94a3b8; font-size:12px;">${atlasTextoAuditoria(item.dataHora)}</span>
+                </div>
+                <div style="color:#cbd5e1; font-size:13px; margin-top:6px;">
+                    Usuario: <b>${atlasTextoAuditoria(item.usuario)}</b> | Modulo: <b>${atlasTextoAuditoria(item.modulo)}</b><br>
+                    ${atlasTextoAuditoria(item.detalhes)}
+                </div>
+            </div>
+        `).join('') : `<div style="text-align:center; color:#94a3b8; padding:30px;">Nenhum registro encontrado.</div>`;
+    };
+
+    const aplicarPreferenciasOriginalLembretes = window.aplicarPreferenciasVisuaisUsuario;
+    window.aplicarPreferenciasVisuaisUsuario = function() {
+        if (typeof aplicarPreferenciasOriginalLembretes === 'function') aplicarPreferenciasOriginalLembretes();
+        atlasGarantirModuloOperacional('lembretes', 'Lembretes', 'fas fa-bell', "abrirModulo('lembretes')");
+        atlasGarantirModuloOperacional('auditoria', 'Auditoria', 'fas fa-list-check', "abrirModulo('auditoria')");
+
+        const cardLembretes = document.getElementById('card-lembretes-atlas');
+        const cardAuditoria = document.getElementById('card-auditoria-atlas');
+        if (cardLembretes) cardLembretes.style.display = atlasPodeVerAdminSupervisor() && usuarioPodeVerModulo('lembretes') ? '' : 'none';
+        if (cardAuditoria) cardAuditoria.style.display = atlasPodeVerAdminSupervisor() && usuarioPodeVerModulo('auditoria') ? '' : 'none';
+    };
+
+    const abrirModuloOriginalOperacional = window.abrirModulo;
+    window.abrirModulo = function(nome) {
+        if (nome === 'lembretes') {
+            if (!atlasPodeVerAdminSupervisor() || !usuarioPodeVerModulo('lembretes')) return alert('Sem permissao para ver lembretes.');
+            document.getElementById('grid-home').style.display = 'none';
+            document.getElementById('conteudo-modulo').style.display = 'block';
+            document.getElementById('titulo-modulo').innerText = 'LEMBRETES';
+            renderizarLembretesAtlas();
+            return;
+        }
+
+        if (nome === 'auditoria') {
+            if (!atlasPodeVerAdminSupervisor() || !usuarioPodeVerModulo('auditoria')) return alert('Sem permissao para ver auditoria.');
+            document.getElementById('grid-home').style.display = 'none';
+            document.getElementById('conteudo-modulo').style.display = 'block';
+            document.getElementById('titulo-modulo').innerText = 'AUDITORIA';
+            renderizarAuditoriaAtlas();
+            return;
+        }
+
+        abrirModuloOriginalOperacional(nome);
+    };
+
+    function atlasValidarItensBasicos(lista, modulo) {
+        const ruins = (lista || []).filter(item => {
+            if (modulo === 'bobines') {
+                if (item.tipo === 'filme') return !item.subtipo || !Number(item.qtd || 0);
+                return !item.numBobine || !item.ral;
+            }
+            if (modulo === 'injecao') return !item.nome || !item.esp || !Number(item.metros || 0);
+            return !item.tipo || !item.esp || !Number(item.metros || 0) || !item.ralI || !item.ralS;
+        });
+        return ruins.length === 0;
+    }
+
+    function atlasConfirmarValidacao(lista, modulo) {
+        if (atlasValidarItensBasicos(lista, modulo)) return true;
+        return confirm('Existem itens com informacoes incompletas. Deseja finalizar mesmo assim?');
+    }
+
+    const finalizarTurnoOriginalLembretes = window.finalizarTurno;
+    if (typeof finalizarTurnoOriginalLembretes === 'function') {
+        window.finalizarTurno = function(modulo) {
+            if (!atlasConfirmarValidacao(window.producoesDoDia || producoesDoDia || [], 'injecao')) return;
+            atlasRegistrarAuditoria('Finalizou relatorio', 'injecao', `Modulo: ${modulo}`);
+            return finalizarTurnoOriginalLembretes.apply(this, arguments);
+        };
+    }
+
+    const fecharDiaBobinesOriginalLembretes = window.fecharDia;
+    if (typeof fecharDiaBobinesOriginalLembretes === 'function') {
+        window.fecharDia = function() {
+            if (!atlasConfirmarValidacao(window.lancamentosTemporarios || lancamentosTemporarios || [], 'bobines')) return;
+            atlasRegistrarAuditoria('Finalizou relatorio', 'bobines', 'Fechou dia de bobines');
+            return fecharDiaBobinesOriginalLembretes.apply(this, arguments);
+        };
+    }
+
+    const fecharDiaSerraOriginalLembretes = window.fecharDiaSerra;
+    if (typeof fecharDiaSerraOriginalLembretes === 'function') {
+        window.fecharDiaSerra = function() {
+            if (!atlasConfirmarValidacao(window.db_serra_live || db_serra_live || [], 'serra')) return;
+            atlasRegistrarAuditoria('Finalizou relatorio', 'serra', 'Fechou dia da serra');
+            return fecharDiaSerraOriginalLembretes.apply(this, arguments);
+        };
+    }
+
+    const fecharDiaEmbalagemOriginalLembretes = window.fecharDiaEmbalagem;
+    if (typeof fecharDiaEmbalagemOriginalLembretes === 'function') {
+        window.fecharDiaEmbalagem = function() {
+            if (!atlasConfirmarValidacao(window.db_emb_live || db_emb_live || [], 'embalagem')) return;
+            atlasRegistrarAuditoria('Finalizou relatorio', 'embalagem', 'Fechou dia da embalagem');
+            return fecharDiaEmbalagemOriginalLembretes.apply(this, arguments);
+        };
+    }
+
+    const salvarPermissoesAdminOriginalAuditoria = window.salvarPermissoesAdmin;
+    if (typeof salvarPermissoesAdminOriginalAuditoria === 'function') {
+        window.salvarPermissoesAdmin = function(idUsuario) {
+            const retorno = salvarPermissoesAdminOriginalAuditoria.apply(this, arguments);
+            atlasRegistrarAuditoria('Alterou permissoes', 'permissoes', `Usuario: ${idUsuario}`);
+            return retorno;
+        };
+    }
+
+    function atlasBuscaGeral(termo) {
+        const busca = String(termo || '').toLowerCase();
+        const resultados = [];
+        const inclui = valor => String(valor ?? '').toLowerCase().includes(busca);
+        const add = (modulo, titulo, detalhe) => resultados.push({ modulo, titulo, detalhe });
+
+        (JSON.parse(localStorage.getItem('atlas_plano_hist')) || []).forEach(rel => {
+            (rel.itens || []).forEach(item => {
+                if ([item.pedidoNumero, item.destino, item.tipo, item.ralInferior, item.ralSuperior].some(inclui)) {
+                    add('Plano', `Pedido ${item.pedidoNumero || 'S/N'} - ${item.destino || ''}`, `${rel.data || ''} | ${item.tipo || ''} | ${item.totalMetros || 0} m`);
+                }
+            });
+        });
+
+        (JSON.parse(localStorage.getItem('atlas_serra_hist')) || []).forEach(rel => {
+            (rel.itens || []).forEach(item => {
+                if ([item.desc, item.tipo, item.ralI, item.ralS].some(inclui)) {
+                    add('Serra', item.desc || 'Item da Serra', `${rel.data || ''} | ${item.tipo || ''} | ${item.metros || 0} m`);
+                }
+            });
+        });
+
+        (JSON.parse(localStorage.getItem('atlas_emb_hist')) || []).forEach(rel => {
+            (rel.itens || []).forEach(item => {
+                if ([item.desc, item.tipo, item.ralI, item.ralS].some(inclui)) {
+                    add('Embalagem', item.desc || 'Item da Embalagem', `${rel.data || ''} | ${item.tipo || ''} | ${item.metros || 0} m`);
+                }
+            });
+        });
+
+        (JSON.parse(localStorage.getItem('historicoBobines')) || []).forEach(rel => {
+            (rel.itens || []).forEach(item => {
+                if ([item.numBobine, item.ral, item.subtipo, item.status, item.tipo].some(inclui)) {
+                    add('Bobines', item.numBobine || item.subtipo || 'Lancamento', `${rel.data || ''} | ${item.tipo || ''} | ${item.status || ''}`);
+                }
+            });
+        });
+
+        (JSON.parse(localStorage.getItem('atlas_stock_bobinas')) || []).forEach(item => {
+            if ([item.numero, item.ral, item.espessura, item.fornecedor, item.medida, item.status].some(inclui)) {
+                add('Stock Bobinas', `Bobina ${item.numero || ''}`, `${item.fornecedor || ''} | RAL ${item.ral || ''} | ${item.status || ''}`);
+            }
+        });
+
+        (JSON.parse(localStorage.getItem('atlas_stock_filmes')) || []).forEach(item => {
+            if ([item.tipo, item.fornecedor].some(inclui)) {
+                add('Stock Filmes', item.tipo || 'Filme', `${item.fornecedor || ''} | ${item.qtd || 0} un.`);
+            }
+        });
+
+        (JSON.parse(localStorage.getItem('atlas_conferencia_serra')) || []).forEach(item => {
+            if ([item.pedidoNumero, item.status, item.finalizadoPor].some(inclui)) {
+                add('Conferencia', `Pedido ${item.pedidoNumero || 'S/N'}`, `${item.status || 'aberto'} | ${item.data || ''}`);
+            }
+        });
+
+        return resultados.slice(0, 80);
+    }
+
+    window.pesquisarEncomendaAtlas = function() {
+        const input = document.getElementById('pesquisa-encomenda-input');
+        const resultado = document.getElementById('resultado-pesquisa-encomenda');
+        if (!input || !resultado) return;
+
+        const termo = input.value.trim();
+        if (!termo) return alert('Digite o que deseja pesquisar.');
+
+        const resultados = atlasBuscaGeral(termo);
+        resultado.innerHTML = resultados.length ? `
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                ${resultados.map(r => `
+                    <div style="background:#111827; border:1px solid #334155; border-radius:10px; padding:12px;">
+                        <div style="display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap;">
+                            <b>${atlasTextoAuditoria(r.titulo)}</b>
+                            <span style="color:#60a5fa; font-weight:bold;">${atlasTextoAuditoria(r.modulo)}</span>
+                        </div>
+                        <div style="color:#cbd5e1; font-size:13px; margin-top:6px;">${atlasTextoAuditoria(r.detalhe)}</div>
+                    </div>
+                `).join('')}
+            </div>
+        ` : `
+            <div style="background:#111827; border:1px solid #334155; border-radius:12px; padding:20px; text-align:center; color:#94a3b8;">
+                Nenhum resultado encontrado.
+            </div>
+        `;
+    };
+
+    setTimeout(() => {
+        atlasGarantirModuloOperacional('lembretes', 'Lembretes', 'fas fa-bell', "abrirModulo('lembretes')");
+        atlasGarantirModuloOperacional('auditoria', 'Auditoria', 'fas fa-list-check', "abrirModulo('auditoria')");
+        if (typeof aplicarPreferenciasVisuaisUsuario === 'function') aplicarPreferenciasVisuaisUsuario();
+    }, 500);
 })();
 
 /* ==========================================================

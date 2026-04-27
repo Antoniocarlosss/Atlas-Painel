@@ -60,6 +60,9 @@ function atlasRegistrarEdicao(rel, acao) {
     rel.historicoEdicoes.push(registro);
     rel.editadoPor = registro.usuario;
     rel.editadoEm = registro.dataHora;
+    if (typeof window.atlasRegistrarAuditoria === 'function') {
+        window.atlasRegistrarAuditoria('Editou historico', 'historicos', registro.acao);
+    }
 }
 
 function atlasInfoEdicao(rel) {

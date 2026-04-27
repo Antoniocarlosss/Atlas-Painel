@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v16-historico-permissao';
+const CACHE_NAME = 'atlas-v17-lembretes-auditoria';
 const assets = [
   '/',
   '/index.html',
