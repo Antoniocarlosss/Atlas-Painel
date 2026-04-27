@@ -3254,6 +3254,29 @@ function criarEstruturaPlanoSeNecessario() {
         salvarPlanoLive();
     }
 }
+function criarNovoPlanoLimpo(modo) {
+    const totalExistente = calcularTotalPlano(db_plano_live);
+    if (db_plano_live && totalExistente > 0) {
+        const confirmar = confirm('Existe um plano em andamento salvo. Deseja iniciar um plano novo e limpar o anterior?');
+        if (!confirmar) return;
+    }
+
+    db_plano_live = {
+        id: Date.now(),
+        dataISO: document.getElementById('plano-data')?.value || new Date().toISOString().slice(0, 10),
+        operador: document.getElementById('user-display')?.innerText || 'SEM USUARIO',
+        linhasAbertas: [],
+        gruposFinalizados: [],
+        modoAtual: modo || 'pedido',
+        pedidoAtual: null
+    };
+    salvarPlanoLive();
+    abrirFormularioPlano(modo || 'pedido');
+}
+function retomarPlanoEmAndamento() {
+    if (!db_plano_live) return alert('Nao existe plano em andamento.');
+    abrirFormularioPlano(db_plano_live.modoAtual || 'pedido');
+}
 function exibirMenuCriacaoPlano() {
     if (!usuarioPodeCriarPlano()) return alert('Sem permissao para criar plano.');
     if (!alternarAbaPlano(true)) return;
@@ -3269,10 +3292,10 @@ function exibirMenuCriacaoPlano() {
             <input type="date" id="plano-data" value="${dataAtual}" style="background:#0f172a; color:white; border:1px solid #3b82f6; padding:10px; border-radius:4px; width:100%; margin-top:8px;">
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
-            <div class="card" onclick="abrirFormularioPlano('pedido')" style="cursor:pointer; background:#111827; border-radius:10px; padding:25px 15px; text-align:center; border:1px solid #334155;">
+            <div class="card" onclick="criarNovoPlanoLimpo('pedido')" style="cursor:pointer; background:#111827; border-radius:10px; padding:25px 15px; text-align:center; border:1px solid #334155;">
                 <i class="fas fa-file-signature" style="color:#10b981; font-size:2.2rem; margin-bottom:12px;"></i><span style="display:block; color:white; font-weight:bold; font-size:13px; text-transform:uppercase;">Pedidos</span>
             </div>
-            <div class="card" onclick="abrirFormularioPlano('stock')" style="cursor:pointer; background:#111827; border-radius:10px; padding:25px 15px; text-align:center; border:1px solid #334155;">
+            <div class="card" onclick="criarNovoPlanoLimpo('stock')" style="cursor:pointer; background:#111827; border-radius:10px; padding:25px 15px; text-align:center; border:1px solid #334155;">
                 <i class="fas fa-boxes-stacked" style="color:#f59e0b; font-size:2.2rem; margin-bottom:12px;"></i><span style="display:block; color:white; font-weight:bold; font-size:13px; text-transform:uppercase;">Stock</span>
             </div>
         </div>
