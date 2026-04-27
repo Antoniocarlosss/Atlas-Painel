@@ -90,14 +90,14 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="script.js?v=20260427-injecao-editar-responsivo"></script>
-    <script src="historicos-admin.js?v=20260427-injecao-editar-responsivo"></script>
-    <script src="atlas-ajustes-fachadas.js?v=20260427-injecao-editar-responsivo"></script>
-    <script type="module" src="firebase-atlas.js?v=20260427-injecao-editar-responsivo"></script>
+    <script src="script.js?v=20260427-admin-protegido"></script>
+    <script src="historicos-admin.js?v=20260427-admin-protegido"></script>
+    <script src="atlas-ajustes-fachadas.js?v=20260427-admin-protegido"></script>
+    <script type="module" src="firebase-atlas.js?v=20260427-admin-protegido"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=20260427-injecao-editar-responsivo')
+                navigator.serviceWorker.register('sw.js?v=20260427-admin-protegido')
                     .then(reg => console.log('Atlas PWA: Ativo!'))
                     .catch(err => console.log('Erro PWA:', err));
             });
