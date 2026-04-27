@@ -298,6 +298,19 @@ let producoesDoDia = []; // Deve ficar no topo do script
             </select>
 
             <label style="font-size:11px; color:#3b82f6; font-weight:bold;">PARÂMETROS DA MÁQUINA</label>
+            <label style="font-size:12px; color:#94a3b8;">FITA (OPCIONAL)</label>
+            <select id="inj-fita" style="width:100%; padding:12px; background:#020617; color:white; border:1px solid #334155; border-radius:8px; margin-bottom:15px;">
+                ${opcoesFitaInjecaoHTML()}
+            </select>
+
+            <div style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:12px; margin-bottom:15px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px;">
+                    <label style="font-size:12px; color:#94a3b8;">DENSIDADE (OPCIONAL)</label>
+                    <button type="button" onclick="adicionarLinhaDensidadeInjecao()" style="background:#3b82f6; color:white; border:none; border-radius:6px; padding:7px 12px; font-weight:bold;">+</button>
+                </div>
+                <div id="container-densidade-injecao"></div>
+            </div>
+
             <div class="grid-quimicos">
                 <input type="number" id="q-pol" placeholder="POL kg">
                 <input type="number" id="q-mdi" placeholder="MDI kg">
@@ -323,6 +336,7 @@ let producoesDoDia = []; // Deve ficar no topo do script
             <button id="btn-finalizar" onclick="finalizarTurno('${modulo}')" class="btn-primary btn-finish-dia" style="display:none;">SALVAR RELATÓRIO DO DIA</button>
         </div>`;
     atualizarEspumaInjecaoPadrao();
+    adicionarLinhaDensidadeInjecao();
 }
 
 function atualizarEspumaInjecaoPadrao() {
@@ -331,10 +345,49 @@ function atualizarEspumaInjecaoPadrao() {
     if (espuma && !espuma.value) espuma.value = espumaPadraoInjecao(painel);
 }
 
+function adicionarLinhaDensidadeInjecao(valor = '', horario = '', containerId = 'container-densidade-injecao') {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    const div = document.createElement('div');
+    div.className = 'linha-densidade-injecao';
+    div.style = 'display:grid; grid-template-columns:1fr 1fr 38px; gap:8px; margin-bottom:8px;';
+    div.innerHTML = `
+        <select class="densidade-valor" style="width:100%; padding:10px; background:#020617; color:white; border:1px solid #334155; border-radius:8px;">
+            ${opcoesDensidadeInjecaoHTML(valor)}
+        </select>
+        <input class="densidade-horario" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="Hora ex: 1430" value="${horario || ''}" style="width:100%; padding:10px; background:#020617; color:white; border:1px solid #334155; border-radius:8px;">
+        <button type="button" onclick="this.parentElement.remove()" style="background:#ef4444; color:white; border:none; border-radius:8px; font-weight:bold;">X</button>
+    `;
+    container.appendChild(div);
+}
+
+function coletarDensidadesInjecao(containerId = 'container-densidade-injecao') {
+    const container = document.getElementById(containerId);
+    if (!container) return [];
+
+    return Array.from(container.querySelectorAll('.linha-densidade-injecao'))
+        .map(linha => ({
+            valor: linha.querySelector('.densidade-valor')?.value || '',
+            horario: linha.querySelector('.densidade-horario')?.value || ''
+        }))
+        .filter(item => item.valor || item.horario);
+}
+
+function textoDensidadesInjecao(densidades) {
+    const lista = Array.isArray(densidades) ? densidades : [];
+    return lista
+        .filter(item => item && (item.valor || item.horario))
+        .map(item => `${item.valor || '-'}${item.horario ? ` - ${item.horario}` : ''}`)
+        .join(' | ');
+}
+
 function salvarNaLista() {
     const painel = document.getElementById('inj-painel').value;
     const esp = document.getElementById('inj-esp').value;
     const espuma = document.getElementById('inj-espuma')?.value || espumaPadraoInjecao(painel);
+    const fita = document.getElementById('inj-fita')?.value || '';
+    const densidades = coletarDensidadesInjecao();
     const metros = document.getElementById('prod-metros').value;
 
     if(!metros) return alert("Por favor, insira a quantidade de metros!");
@@ -344,6 +397,8 @@ function salvarNaLista() {
         nome: painel,
         esp: esp,
         espuma,
+        fita,
+        densidades,
         metros: metros,
         pol: document.getElementById('q-pol').value || 0,
         mdi: document.getElementById('q-mdi').value || 0,
@@ -370,7 +425,8 @@ function atualizarListaVisual() {
         
             <div style="padding:10px; border-bottom:1px solid #334155; background:#1e293b; margin-bottom:5px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
                 <div style="font-size:12px; color:white;">
-                    <b>${item.nome} (${item.esp}mm)</b>${item.espuma ? ` <small style="color:#fbbf24;">| Espuma: ${item.espuma}</small>` : ''}<br>
+                    <b>${item.nome} (${item.esp}mm)</b>${item.espuma ? ` <small style="color:#fbbf24;">| Espuma: ${item.espuma}</small>` : ''}${item.fita ? ` <small style="color:#22c55e;">| Fita: ${item.fita}</small>` : ''}<br>
+                    ${textoDensidadesInjecao(item.densidades) ? `<small style="color:#38bdf8;">Densidade: ${textoDensidadesInjecao(item.densidades)}</small><br>` : ''}
                     <span>Mts: ${item.metros} | Vel: ${item.vel}</span>
                 </div>
                 <div style="display:flex; gap:5px;">
@@ -421,6 +477,19 @@ function editarTudo(id) {
             <select id="inj-espuma-edit" style="width:100%; padding:12px; background:#020617; color:white; border:1px solid #334155; border-radius:8px; margin-bottom:15px;">
                 ${opcoesEspumaInjecaoHTML(item.espuma || espumaPadraoInjecao(item.nome))}
             </select>
+
+            <label style="font-size:12px; color:#94a3b8;">FITA (OPCIONAL)</label>
+            <select id="inj-fita-edit" style="width:100%; padding:12px; background:#020617; color:white; border:1px solid #334155; border-radius:8px; margin-bottom:15px;">
+                ${opcoesFitaInjecaoHTML(item.fita || '')}
+            </select>
+
+            <div style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:12px; margin-bottom:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px;">
+                    <label style="font-size:12px; color:#94a3b8;">DENSIDADE (OPCIONAL)</label>
+                    <button type="button" onclick="adicionarLinhaDensidadeInjecao('', '', 'container-densidade-injecao-edit')" style="background:#3b82f6; color:white; border:none; border-radius:6px; padding:7px 12px; font-weight:bold;">+</button>
+                </div>
+                <div id="container-densidade-injecao-edit"></div>
+            </div>
 
              <label style="font-size:12px; color:#94a3b8; font-weight:bold;">Velocidade Da Linha</label>
             <select id="q-vel">
@@ -476,6 +545,9 @@ function editarTudo(id) {
     if (item.paragens && item.paragens.length > 0) {
         item.paragens.forEach(p => adicionarLinhaParagem(p.motivo, p.tempo));
     }
+    if (Array.isArray(item.densidades) && item.densidades.length > 0) {
+        item.densidades.forEach(d => adicionarLinhaDensidadeInjecao(d.valor, d.horario, 'container-densidade-injecao-edit'));
+    }
     document.getElementById('modal-edicao').style.display = 'flex';
 }
 
@@ -487,6 +559,8 @@ function salvarEdicaoModal() {
         item.metros = document.getElementById('edit-metros').value;
         item.nome = document.getElementById('inj-painel-edit')?.value || item.nome;
         item.espuma = document.getElementById('inj-espuma-edit')?.value || '';
+        item.fita = document.getElementById('inj-fita-edit')?.value || '';
+        item.densidades = coletarDensidadesInjecao('container-densidade-injecao-edit');
         const motivos = document.querySelectorAll('.paragem-motivo');
         const tempos = document.querySelectorAll('.paragem-tempo');
         item.paragens = [];
@@ -590,7 +664,8 @@ function exibirHistoricoModulo(modulo) {
                             <div id="${relId}" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid #334155; font-size:12px; color:#cbd5e1;">
                                 ${rel.itens.map(item => `
                                     <div style="margin-bottom:8px;">
-                                        <b style="color:#10b981;">${item.nome} (${item.esp}mm)</b>: ${item.metros}m | Vel: ${item.vel}m/min ${item.espuma ? '| Espuma: ' + item.espuma : ''}
+                                        <b style="color:#10b981;">${item.nome} (${item.esp}mm)</b>: ${item.metros}m | Vel: ${item.vel}m/min ${item.espuma ? '| Espuma: ' + item.espuma : ''} ${item.fita ? '| Fita: ' + item.fita : ''}
+                                        ${textoDensidadesInjecao(item.densidades) ? `<div style="font-size:10px; color:#38bdf8;">Densidade: ${textoDensidadesInjecao(item.densidades)}</div>` : ''}
                                         <div style="font-size:10px; color:#94a3b8;">P:${item.pol} M:${item.mdi} Pen:${item.pen} | C1:${item.cat1} C2:${item.cat2}</div>
                                     </div>
                                 `).join('')}
@@ -630,6 +705,8 @@ function gerarPDF_Injecao_Final(dadosEncoded) {
                 <td style="border: 1px solid #000; padding: 8px; font-size: 14px;">${item.nome}</td>
                 <td style="border: 1px solid #000; padding: 8px; text-align:center; font-size: 14px;">${item.esp}mm</td>
                 <td style="border: 1px solid #000; padding: 8px; text-align:center; font-size: 14px;">${item.espuma || '-'}</td>
+                <td style="border: 1px solid #000; padding: 8px; text-align:center; font-size: 14px;">${item.fita || '-'}</td>
+                <td style="border: 1px solid #000; padding: 8px; text-align:center; font-size: 12px;">${textoDensidadesInjecao(item.densidades) || '-'}</td>
                 <td style="border: 1px solid #000; padding: 8px; text-align:center; font-size: 14px; font-weight:bold;">${metrosNum.toFixed(2)}m</td>
                 <td style="border: 1px solid #000; padding: 8px; text-align:center; font-size: 14px;">${item.vel}</td>
                 <td style="border: 1px solid #000; padding: 8px; text-align:center; font-size: 14px;">${item.pol}</td>
@@ -645,7 +722,7 @@ function gerarPDF_Injecao_Final(dadosEncoded) {
             let pTexto = item.paragens.map(p => `• ${p.motivo} (${p.tempo}min)`).join("  |  ");
             tabelaItens += `
                 <tr>
-                    <td colspan="11" style="border: 1px solid #000; padding: 8px; font-size: 12px; background: #f2f2f2;">
+                    <td colspan="14" style="border: 1px solid #000; padding: 8px; font-size: 12px; background: #f2f2f2;">
                         <b>PARAGENS:</b> ${pTexto}
                     </td>
                 </tr>`;
@@ -687,7 +764,7 @@ function gerarPDF_Injecao_Final(dadosEncoded) {
                 /* TABELA QUE OCUPA A TELA TODA E PERMITE SCROLL SE PRECISAR */
                 .main-content { padding: 10px; width: 100%; }
                 .table-container { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-                table { width: 100%; border-collapse: collapse; min-width: 800px; } 
+                table { width: 100%; border-collapse: collapse; min-width: 1100px; } 
                 
                 th { background: #e2e8f0; border: 1px solid #000; padding: 10px; font-size: 14px; color: #000; }
                 td { border: 1px solid #000; padding: 8px; color: #000; }
@@ -733,7 +810,7 @@ function gerarPDF_Injecao_Final(dadosEncoded) {
                     <table>
                         <thead>
                             <tr>
-                                <th>PRODUTO</th><th>ESP.</th><th>ESPUMA</th><th>METROS</th><th>VEL.</th><th>POL</th><th>MDI</th><th>PEN</th><th>C1</th><th>C2</th><th>C3</th><th>C4</th>
+                                <th>PRODUTO</th><th>ESP.</th><th>ESPUMA</th><th>FITA</th><th>DENSIDADE / HORA</th><th>METROS</th><th>VEL.</th><th>POL</th><th>MDI</th><th>PEN</th><th>C1</th><th>C2</th><th>C3</th><th>C4</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -2780,6 +2857,8 @@ var OPCOES_ESP_CHAPA = atlasListaConfig('atlas_config_esp_chapa', ["0,28", "0,30
     .map(v => String(v).replace('.', ','));
 atlasSalvarListaConfig('atlas_config_esp_chapa', OPCOES_ESP_CHAPA);
 var OPCOES_ESPUMA_INJECAO = atlasListaConfig('atlas_config_espuma_injecao', ["30 mm", "35 mm", "40 mm", "50 mm", "65 mm ADH"]);
+var OPCOES_FITA_INJECAO = atlasListaConfig('atlas_config_fita_injecao', ["30 mm", "35 mm", "40 mm", "50 mm", "65 mm ADH"]);
+var OPCOES_DENSIDADE_INJECAO = atlasListaConfig('atlas_config_densidade_injecao', ["32", "33", "38"]);
 var OPCOES_MEDIDAS_CHAPA_STOCK = atlasListaConfig('atlas_config_medidas_chapa_stock', ["1265", "1060", "1163", "1065"]);
 var OPCOES_FORNECEDORES_STOCK = atlasListaConfig('atlas_config_fornecedores_stock', ["Fornecedor X", "Fornecedor Y"]);
 window.OPCOES_TIPO_PLANO = OPCOES_TIPO_PLANO;
@@ -2787,6 +2866,8 @@ window.OPCOES_RAL_SUP = OPCOES_RAL_SUP;
 window.OPCOES_RAL_INF = OPCOES_RAL_INF;
 window.OPCOES_ESP_CHAPA = OPCOES_ESP_CHAPA;
 window.OPCOES_ESPUMA_INJECAO = OPCOES_ESPUMA_INJECAO;
+window.OPCOES_FITA_INJECAO = OPCOES_FITA_INJECAO;
+window.OPCOES_DENSIDADE_INJECAO = OPCOES_DENSIDADE_INJECAO;
 window.OPCOES_MEDIDAS_CHAPA_STOCK = OPCOES_MEDIDAS_CHAPA_STOCK;
 window.OPCOES_FORNECEDORES_STOCK = OPCOES_FORNECEDORES_STOCK;
 var OPCOES_QUALIDADE = ["P1", "P2", "Descarte"];
@@ -2799,6 +2880,18 @@ function opcoesTipoPainelHTML(selecionado = '') {
 function opcoesEspumaInjecaoHTML(selecionado = '') {
     return [`<option value="">Espuma opcional</option>`]
         .concat((OPCOES_ESPUMA_INJECAO || []).map(v => `<option value="${v}" ${String(selecionado) === String(v) ? 'selected' : ''}>${v}</option>`))
+        .join('');
+}
+
+function opcoesFitaInjecaoHTML(selecionado = '') {
+    return [`<option value="">Fita opcional</option>`]
+        .concat((OPCOES_FITA_INJECAO || []).map(v => `<option value="${v}" ${String(selecionado) === String(v) ? 'selected' : ''}>${v}</option>`))
+        .join('');
+}
+
+function opcoesDensidadeInjecaoHTML(selecionado = '') {
+    return [`<option value="">Densidade</option>`]
+        .concat((OPCOES_DENSIDADE_INJECAO || []).map(v => `<option value="${v}" ${String(selecionado) === String(v) ? 'selected' : ''}>${v}</option>`))
         .join('');
 }
 
@@ -3957,6 +4050,8 @@ function abrirAjustesSistema() {
             ${htmlEditorListaSistema('RAL superior', 'atlas_config_ral_superior', OPCOES_RAL_SUP, 'OPCOES_RAL_SUP')}
             ${htmlEditorListaSistema('Espessura de chapa opcional', 'atlas_config_esp_chapa', OPCOES_ESP_CHAPA, 'OPCOES_ESP_CHAPA')}
             ${htmlEditorListaSistema('Espessura da espuma - Injeção', 'atlas_config_espuma_injecao', OPCOES_ESPUMA_INJECAO, 'OPCOES_ESPUMA_INJECAO')}
+            ${htmlEditorListaSistema('Fita - InjeÃ§Ã£o', 'atlas_config_fita_injecao', OPCOES_FITA_INJECAO, 'OPCOES_FITA_INJECAO')}
+            ${htmlEditorListaSistema('Densidade - InjeÃ§Ã£o', 'atlas_config_densidade_injecao', OPCOES_DENSIDADE_INJECAO, 'OPCOES_DENSIDADE_INJECAO')}
             ${htmlEditorListaSistema('Medidas de chapa - Stock', 'atlas_config_medidas_chapa_stock', OPCOES_MEDIDAS_CHAPA_STOCK, 'OPCOES_MEDIDAS_CHAPA_STOCK')}
             ${htmlEditorListaSistema('Fornecedores - Stock', 'atlas_config_fornecedores_stock', OPCOES_FORNECEDORES_STOCK, 'OPCOES_FORNECEDORES_STOCK')}
         </div>
@@ -4006,6 +4101,14 @@ function atualizarVariavelListaSistema(variavel, lista) {
         OPCOES_ESPUMA_INJECAO = lista;
         window.OPCOES_ESPUMA_INJECAO = lista;
     }
+    if (variavel === 'OPCOES_FITA_INJECAO') {
+        OPCOES_FITA_INJECAO = lista;
+        window.OPCOES_FITA_INJECAO = lista;
+    }
+    if (variavel === 'OPCOES_DENSIDADE_INJECAO') {
+        OPCOES_DENSIDADE_INJECAO = lista;
+        window.OPCOES_DENSIDADE_INJECAO = lista;
+    }
     if (variavel === 'OPCOES_MEDIDAS_CHAPA_STOCK') {
         OPCOES_MEDIDAS_CHAPA_STOCK = lista;
         window.OPCOES_MEDIDAS_CHAPA_STOCK = lista;
@@ -4023,6 +4126,8 @@ function obterVariavelListaSistema(variavel) {
     if (variavel === 'OPCOES_RAL_SUP') return OPCOES_RAL_SUP;
     if (variavel === 'OPCOES_ESP_CHAPA') return OPCOES_ESP_CHAPA;
     if (variavel === 'OPCOES_ESPUMA_INJECAO') return OPCOES_ESPUMA_INJECAO;
+    if (variavel === 'OPCOES_FITA_INJECAO') return OPCOES_FITA_INJECAO;
+    if (variavel === 'OPCOES_DENSIDADE_INJECAO') return OPCOES_DENSIDADE_INJECAO;
     if (variavel === 'OPCOES_MEDIDAS_CHAPA_STOCK') return OPCOES_MEDIDAS_CHAPA_STOCK;
     if (variavel === 'OPCOES_FORNECEDORES_STOCK') return OPCOES_FORNECEDORES_STOCK;
     return [];

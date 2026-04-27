@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v4-permissoes-sem-lista';
+const CACHE_NAME = 'atlas-v5-injecao-densidade';
 const assets = [
   '/',
   '/index.html',
