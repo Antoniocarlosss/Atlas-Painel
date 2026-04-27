@@ -4158,27 +4158,6 @@ function renderizarPermissoesAdmin(idSelecionado = '') {
     render.innerHTML = `
         <div style="padding:15px; color:white;">
             <div style="background:#111827; border:1px solid #334155; border-radius:12px; padding:15px; margin-bottom:15px;">
-                <h3 style="margin:0 0 12px 0; font-size:18px;">Usuarios e senhas</h3>
-                <div style="display:grid; gap:8px;">
-                    ${usuariosSistema.map(u => `
-                        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:8px; align-items:center; background:#0f172a; border:1px solid #334155; border-radius:8px; padding:10px;">
-                            <div>
-                                <div style="font-weight:bold;">${textoSeguroPermissoes(u.id).toUpperCase()}</div>
-                                <div style="color:#94a3b8; font-size:12px;">Usuario</div>
-                            </div>
-                            <div>
-                                <div style="font-weight:bold;">${textoSeguroPermissoes(normalizarCargoUsuario(u.cargo)).toUpperCase()}</div>
-                                <div style="color:#94a3b8; font-size:12px;">Cargo</div>
-                            </div>
-                            <div>
-                                <div style="font-weight:bold; color:#fbbf24;">${textoSeguroPermissoes(u.senha || '')}</div>
-                                <div style="color:#94a3b8; font-size:12px;">Senha</div>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-            </div>
-            <div style="background:#111827; border:1px solid #334155; border-radius:12px; padding:15px; margin-bottom:15px;">
                 <label style="display:block; color:#94a3b8; font-size:12px; margin-bottom:8px;">USUARIO</label>
                 <select id="perm-usuario" onchange="renderizarPermissoesAdmin(this.value)" style="width:100%; padding:12px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">
                     ${usuariosSistema.map(u => `<option value="${textoSeguroPermissoes(u.id)}" ${u.id === usuarioAlvo.id ? 'selected' : ''}>${textoSeguroPermissoes(u.id).toUpperCase()} - ${textoSeguroPermissoes(normalizarCargoUsuario(u.cargo)).toUpperCase()} - Senha: ${textoSeguroPermissoes(u.senha || '')}</option>`).join('')}
