@@ -6547,14 +6547,6 @@ document.addEventListener('click', function(evento) {
         const bobinas = JSON.parse(localStorage.getItem('atlas_stock_bobinas')) || [];
         const filmes = JSON.parse(localStorage.getItem('atlas_stock_filmes')) || [];
         const conferencias = JSON.parse(localStorage.getItem('atlas_conferencia_serra')) || [];
-        const planoLive = JSON.parse(localStorage.getItem('atlas_plano_live')) || {};
-        const linhasAbertasPlano = Array.isArray(planoLive.linhasAbertas)
-            ? planoLive.linhasAbertas.filter(item => {
-                const temQuantidade = Number(item?.quantidadeChapas || item?.qtd || 0) > 0;
-                const temMetros = Number(item?.metrosUnidade || item?.metros || item?.totalMetros || 0) > 0;
-                return temQuantidade && temMetros;
-            })
-            : [];
 
         Object.entries(atlasContarPor(bobinas.filter(b => b.status !== 'acabada'), 'fornecedor')).forEach(([fornecedor, qtd]) => {
             if (qtd < 10) lembretes.push({ nivel: 'critico', titulo: `Bobinas baixas - ${fornecedor}`, detalhe: `${qtd} unidade(s) em stock/andamento.` });
@@ -6579,14 +6571,6 @@ document.addEventListener('click', function(evento) {
                     detalhe: motivos || 'Conferencia com problema pendente.'
                 });
             });
-
-        if (linhasAbertasPlano.length > 0) {
-            lembretes.push({
-                nivel: 'aviso',
-                titulo: 'Plano com linhas abertas',
-                detalhe: `${linhasAbertasPlano.length} linha(s) ainda nao finalizada(s).`
-            });
-        }
 
         return lembretes;
     }
