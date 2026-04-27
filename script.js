@@ -41,10 +41,14 @@ function obterPreferenciasPadraoUsuario(idUsuario) {
     const modulosEditaveis = cargo === 'admin'
         ? [...basicos, ...restritos, 'permissoes']
         : (cargo === 'supervisor' ? ['plano', 'conferencia', 'stock'] : []);
+    const modulosExcluiveis = cargo === 'admin'
+        ? [...basicos, ...restritos, 'permissoes']
+        : [];
     return {
         tema: 'escuro',
         modulosVisiveis,
-        modulosEditaveis
+        modulosEditaveis,
+        modulosExcluiveis
     };
 }
 
@@ -69,6 +73,12 @@ function usuarioPodeEditarModulo(chave) {
     return obterPreferenciasUsuario(usuarioLogado.id).modulosEditaveis.includes(chave);
 }
 
+function usuarioPodeExcluirModulo(chave) {
+    if (!usuarioLogado) return false;
+    if (normalizarCargoUsuario(usuarioLogado.cargo) === 'admin') return true;
+    return obterPreferenciasUsuario(usuarioLogado.id).modulosExcluiveis.includes(chave);
+}
+
 function obterPreferenciasUsuario(idUsuario) {
     const chave = obterChavePreferenciasUsuario(idUsuario);
     const salvas = JSON.parse(localStorage.getItem(chave));
@@ -84,11 +94,13 @@ function obterPreferenciasUsuario(idUsuario) {
     }
     const modulosSalvos = Array.isArray(salvas.modulosVisiveis) ? salvas.modulosVisiveis : padrao.modulosVisiveis;
     const editaveisSalvos = Array.isArray(salvas.modulosEditaveis) ? salvas.modulosEditaveis : padrao.modulosEditaveis;
+    const excluiveisSalvos = Array.isArray(salvas.modulosExcluiveis) ? salvas.modulosExcluiveis : (Array.isArray(salvas.modulosEditaveis) ? [] : padrao.modulosExcluiveis);
 
     return {
         tema: salvas.tema || 'escuro',
         modulosVisiveis: [...new Set(cargo === 'admin' ? [...modulosSalvos, 'permissoes'] : modulosSalvos)],
         modulosEditaveis: [...new Set(cargo === 'admin' ? [...editaveisSalvos, ...MODULOS_SISTEMA.map(m => m.chave)] : editaveisSalvos)],
+        modulosExcluiveis: [...new Set(cargo === 'admin' ? [...excluiveisSalvos, ...MODULOS_SISTEMA.map(m => m.chave)] : excluiveisSalvos)],
         permissoesAdminDefinidas: salvas.permissoesAdminDefinidas === true
     };
 }
@@ -814,6 +826,7 @@ function fecharModal() {
 }
 
 function removerItem(id) {
+    if (!usuarioPodeExcluirModulo('injecao')) return alert('Sem permissao para excluir na Injecao.');
     producoesDoDia = producoesDoDia.filter(p => p.id !== id);
     atualizarListaVisual();
     if(producoesDoDia.length === 0) document.getElementById('btn-finalizar').style.display = "none";
@@ -1609,6 +1622,7 @@ function calcularTotais(itens) {
     return { totalFilmeSup, totalFilmeInf, totalBobSup, totalBobInf };
 }
 function deletarHistoricoBobine(index) {
+    if (!usuarioPodeExcluirModulo('bobines')) return alert('Sem permissao para excluir em Bobines.');
     if(confirm("Excluir este relatório permanentemente?")) {
         historicoBobines.splice(index, 1);
         localStorage.setItem('historicoBobines', JSON.stringify(historicoBobines));
@@ -2196,6 +2210,7 @@ function atualizarTabelaSerra() {
 }
 
 function removerCorteSerra(i) {
+    if (!usuarioPodeExcluirModulo('serra')) return alert('Sem permissao para excluir na Serra.');
     db_serra_live.splice(i, 1);
     localStorage.setItem('atlas_serra_live', JSON.stringify(db_serra_live));
     atualizarTabelaSerra();
@@ -2647,6 +2662,7 @@ function atualizarTabelaEmbalagem() {
 }
 
 function removerCorteEmbalagem(i) {
+    if (!usuarioPodeExcluirModulo('embalagem')) return alert('Sem permissao para excluir na Embalagem.');
     db_emb_live.splice(i, 1);
     localStorage.setItem('atlas_emb_live', JSON.stringify(db_emb_live));
     atualizarTabelaEmbalagem();
@@ -3385,6 +3401,7 @@ function editarLinhaPlano(idLinha) {
     atualizarTelaPlanoAtual();
 }
 function removerLinhaPlano(idLinha) {
+    if (!usuarioPodeExcluirModulo('plano')) return alert('Sem permissao para excluir no Plano.');
     if (!db_plano_live) return;
     db_plano_live.linhasAbertas = db_plano_live.linhasAbertas.filter(item => item.id !== idLinha);
     if (db_plano_live.modoAtual === 'pedido') {
@@ -3447,6 +3464,7 @@ function moverBlocoAtualParaFinalizados(mensagemEspessura) {
     alert(mensagemEspessura ? 'Espessura finalizada.' : 'Bloco finalizado.');
 }
 function removerGrupoFinalizadoPlano(indice) {
+    if (!usuarioPodeExcluirModulo('plano')) return alert('Sem permissao para excluir no Plano.');
     if (!db_plano_live) return;
     db_plano_live.gruposFinalizados.splice(indice, 1);
     salvarPlanoLive();
@@ -4446,6 +4464,7 @@ function adicionarItemListaSistema(chave, variavel, idInput) {
 }
 
 function removerItemListaSistema(chave, variavel, index) {
+    if (!usuarioPodeExcluirModulo('config')) return alert('Sem permissao para excluir nos Ajustes.');
     const atual = obterVariavelListaSistema(variavel);
     const lista = atlasSalvarListaConfig(chave, atual.filter((_, i) => i !== index));
     atualizarVariavelListaSistema(variavel, lista);
@@ -4593,14 +4612,15 @@ function renderizarPermissoesAdmin(idSelecionado = '') {
                 </div>
             </div>
             <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; overflow:hidden;">
-                <div style="display:grid; grid-template-columns:2fr 1fr 1fr; gap:8px; padding:12px; background:#0f172a; font-weight:bold;">
-                    <span>Modulo</span><span style="text-align:center;">Pode ver</span><span style="text-align:center;">Pode editar</span>
+                <div style="display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:8px; padding:12px; background:#0f172a; font-weight:bold;">
+                    <span>Modulo</span><span style="text-align:center;">Pode ver</span><span style="text-align:center;">Pode editar</span><span style="text-align:center;">Pode excluir</span>
                 </div>
                 ${modulos.map(mod => `
-                    <div style="display:grid; grid-template-columns:2fr 1fr 1fr; gap:8px; align-items:center; padding:12px; border-top:1px solid #334155;">
+                    <div style="display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:8px; align-items:center; padding:12px; border-top:1px solid #334155;">
                         <span>${mod.nome}</span>
                         <label style="text-align:center;"><input class="perm-ver" type="checkbox" value="${mod.chave}" ${prefs.modulosVisiveis.includes(mod.chave) ? 'checked' : ''}></label>
                         <label style="text-align:center;"><input class="perm-editar" type="checkbox" value="${mod.chave}" ${prefs.modulosEditaveis.includes(mod.chave) ? 'checked' : ''}></label>
+                        <label style="text-align:center;"><input class="perm-excluir" type="checkbox" value="${mod.chave}" ${(prefs.modulosExcluiveis || []).includes(mod.chave) ? 'checked' : ''}></label>
                     </div>
                 `).join('')}
             </div>
@@ -4618,11 +4638,13 @@ function salvarPermissoesAdmin(idUsuario) {
 
     const visiveis = Array.from(document.querySelectorAll('.perm-ver:checked')).map(el => el.value);
     const editaveis = Array.from(document.querySelectorAll('.perm-editar:checked')).map(el => el.value).filter(chave => visiveis.includes(chave));
+    const excluiveis = Array.from(document.querySelectorAll('.perm-excluir:checked')).map(el => el.value).filter(chave => visiveis.includes(chave));
     if (!visiveis.includes('config')) visiveis.push('config');
 
     const prefs = obterPreferenciasUsuario(idUsuario);
     prefs.modulosVisiveis = [...new Set(visiveis)];
     prefs.modulosEditaveis = [...new Set(editaveis)];
+    prefs.modulosExcluiveis = [...new Set(excluiveis)];
     prefs.permissoesAdminDefinidas = true;
     salvarPreferenciasUsuario(idUsuario, prefs);
     alert('Permissoes atualizadas com sucesso.');
@@ -6157,7 +6179,7 @@ function finalizarPedidoConferenciaSerra(idPedido) {
 }
 
 function excluirPedidoConferenciaSerra(idPedido) {
-    if (!usuarioPodeEditarModulo('conferencia')) return alert('Sem permissao para editar Conferencia.');
+    if (!usuarioPodeExcluirModulo('conferencia')) return alert('Sem permissao para excluir Conferencia.');
     const index = db_conferencia_serra.findIndex(p => String(p.id) === String(idPedido));
     if (index < 0) return alert('Pedido não encontrado.');
 
@@ -7037,7 +7059,7 @@ function editarBobinaStockAtlas(id) {
 }
 
 function excluirBobinaStockAtlas(id) {
-    if (!usuarioPodeEditarModulo('stock')) return alert('Sem permissao para editar Stock.');
+    if (!usuarioPodeExcluirModulo('stock')) return alert('Sem permissao para excluir Stock.');
     const item = atlasStockBobinas.find(b => String(b.id) === String(id));
     if (!item) return;
     if (!confirm(`Excluir bobina ${item.numero || ''}?`)) return;
@@ -7222,7 +7244,7 @@ function editarFilmeStockAtlas(id) {
 }
 
 function excluirFilmeStockAtlas(id) {
-    if (!usuarioPodeEditarModulo('stock')) return alert('Sem permissao para editar Stock.');
+    if (!usuarioPodeExcluirModulo('stock')) return alert('Sem permissao para excluir Stock.');
     const item = atlasStockFilmes.find(f => String(f.id) === String(id));
     if (!item) return;
     if (!confirm(`Excluir filme ${item.tipo || ''}?`)) return;
@@ -7230,6 +7252,36 @@ function excluirFilmeStockAtlas(id) {
     salvarStockAtlas();
     renderizarStockFilmesAtlas();
 }
+
+function instalarProtecaoExclusaoSeparadaAtlas() {
+    const proteger = (nomeFuncao, modulo, mensagem) => {
+        const original = window[nomeFuncao];
+        if (typeof original !== 'function' || original._atlasProtegidaExcluir) return;
+        const protegida = function(...args) {
+            if (!usuarioPodeExcluirModulo(modulo)) return alert(mensagem || `Sem permissao para excluir em ${modulo}.`);
+            return original.apply(this, args);
+        };
+        protegida._atlasProtegidaExcluir = true;
+        window[nomeFuncao] = protegida;
+    };
+
+    proteger('removerItem', 'injecao', 'Sem permissao para excluir na Injecao.');
+    proteger('atlasApagarRelatorioInjecao', 'injecao', 'Sem permissao para excluir na Injecao.');
+    proteger('deletarHistoricoBobine', 'bobines', 'Sem permissao para excluir em Bobines.');
+    proteger('removerLancamento', 'bobines', 'Sem permissao para excluir em Bobines.');
+    proteger('removerCorteSerra', 'serra', 'Sem permissao para excluir na Serra.');
+    proteger('removerCorteEmbalagem', 'embalagem', 'Sem permissao para excluir na Embalagem.');
+    proteger('removerLinhaPlano', 'plano', 'Sem permissao para excluir no Plano.');
+    proteger('removerGrupoFinalizadoPlano', 'plano', 'Sem permissao para excluir no Plano.');
+    proteger('removerItemPlanoHistorico', 'plano', 'Sem permissao para excluir no Plano.');
+    proteger('removerPedidoPlanoHistorico', 'plano', 'Sem permissao para excluir no Plano.');
+    proteger('excluirPedidoConferenciaSerra', 'conferencia', 'Sem permissao para excluir Conferencia.');
+    proteger('removerItemListaSistema', 'config', 'Sem permissao para excluir nos Ajustes.');
+    proteger('excluirBobinaStockAtlas', 'stock', 'Sem permissao para excluir Stock.');
+    proteger('excluirFilmeStockAtlas', 'stock', 'Sem permissao para excluir Stock.');
+}
+
+window.addEventListener('load', () => setTimeout(instalarProtecaoExclusaoSeparadaAtlas, 500));
 /* ==========================================================
    PLANO - MARCAR ENCOMENDA / PEDIDO COMO CANCELADO
    Cole no FINAL do script.js
