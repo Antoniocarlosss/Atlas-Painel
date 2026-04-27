@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v23-responsivo-geral';
+const CACHE_NAME = 'atlas-v24-permissoes-mobile';
 const assets = [
   '/',
   '/index.html',

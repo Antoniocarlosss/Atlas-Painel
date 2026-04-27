@@ -4679,16 +4679,16 @@ function renderizarPermissoesAdmin(idSelecionado = '') {
                     </div>
                 </div>
             </div>
-            <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; overflow:hidden;">
-                <div style="display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:8px; padding:12px; background:#0f172a; font-weight:bold;">
+            <div class="permissoes-lista" style="background:#1e293b; border:1px solid #334155; border-radius:12px; overflow:hidden;">
+                <div class="permissoes-cabecalho" style="display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:8px; padding:12px; background:#0f172a; font-weight:bold;">
                     <span>Modulo</span><span style="text-align:center;">Pode ver</span><span style="text-align:center;">Pode editar</span><span style="text-align:center;">Pode excluir</span>
                 </div>
                 ${modulos.map(mod => `
-                    <div style="display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:8px; align-items:center; padding:12px; border-top:1px solid #334155;">
-                        <span>${mod.nome}</span>
-                        <label style="text-align:center;"><input class="perm-ver" type="checkbox" value="${mod.chave}" ${prefs.modulosVisiveis.includes(mod.chave) ? 'checked' : ''}></label>
-                        <label style="text-align:center;"><input class="perm-editar" type="checkbox" value="${mod.chave}" ${prefs.modulosEditaveis.includes(mod.chave) ? 'checked' : ''}></label>
-                        <label style="text-align:center;"><input class="perm-excluir" type="checkbox" value="${mod.chave}" ${(prefs.modulosExcluiveis || []).includes(mod.chave) ? 'checked' : ''}></label>
+                    <div class="permissao-modulo-card" style="display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:8px; align-items:center; padding:12px; border-top:1px solid #334155;">
+                        <span class="permissao-modulo-nome">${mod.nome}</span>
+                        <label class="permissao-check" style="text-align:center;"><span>Pode ver</span><input class="perm-ver" type="checkbox" value="${mod.chave}" ${prefs.modulosVisiveis.includes(mod.chave) ? 'checked' : ''}></label>
+                        <label class="permissao-check" style="text-align:center;"><span>Pode editar</span><input class="perm-editar" type="checkbox" value="${mod.chave}" ${prefs.modulosEditaveis.includes(mod.chave) ? 'checked' : ''}></label>
+                        <label class="permissao-check" style="text-align:center;"><span>Pode excluir</span><input class="perm-excluir" type="checkbox" value="${mod.chave}" ${(prefs.modulosExcluiveis || []).includes(mod.chave) ? 'checked' : ''}></label>
                     </div>
                 `).join('')}
             </div>
