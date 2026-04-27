@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v8-injecao-editar-responsivo';
+const CACHE_NAME = 'atlas-v10-aniversario-usuario';
 const assets = [
   '/',
   '/index.html',

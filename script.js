@@ -151,6 +151,104 @@ function inicializarUsuarios() {
 
 inicializarUsuarios();
 
+function chaveAniversarioUsuarioAtlas(usuario) {
+    const ano = new Date().getFullYear();
+    return `atlas_aniversario_${String(usuario?.id || '').toLowerCase()}_${ano}`;
+}
+
+function statusAniversarioUsuarioAtlas(usuario) {
+    if (!usuario?.aniversario) return null;
+
+    const hoje = new Date();
+    const partes = String(usuario.aniversario).split('-');
+    if (partes.length < 3) return null;
+
+    const mes = Number(partes[1]);
+    const dia = Number(partes[2]);
+    if (!mes || !dia) return null;
+
+    const aniversarioAno = new Date(hoje.getFullYear(), mes - 1, dia, 12, 0, 0);
+    const hojeMeioDia = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate(), 12, 0, 0);
+    const diffDias = Math.floor((hojeMeioDia - aniversarioAno) / 86400000);
+
+    if (diffDias === 0) return 'hoje';
+    if (diffDias > 0) return 'atrasado';
+    return null;
+}
+
+function mensagemAniversarioUsuarioAtlas(usuario, status) {
+    const nome = usuario?.nome || usuario?.id || 'amigo';
+    const ano = new Date().getFullYear();
+    const mensagens = [
+        `Feliz aniversario, ${nome}! Que seu dia seja leve, bom e cheio de coisas positivas.`,
+        `Parabens, ${nome}! Que este novo ciclo venha com saude, paz e muitas conquistas.`,
+        `Feliz aniversario, ${nome}! A Atlas Painel deseja um dia especial e um ano ainda melhor.`,
+        `Parabens pelo seu dia, ${nome}! Que nao falte energia boa hoje e nos proximos passos.`,
+        `Feliz aniversario, ${nome}! Que seja um ano de crescimento, alegria e boas novidades.`
+    ];
+    const texto = mensagens[ano % mensagens.length];
+    return status === 'atrasado'
+        ? `Feliz aniversario atrasado, ${nome}! Nao apareceu no dia, mas a mensagem chegou: ${texto}`
+        : texto;
+}
+
+function tocarToqueAniversarioAtlas() {
+    try {
+        const AudioContextAtlas = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextAtlas) return;
+        const ctx = new AudioContextAtlas();
+        const notas = [523.25, 659.25, 783.99, 1046.5, 783.99, 880, 1046.5];
+        const agora = ctx.currentTime;
+
+        notas.forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const ganho = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            ganho.gain.setValueAtTime(0.0001, agora + i * 0.18);
+            ganho.gain.exponentialRampToValueAtTime(0.12, agora + i * 0.18 + 0.03);
+            ganho.gain.exponentialRampToValueAtTime(0.0001, agora + i * 0.18 + 0.16);
+            osc.connect(ganho);
+            ganho.connect(ctx.destination);
+            osc.start(agora + i * 0.18);
+            osc.stop(agora + i * 0.18 + 0.17);
+        });
+    } catch (erro) {
+        console.warn('Nao foi possivel tocar o aviso de aniversario.', erro);
+    }
+}
+
+function mostrarMensagemAniversarioAtlas(usuario, status) {
+    const mensagem = mensagemAniversarioUsuarioAtlas(usuario, status);
+    const existente = document.getElementById('modal-aniversario-atlas');
+    if (existente) existente.remove();
+
+    const modal = document.createElement('div');
+    modal.id = 'modal-aniversario-atlas';
+    modal.style = 'position:fixed; inset:0; background:rgba(0,0,0,.82); z-index:10000; display:flex; align-items:center; justify-content:center; padding:18px;';
+    modal.innerHTML = `
+        <div style="width:100%; max-width:460px; background:#1e293b; border:1px solid #334155; border-radius:14px; padding:22px; color:white; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,.45);">
+            <div style="font-size:42px; line-height:1; color:#fbbf24; margin-bottom:8px;"><i class="fas fa-cake-candles"></i></div>
+            <h2 style="margin:0 0 10px; font-size:22px;">${status === 'atrasado' ? 'Feliz aniversario atrasado!' : 'Feliz aniversario!'}</h2>
+            <p style="color:#cbd5e1; font-size:16px; line-height:1.45; margin:0 0 18px;">${textoSeguroPermissoes(mensagem)}</p>
+            <button onclick="document.getElementById('modal-aniversario-atlas')?.remove()" style="width:100%; background:#10b981; color:white; border:none; padding:13px; border-radius:9px; font-weight:bold;">OBRIGADO</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+    tocarToqueAniversarioAtlas();
+}
+
+function verificarAniversarioNoLoginAtlas(usuario) {
+    const status = statusAniversarioUsuarioAtlas(usuario);
+    if (!status) return;
+
+    const chave = chaveAniversarioUsuarioAtlas(usuario);
+    if (localStorage.getItem(chave)) return;
+
+    localStorage.setItem(chave, new Date().toISOString());
+    mostrarMensagemAniversarioAtlas(usuario, status);
+}
+
 function fazerLogin() {
     const usuarioInput = document.getElementById('login-email').value.trim();
     const senhaInput = document.getElementById('login-senha').value.trim();
@@ -172,6 +270,7 @@ function fazerLogin() {
 
        aplicarPermissoesUsuario();
 aplicarPreferenciasVisuaisUsuario();
+verificarAniversarioNoLoginAtlas(usuarioEncontrado);
 
 if (typeof producoesDoDia !== "undefined") {
 
@@ -2847,6 +2946,56 @@ function criarUsuarioSistema() {
     exibirCriarUsuario();
 }
 
+function exibirCriarUsuario() {
+    const container = document.getElementById('gestao-conteudo');
+    if (!container) return;
+
+    container.innerHTML = `
+        <div style="background:#111827; padding:20px; border-radius:12px; border:1px solid #334155;">
+            <h3 style="color:white; margin-top:0; margin-bottom:15px;">Criar usuario</h3>
+            <input type="text" id="novo-nome-usuario" placeholder="Nome do usuario" style="width:100%; margin-bottom:10px; padding:12px; background:#1e293b; color:white; border:1px solid #334155; border-radius:6px;">
+            <label style="display:block; color:#94a3b8; font-size:12px; margin-bottom:6px;">Data de aniversario</label>
+            <input type="date" id="novo-aniversario-usuario" style="width:100%; margin-bottom:10px; padding:12px; background:#1e293b; color:white; border:1px solid #334155; border-radius:6px;">
+            <input type="text" id="novo-id-usuario" placeholder="ID de entrada / login" style="width:100%; margin-bottom:10px; padding:12px; background:#1e293b; color:white; border:1px solid #334155; border-radius:6px;">
+            <input type="password" id="nova-senha-usuario" placeholder="Senha" style="width:100%; margin-bottom:10px; padding:12px; background:#1e293b; color:white; border:1px solid #334155; border-radius:6px;">
+            <select id="novo-cargo-usuario" style="width:100%; margin-bottom:15px; padding:12px; background:#1e293b; color:white; border:1px solid #334155; border-radius:6px;">
+                <option value="operario">Operario</option>
+                <option value="supervisor">Supervisor</option>
+            </select>
+            <button onclick="criarUsuarioSistema()" style="width:100%; background:#10b981; color:white; border:none; padding:14px; border-radius:8px; font-weight:bold;">CRIAR USUARIO</button>
+        </div>
+    `;
+}
+
+function criarUsuarioSistema() {
+    const nome = document.getElementById('novo-nome-usuario')?.value.trim();
+    const aniversario = document.getElementById('novo-aniversario-usuario')?.value;
+    const id = document.getElementById('novo-id-usuario')?.value.trim();
+    const senha = document.getElementById('nova-senha-usuario')?.value.trim();
+    const cargo = document.getElementById('novo-cargo-usuario')?.value;
+
+    if (!nome || !aniversario || !id || !senha) {
+        alert("Preencha nome, data de aniversario, ID de entrada e senha.");
+        return;
+    }
+
+    const jaExiste = usuariosSistema.some(u => String(u.id).toLowerCase() === id.toLowerCase());
+    if (jaExiste) {
+        alert("Este ID ja existe.");
+        return;
+    }
+
+    usuariosSistema.push({ nome, aniversario, id, senha, cargo, bloqueado: false });
+    localStorage.setItem('atlas_usuarios', JSON.stringify(usuariosSistema));
+    alert("Usuario criado com sucesso!");
+    exibirCriarUsuario();
+}
+
+function usuarioProtegidoAdminAtlas(usuario) {
+    return String(usuario?.id || '').trim().toLowerCase() === 'admin'
+        || normalizarCargoUsuario(usuario?.cargo) === 'admin';
+}
+
 function listarUsuariosSistema() {
     const container = document.getElementById('gestao-conteudo');
     if (!container) return;
@@ -2858,6 +3007,8 @@ function listarUsuariosSistema() {
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                         <div>
                             <div style="color:white; font-weight:bold;">${u.id.toUpperCase()}</div>
+                            <div style="color:#94a3b8; font-size:12px;">Nome: ${textoSeguroPermissoes(u.nome || u.id)}</div>
+                            <div style="color:#94a3b8; font-size:12px;">Aniversario: ${u.aniversario ? formatarDataPlanoBR(u.aniversario) : '-'}</div>
                             <div style="color:#94a3b8; font-size:12px;">Cargo atual: ${u.cargo.toUpperCase()}</div>
                         </div>
                         <div style="color:#94a3b8; font-size:12px;">
@@ -2866,7 +3017,7 @@ function listarUsuariosSistema() {
 
                     </div>
 
-                        ${u.cargo === 'admin' ? `
+                        ${usuarioProtegidoAdminAtlas(u) ? `
                             <button disabled style="background:#475569; color:white; border:none; padding:10px; border-radius:6px; font-weight:bold;">
                                 ADMIN FIXO
                             </button>
@@ -2878,7 +3029,11 @@ function listarUsuariosSistema() {
                         `}
                     </div>
 
-                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+                    ${usuarioProtegidoAdminAtlas(u) ? `
+                        <div style="background:#0f172a; color:#fbbf24; border:1px solid #334155; padding:10px; border-radius:8px; font-weight:bold; text-align:center;">
+                            ADMIN protegido: nao pode bloquear nem excluir
+                        </div>
+                    ` : `<div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
     <button onclick="alternarBloqueioUsuario(${index})" style="background:${u.bloqueado ? '#10b981' : '#f59e0b'}; color:white; border:none; padding:10px; border-radius:6px; font-weight:bold;">
         ${u.bloqueado ? 'DESBLOQUEAR' : 'BLOQUEAR'}
     </button>
@@ -2886,7 +3041,7 @@ function listarUsuariosSistema() {
     <button onclick="excluirUsuario(${index})" style="background:#ef4444; color:white; border:none; padding:10px; border-radius:6px; font-weight:bold;">
         EXCLUIR
     </button>
-</div>
+</div>`}
 
                 </div>
             `).join('')}
@@ -2896,7 +3051,7 @@ function listarUsuariosSistema() {
 
 function alterarCargoUsuario(index, novoCargo) {
     if (!usuariosSistema[index]) return;
-    if (usuariosSistema[index].cargo === 'admin') {
+    if (usuarioProtegidoAdminAtlas(usuariosSistema[index])) {
         alert("O cargo ADMIN não pode ser alterado.");
         listarUsuariosSistema();
         return;
@@ -2921,7 +3076,7 @@ function aplicarPermissoesUsuario() {
 function alternarBloqueioUsuario(index) {
     if (!usuariosSistema[index]) return;
 
-    if (usuariosSistema[index].cargo === 'admin') {
+    if (usuarioProtegidoAdminAtlas(usuariosSistema[index])) {
         alert("O usuário ADMIN não pode ser bloqueado.");
         return;
     }
@@ -2935,7 +3090,7 @@ function alternarBloqueioUsuario(index) {
 function excluirUsuario(index) {
     if (!usuariosSistema[index]) return;
 
-    if (usuariosSistema[index].cargo === 'admin') {
+    if (usuarioProtegidoAdminAtlas(usuariosSistema[index])) {
         alert("O usuário ADMIN não pode ser excluído.");
         return;
     }
