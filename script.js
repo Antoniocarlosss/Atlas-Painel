@@ -351,7 +351,7 @@ function adicionarLinhaDensidadeInjecao(ponta1 = '', meio = '', ponta2 = '', hor
 
     const div = document.createElement('div');
     div.className = 'linha-densidade-injecao';
-    div.style = 'display:grid; grid-template-columns:1fr 1fr 1fr 1fr 38px; gap:8px; margin-bottom:8px;';
+    div.style = 'display:grid; grid-template-columns:repeat(auto-fit, minmax(88px, 1fr)); gap:8px; margin-bottom:8px;';
     div.innerHTML = `
         <input class="densidade-ponta1" type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="Ponta 1" value="${ponta1 || ''}" style="width:100%; padding:10px; background:#020617; color:white; border:1px solid #334155; border-radius:8px;">
         <input class="densidade-meio" type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="Meio" value="${meio || ''}" style="width:100%; padding:10px; background:#020617; color:white; border:1px solid #334155; border-radius:8px;">
@@ -562,6 +562,107 @@ function editarTudo(id) {
     document.getElementById('modal-edicao').style.display = 'flex';
 }
 
+function editarTudo(id) {
+    const item = producoesDoDia.find(p => p.id === id);
+    if (!item) return;
+
+    const container = document.getElementById('conteudo-modal');
+    container.innerHTML = `
+        <input type="hidden" id="edit-id" value="${item.id}">
+        <div style="display:grid; gap:12px;">
+            <div style="background:#0f172a; border:1px solid #334155; border-radius:10px; padding:12px;">
+                <h4 style="margin:0 0 10px; color:white; font-size:14px;">Produto</h4>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px;">
+                    <label style="color:#94a3b8; font-size:11px;">TIPO
+                        <select id="inj-painel-edit" onchange="if(!document.getElementById('inj-espuma-edit').value) document.getElementById('inj-espuma-edit').value = espumaPadraoInjecao(this.value)" style="width:100%; margin-top:4px; padding:10px; background:#020617; color:white; border:1px solid #334155; border-radius:8px;">
+                            ${opcoesTipoPainelHTML(item.nome)}
+                        </select>
+                    </label>
+                    <label style="color:#94a3b8; font-size:11px;">ESPESSURA
+                        <select id="edit-esp" style="width:100%; margin-top:4px; padding:10px; background:#020617; color:white; border:1px solid #334155; border-radius:8px;">
+                            ${[30, 40, 50, 60, 80, 100, 120].map(v => `<option value="${v}" ${String(item.esp) === String(v) ? 'selected' : ''}>${v} mm</option>`).join('')}
+                        </select>
+                    </label>
+                    <label style="color:#94a3b8; font-size:11px;">METROS
+                        <input type="number" id="edit-metros" value="${item.metros}" style="width:100%; margin-top:4px; padding:10px; border-radius:8px; background:#020617; color:white; border:1px solid #334155;">
+                    </label>
+                    <label style="color:#94a3b8; font-size:11px;">VELOCIDADE
+                        <select id="edit-vel" style="width:100%; margin-top:4px; padding:10px; background:#020617; color:white; border:1px solid #334155; border-radius:8px;">
+                            ${['', '5 m/min', '6 m/min', '8 m/min', '9 m/min', '10 m/min', '11 m/min', '12 m/min'].map(v => `<option value="${v}" ${String(item.vel || '') === String(v) ? 'selected' : ''}>${v || 'Vel (m/min)'}</option>`).join('')}
+                        </select>
+                    </label>
+                </div>
+            </div>
+
+            <div style="background:#0f172a; border:1px solid #334155; border-radius:10px; padding:12px;">
+                <h4 style="margin:0 0 10px; color:white; font-size:14px;">Opcionais</h4>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:10px;">
+                    <label style="color:#94a3b8; font-size:11px;">ESPUMA
+                        <select id="inj-espuma-edit" style="width:100%; margin-top:4px; padding:10px; background:#020617; color:white; border:1px solid #334155; border-radius:8px;">
+                            ${opcoesEspumaInjecaoHTML(item.espuma || espumaPadraoInjecao(item.nome))}
+                        </select>
+                    </label>
+                    <label style="color:#94a3b8; font-size:11px;">FITA
+                        <select id="inj-fita-edit" style="width:100%; margin-top:4px; padding:10px; background:#020617; color:white; border:1px solid #334155; border-radius:8px;">
+                            ${opcoesFitaInjecaoHTML(item.fita || '')}
+                        </select>
+                    </label>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin:12px 0 8px;">
+                    <span style="font-size:12px; color:#94a3b8;">DENSIDADE</span>
+                    <button type="button" onclick="adicionarLinhaDensidadeInjecao('', '', '', '', 'container-densidade-injecao-edit')" style="background:#3b82f6; color:white; border:none; border-radius:7px; padding:8px 13px; font-weight:bold;">+</button>
+                </div>
+                <div id="container-densidade-injecao-edit"></div>
+            </div>
+
+            <div style="background:#0f172a; border:1px solid #334155; border-radius:10px; padding:12px;">
+                <h4 style="margin:0 0 10px; color:white; font-size:14px;">Quimicos / catalisadores</h4>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(95px, 1fr)); gap:8px;">
+                    ${[
+                        ['edit-pol', 'POL', item.pol],
+                        ['edit-mdi', 'MDI', item.mdi],
+                        ['edit-pen', 'PEN', item.pen],
+                        ['edit-cat1', 'CAT 1', item.cat1],
+                        ['edit-cat2', 'CAT 2', item.cat2],
+                        ['edit-cat3', 'CAT 3', item.cat3],
+                        ['edit-cat4', 'CAT 4', item.cat4]
+                    ].map(campo => `
+                        <label style="color:#94a3b8; font-size:10px;">${campo[1]}
+                            <input type="number" id="${campo[0]}" value="${campo[2] || 0}" style="width:100%; margin-top:4px; padding:9px; background:#020617; color:white; border:1px solid #334155; border-radius:8px;">
+                        </label>
+                    `).join('')}
+                </div>
+            </div>
+
+            <div style="background:#0f172a; border:1px solid #334155; border-radius:10px; padding:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:8px;">
+                    <h4 style="margin:0; color:white; font-size:14px;">Paragens</h4>
+                    <button type="button" onclick="adicionarLinhaParagem()" style="background:#3b82f6; color:white; border:none; padding:8px 10px; border-radius:7px; font-size:12px; font-weight:bold;">+ PARAGEM</button>
+                </div>
+                <div id="container-paragens"></div>
+            </div>
+        </div>
+    `;
+
+    if (Array.isArray(item.densidades) && item.densidades.length > 0) {
+        item.densidades.forEach(d => {
+            if (d.valor && !d.ponta1 && !d.meio && !d.ponta2) {
+                adicionarLinhaDensidadeInjecao(d.valor, '', '', d.horario, 'container-densidade-injecao-edit');
+            } else {
+                adicionarLinhaDensidadeInjecao(d.ponta1, d.meio, d.ponta2, d.horario, 'container-densidade-injecao-edit');
+            }
+        });
+    } else {
+        adicionarLinhaDensidadeInjecao('', '', '', '', 'container-densidade-injecao-edit');
+    }
+
+    if (Array.isArray(item.paragens) && item.paragens.length > 0) {
+        item.paragens.forEach(p => adicionarLinhaParagem(p.motivo, p.tempo));
+    }
+
+    document.getElementById('modal-edicao').style.display = 'flex';
+}
+
 function salvarEdicaoModal() {
     const id = parseInt(document.getElementById('edit-id').value);
     const item = producoesDoDia.find(p => p.id === id);
@@ -569,9 +670,18 @@ function salvarEdicaoModal() {
     if (item) {
         item.metros = document.getElementById('edit-metros').value;
         item.nome = document.getElementById('inj-painel-edit')?.value || item.nome;
+        item.esp = document.getElementById('edit-esp')?.value || item.esp;
+        item.vel = document.getElementById('edit-vel')?.value || item.vel;
         item.espuma = document.getElementById('inj-espuma-edit')?.value || '';
         item.fita = document.getElementById('inj-fita-edit')?.value || '';
         item.densidades = coletarDensidadesInjecao('container-densidade-injecao-edit');
+        item.pol = document.getElementById('edit-pol')?.value || 0;
+        item.mdi = document.getElementById('edit-mdi')?.value || 0;
+        item.pen = document.getElementById('edit-pen')?.value || 0;
+        item.cat1 = document.getElementById('edit-cat1')?.value || 0;
+        item.cat2 = document.getElementById('edit-cat2')?.value || 0;
+        item.cat3 = document.getElementById('edit-cat3')?.value || 0;
+        item.cat4 = document.getElementById('edit-cat4')?.value || 0;
         const motivos = document.querySelectorAll('.paragem-motivo');
         const tempos = document.querySelectorAll('.paragem-tempo');
         item.paragens = [];

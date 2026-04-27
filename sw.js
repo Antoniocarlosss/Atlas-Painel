@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v7-injecao-hora-digital';
+const CACHE_NAME = 'atlas-v8-injecao-editar-responsivo';
 const assets = [
   '/',
   '/index.html',

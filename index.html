@@ -90,25 +90,25 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="script.js?v=20260427-injecao-hora-digital"></script>
-    <script src="historicos-admin.js?v=20260427-injecao-hora-digital"></script>
-    <script src="atlas-ajustes-fachadas.js?v=20260427-injecao-hora-digital"></script>
-    <script type="module" src="firebase-atlas.js?v=20260427-injecao-hora-digital"></script>
+    <script src="script.js?v=20260427-injecao-editar-responsivo"></script>
+    <script src="historicos-admin.js?v=20260427-injecao-editar-responsivo"></script>
+    <script src="atlas-ajustes-fachadas.js?v=20260427-injecao-editar-responsivo"></script>
+    <script type="module" src="firebase-atlas.js?v=20260427-injecao-editar-responsivo"></script>
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=20260427-injecao-hora-digital')
+                navigator.serviceWorker.register('sw.js?v=20260427-injecao-editar-responsivo')
                     .then(reg => console.log('Atlas PWA: Ativo!'))
                     .catch(err => console.log('Erro PWA:', err));
             });
         }
     </script>
 
-    <div id="modal-edicao" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:9999; justify-content:center; align-items:center; padding:20px;">
-        <div style="background:#1e293b; width:100%; max-width:500px; padding:20px; border-radius:15px; border:1px solid #334155; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+    <div id="modal-edicao" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:9999; justify-content:center; align-items:center; padding:12px;">
+        <div style="background:#1e293b; width:100%; max-width:920px; max-height:92vh; overflow:auto; padding:16px; border-radius:12px; border:1px solid #334155; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
             <h3 style="color:white; margin-top:0; border-bottom:1px solid #334155; padding-bottom:10px;">Editar Registro</h3>
             <div id="conteudo-modal" style="display:flex; flex-direction:column; gap:10px; margin-top:15px;"></div>
-            <div style="display:flex; gap:10px; margin-top:25px;">
+            <div style="display:flex; gap:10px; margin-top:16px; position:sticky; bottom:0; background:#1e293b; padding-top:10px;">
                 <button onclick="fecharModal()" style="flex:1; background:#475569; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;">CANCELAR</button>
                 <button onclick="salvarEdicaoModal()" style="flex:1; background:#10b981; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;">SALVAR</button>
             </div>
