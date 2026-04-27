@@ -356,7 +356,7 @@ function adicionarLinhaDensidadeInjecao(ponta1 = '', meio = '', ponta2 = '', hor
         <input class="densidade-ponta1" type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="Ponta 1" value="${ponta1 || ''}" style="width:100%; padding:10px; background:#020617; color:white; border:1px solid #334155; border-radius:8px;">
         <input class="densidade-meio" type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="Meio" value="${meio || ''}" style="width:100%; padding:10px; background:#020617; color:white; border:1px solid #334155; border-radius:8px;">
         <input class="densidade-ponta2" type="tel" inputmode="numeric" pattern="[0-9]*" placeholder="Ponta 2" value="${ponta2 || ''}" style="width:100%; padding:10px; background:#020617; color:white; border:1px solid #334155; border-radius:8px;">
-        <input class="densidade-horario" type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="Hora ex: 1430" value="${horario || ''}" style="width:100%; padding:10px; background:#020617; color:white; border:1px solid #334155; border-radius:8px;">
+        <input class="densidade-horario" type="time" value="${horario || ''}" style="width:100%; padding:10px; background:#020617; color:white; border:1px solid #334155; border-radius:8px;">
         <button type="button" onclick="this.parentElement.remove()" style="background:#ef4444; color:white; border:none; border-radius:8px; font-weight:bold;">X</button>
     `;
     container.appendChild(div);

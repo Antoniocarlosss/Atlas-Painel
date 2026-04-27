@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v6-injecao-densidade-3pontos';
+const CACHE_NAME = 'atlas-v7-injecao-hora-digital';
 const assets = [
   '/',
   '/index.html',
