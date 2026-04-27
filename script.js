@@ -63,8 +63,12 @@ function usuarioEhAdmin() {
 
 function usuarioPodeVerModulo(chave) {
     if (!usuarioLogado) return false;
-    if (normalizarCargoUsuario(usuarioLogado.cargo) === 'admin') return true;
-    return obterPreferenciasUsuario(usuarioLogado.id).modulosVisiveis.includes(chave);
+    if (chave === 'config') return true;
+    if (chave === 'permissoes') return usuarioEhAdmin();
+    const prefs = obterPreferenciasUsuario(usuarioLogado.id);
+    const permitido = prefs.modulosVisiveis.includes(chave);
+    const oculto = (prefs.modulosOcultosUsuario || []).includes(chave);
+    return permitido && !oculto;
 }
 
 function usuarioPodeEditarModulo(chave) {
@@ -95,12 +99,14 @@ function obterPreferenciasUsuario(idUsuario) {
     const modulosSalvos = Array.isArray(salvas.modulosVisiveis) ? salvas.modulosVisiveis : padrao.modulosVisiveis;
     const editaveisSalvos = Array.isArray(salvas.modulosEditaveis) ? salvas.modulosEditaveis : padrao.modulosEditaveis;
     const excluiveisSalvos = Array.isArray(salvas.modulosExcluiveis) ? salvas.modulosExcluiveis : (Array.isArray(salvas.modulosEditaveis) ? [] : padrao.modulosExcluiveis);
+    const ocultosUsuario = Array.isArray(salvas.modulosOcultosUsuario) ? salvas.modulosOcultosUsuario : [];
 
     return {
         tema: salvas.tema || 'escuro',
         modulosVisiveis: [...new Set(cargo === 'admin' ? [...modulosSalvos, 'permissoes'] : modulosSalvos)],
         modulosEditaveis: [...new Set(cargo === 'admin' ? [...editaveisSalvos, ...MODULOS_SISTEMA.map(m => m.chave)] : editaveisSalvos)],
         modulosExcluiveis: [...new Set(cargo === 'admin' ? [...excluiveisSalvos, ...MODULOS_SISTEMA.map(m => m.chave)] : excluiveisSalvos)],
+        modulosOcultosUsuario: ocultosUsuario,
         permissoesAdminDefinidas: salvas.permissoesAdminDefinidas === true
     };
 }
@@ -4211,7 +4217,10 @@ function abrirAjustesUsuario() {
     const c = document.getElementById('conteudo-ajustes');
     if (!c) return;
 
-    const modulosMarcados = preferencias.modulosVisiveis;
+    const modulosPermitidosUsuario = (preferencias.modulosVisiveis || [])
+        .filter(chave => chave !== 'config')
+        .filter(chave => chave !== 'permissoes');
+    const modulosOcultosUsuario = preferencias.modulosOcultosUsuario || [];
 
     c.innerHTML = `
         <div style="display:flex; align-items:center; margin-bottom:20px;">
@@ -4258,14 +4267,14 @@ function abrirAjustesUsuario() {
 
                 <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:15px;">
                     ${MODULOS_SISTEMA
-                        .filter(mod => mod.chave !== 'config')
+                        .filter(mod => modulosPermitidosUsuario.includes(mod.chave))
                         .filter(mod => mod.chave !== 'gestao' || podeGerirGestao)
                         .map(mod => `
                             <label style="display:flex; align-items:center; gap:10px; background:#0f172a; padding:12px; border-radius:8px; border:1px solid #334155; cursor:pointer;">
-                                <input class="check-modulo-ajustes" type="checkbox" value="${mod.chave}" ${modulosMarcados.includes(mod.chave) ? 'checked' : ''} style="width:auto;">
+                                <input class="check-modulo-ajustes" type="checkbox" value="${mod.chave}" ${!modulosOcultosUsuario.includes(mod.chave) ? 'checked' : ''} style="width:auto;">
                                 <span>${mod.nome}</span>
                             </label>
-                        `).join('')}
+                        `).join('') || '<div style="color:#94a3b8;">Nenhum modulo liberado pelo admin.</div>'}
                 </div>
 
                 <button onclick="salvarModulosVisiveis()" style="width:100%; background:#3b82f6; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold;">
@@ -4534,6 +4543,31 @@ function salvarTemaUsuario() {
 
 function salvarModulosVisiveis() {
     if (!usuarioLogado) return;
+    {
+        const preferencias = obterPreferenciasUsuario(usuarioLogado.id);
+        const modulosPermitidosUsuario = (preferencias.modulosVisiveis || [])
+            .filter(chave => chave !== 'config')
+            .filter(chave => chave !== 'permissoes');
+        const checksUsuario = document.querySelectorAll('.check-modulo-ajustes:checked');
+        const modulosSelecionadosUsuario = Array.from(checksUsuario)
+            .map(el => el.value)
+            .filter(chave => modulosPermitidosUsuario.includes(chave));
+
+        if (modulosSelecionadosUsuario.length === 0) {
+            alert('Selecione pelo menos um modulo.');
+            return;
+        }
+
+        preferencias.modulosOcultosUsuario = modulosPermitidosUsuario
+            .filter(chave => !modulosSelecionadosUsuario.includes(chave));
+
+        salvarPreferenciasUsuario(usuarioLogado.id, preferencias);
+        aplicarPermissoesUsuario();
+        aplicarPreferenciasVisuaisUsuario();
+
+        alert('Meus modulos atualizados com sucesso.');
+        return;
+    }
     if (!usuarioEhAdmin()) return alert('Somente ADMIN pode alterar permissões de módulos. Use o módulo Permissões.');
 
     const checks = document.querySelectorAll('.check-modulo-ajustes:checked');

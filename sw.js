@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v13-permissao-excluir';
+const CACHE_NAME = 'atlas-v14-meus-modulos';
 const assets = [
   '/',
   '/index.html',
