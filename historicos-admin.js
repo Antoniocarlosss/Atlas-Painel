@@ -4,7 +4,24 @@
    ========================================================== */
 
 function atlasPodeGerirHistoricos() {
-    return usuarioLogado && (usuarioLogado.cargo === 'admin' || usuarioLogado.cargo === 'supervisor');
+    const modulosHistorico = ['injecao', 'bobines', 'serra', 'embalagem', 'plano'];
+    return usuarioLogado && (
+        usuarioLogado.cargo === 'admin' ||
+        usuarioLogado.cargo === 'supervisor' ||
+        modulosHistorico.some(modulo => usuarioPodeEditarModulo(modulo) || usuarioPodeExcluirModulo(modulo))
+    );
+}
+
+function atlasPodeGerirHistoricoModulo(modulo) {
+    return usuarioPodeEditarModulo(modulo) || usuarioPodeExcluirModulo(modulo);
+}
+
+function atlasPodeEditarHistoricoModulo(modulo) {
+    return usuarioPodeEditarModulo(modulo);
+}
+
+function atlasPodeExcluirHistoricoModulo(modulo) {
+    return usuarioPodeExcluirModulo(modulo);
 }
 
 function atlasEditorNome() {
@@ -86,7 +103,7 @@ function atlasSalvarHistoricoInjecao(ano, mes, index, rel, acao) {
 }
 
 function atlasAbrirGerirInjecao(ano, mes, index, modulo) {
-    if (!atlasPodeGerirHistoricos()) return alert('Apenas ADMIN ou SUPERVISOR podem gerir historicos.');
+    if (!atlasPodeGerirHistoricoModulo(modulo)) return alert('Sem permissao para gerir este historico.');
     const db = JSON.parse(localStorage.getItem('atlas_db')) || {};
     const rel = db?.[ano]?.[mes]?.[index];
     if (!rel) return alert('Relatorio nao encontrado.');
@@ -106,7 +123,7 @@ function atlasRenderGerirInjecao(ano, mes, index, modulo, rel) {
                     <button onclick="atlasFecharModal('modal-gerir-injecao')" style="background:#475569; color:white; border:none; padding:10px 12px; border-radius:8px; font-weight:bold;">FECHAR</button>
                 </div>
                 ${atlasInfoEdicao(rel)}
-                <button onclick="atlasNovoItemInjecao('${atlasJS(ano)}','${atlasJS(mes)}',${index},'${atlasJS(modulo)}')" style="margin-top:10px; width:100%; background:#10b981; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold;">ADICIONAR ITEM</button>
+                ${atlasPodeEditarHistoricoModulo(modulo) ? `<button onclick="atlasNovoItemInjecao('${atlasJS(ano)}','${atlasJS(mes)}',${index},'${atlasJS(modulo)}')" style="margin-top:10px; width:100%; background:#10b981; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold;">ADICIONAR ITEM</button>` : ''}
             </div>
             <div style="padding-top:14px;">
                 ${(rel.itens || []).map((item, i) => `
@@ -118,8 +135,8 @@ function atlasRenderGerirInjecao(ano, mes, index, modulo, rel) {
                             POL ${atlasHtml(item.pol)} | MDI ${atlasHtml(item.mdi)} | PEN ${atlasHtml(item.pen)}
                         </div>
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px;">
-                            <button onclick="atlasEditarItemInjecao('${atlasJS(ano)}','${atlasJS(mes)}',${index},${i},'${atlasJS(modulo)}')" style="background:#f59e0b; color:black; border:none; padding:10px; border-radius:8px; font-weight:bold;">EDITAR</button>
-                            <button onclick="atlasRemoverItemInjecao('${atlasJS(ano)}','${atlasJS(mes)}',${index},${i},'${atlasJS(modulo)}')" style="background:#7f1d1d; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold;">REMOVER</button>
+                            ${atlasPodeEditarHistoricoModulo(modulo) ? `<button onclick="atlasEditarItemInjecao('${atlasJS(ano)}','${atlasJS(mes)}',${index},${i},'${atlasJS(modulo)}')" style="background:#f59e0b; color:black; border:none; padding:10px; border-radius:8px; font-weight:bold;">EDITAR</button>` : ''}
+                            ${atlasPodeExcluirHistoricoModulo(modulo) ? `<button onclick="atlasRemoverItemInjecao('${atlasJS(ano)}','${atlasJS(mes)}',${index},${i},'${atlasJS(modulo)}')" style="background:#7f1d1d; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold;">REMOVER</button>` : ''}
                         </div>
                     </div>
                 `).join('') || `<div style="color:#94a3b8; text-align:center; padding:20px;">Sem itens.</div>`}
@@ -195,6 +212,7 @@ function atlasColetarItemInjecao() {
 }
 
 function atlasEditarItemInjecao(ano, mes, index, itemIndex, modulo) {
+    if (!atlasPodeEditarHistoricoModulo(modulo)) return alert('Sem permissao para editar este historico.');
     const db = JSON.parse(localStorage.getItem('atlas_db')) || {};
     const rel = db[ano][mes][index];
     const modal = atlasGarantirModal('modal-gerir-injecao');
@@ -207,6 +225,7 @@ function atlasEditarItemInjecao(ano, mes, index, itemIndex, modulo) {
 }
 
 function atlasNovoItemInjecao(ano, mes, index, modulo) {
+    if (!atlasPodeEditarHistoricoModulo(modulo)) return alert('Sem permissao para editar este historico.');
     const modal = atlasGarantirModal('modal-gerir-injecao');
     modal.innerHTML = atlasFormItemInjecao(
         null,
@@ -217,6 +236,7 @@ function atlasNovoItemInjecao(ano, mes, index, modulo) {
 }
 
 function atlasSalvarItemInjecao(ano, mes, index, itemIndex, modulo) {
+    if (!atlasPodeEditarHistoricoModulo(modulo)) return alert('Sem permissao para editar este historico.');
     const item = atlasColetarItemInjecao();
     if (!item) return;
     const db = JSON.parse(localStorage.getItem('atlas_db')) || {};
@@ -230,6 +250,7 @@ function atlasSalvarItemInjecao(ano, mes, index, itemIndex, modulo) {
 }
 
 function atlasSalvarNovoItemInjecao(ano, mes, index, modulo) {
+    if (!atlasPodeEditarHistoricoModulo(modulo)) return alert('Sem permissao para editar este historico.');
     const item = atlasColetarItemInjecao();
     if (!item) return;
     const db = JSON.parse(localStorage.getItem('atlas_db')) || {};
@@ -242,6 +263,7 @@ function atlasSalvarNovoItemInjecao(ano, mes, index, modulo) {
 }
 
 function atlasRemoverItemInjecao(ano, mes, index, itemIndex, modulo) {
+    if (!atlasPodeExcluirHistoricoModulo(modulo)) return alert('Sem permissao para excluir este historico.');
     const db = JSON.parse(localStorage.getItem('atlas_db')) || {};
     const rel = db[ano][mes][index];
     if (!confirm('Remover este item?')) return;
@@ -274,7 +296,7 @@ exibirHistoricoModulo = function(modulo) {
                             <div style="font-size:13px;"><b>${atlasHtml(rel.data)}</b><br><small style="color:#94a3b8;">${atlasHtml(rel.operador)}</small>${atlasInfoEdicao(rel)}</div>
                             <div style="display:flex; gap:8px; flex-wrap:wrap;">
                                 <button onclick="toggleElement('${relId}')" style="background:#475569; color:white; border:none; padding:7px 10px; border-radius:5px; font-size:11px;">VER</button>
-                                ${atlasPodeGerirHistoricos() ? `<button onclick="atlasAbrirGerirInjecao('${atlasJS(ano)}','${atlasJS(mes)}',${idx},'${atlasJS(modulo)}')" style="background:#f59e0b; color:black; border:none; padding:7px 10px; border-radius:5px; font-size:11px; font-weight:bold;">GERIR</button>` : ''}
+                                ${atlasPodeGerirHistoricoModulo(modulo) ? `<button onclick="atlasAbrirGerirInjecao('${atlasJS(ano)}','${atlasJS(mes)}',${idx},'${atlasJS(modulo)}')" style="background:#f59e0b; color:black; border:none; padding:7px 10px; border-radius:5px; font-size:11px; font-weight:bold;">GERIR</button>` : ''}
                                 <button onclick="gerarPDF_Injecao_Final('${atlasPDFPayload(rel)}')" style="background:#10b981; color:white; border:none; padding:7px 10px; border-radius:5px; font-size:11px;">PDF</button>
                             </div>
                         </div>
@@ -300,7 +322,7 @@ function atlasSalvarBobines(index, rel, acao) {
 }
 
 function atlasAbrirGerirBobines(index) {
-    if (!atlasPodeGerirHistoricos()) return alert('Apenas ADMIN ou SUPERVISOR podem gerir historicos.');
+    if (!atlasPodeGerirHistoricoModulo('bobines')) return alert('Sem permissao para gerir este historico.');
     const rel = historicoBobines[index];
     if (!rel) return alert('Relatorio nao encontrado.');
     atlasRenderGerirBobines(index, rel);
@@ -316,7 +338,7 @@ function atlasRenderGerirBobines(index, rel) {
                     <button onclick="atlasFecharModal('modal-gerir-bobines')" style="background:#475569; color:white; border:none; padding:10px 12px; border-radius:8px; font-weight:bold;">FECHAR</button>
                 </div>
                 ${atlasInfoEdicao(rel)}
-                <button onclick="atlasNovoItemBobines(${index})" style="margin-top:10px; width:100%; background:#10b981; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold;">ADICIONAR LANCAMENTO</button>
+                ${atlasPodeEditarHistoricoModulo('bobines') ? `<button onclick="atlasNovoItemBobines(${index})" style="margin-top:10px; width:100%; background:#10b981; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold;">ADICIONAR LANCAMENTO</button>` : ''}
             </div>
             <div style="padding-top:14px;">
                 ${(rel.itens || []).map((item, i) => `
@@ -326,8 +348,8 @@ function atlasRenderGerirBobines(index, rel) {
                             ${item.tipo === 'filme' ? `Filme: ${atlasHtml(item.subtipo)} | Qtd: ${atlasHtml(item.qtd)}` : `Bobine: ${atlasHtml(item.numBobine)} | RAL: ${atlasHtml(item.ral)} | Status: ${atlasHtml(item.status)}`}
                         </div>
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px;">
-                            <button onclick="atlasEditarItemBobines(${index},${i})" style="background:#f59e0b; color:black; border:none; padding:10px; border-radius:8px; font-weight:bold;">EDITAR</button>
-                            <button onclick="atlasRemoverItemBobines(${index},${i})" style="background:#7f1d1d; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold;">REMOVER</button>
+                            ${atlasPodeEditarHistoricoModulo('bobines') ? `<button onclick="atlasEditarItemBobines(${index},${i})" style="background:#f59e0b; color:black; border:none; padding:10px; border-radius:8px; font-weight:bold;">EDITAR</button>` : ''}
+                            ${atlasPodeExcluirHistoricoModulo('bobines') ? `<button onclick="atlasRemoverItemBobines(${index},${i})" style="background:#7f1d1d; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold;">REMOVER</button>` : ''}
                         </div>
                     </div>
                 `).join('') || `<div style="color:#94a3b8; text-align:center; padding:20px;">Sem lancamentos.</div>`}
@@ -384,17 +406,20 @@ function atlasColetarBobines() {
 }
 
 function atlasEditarItemBobines(index, itemIndex) {
+    if (!atlasPodeEditarHistoricoModulo('bobines')) return alert('Sem permissao para editar este historico.');
     const rel = historicoBobines[index];
     const modal = atlasGarantirModal('modal-gerir-bobines');
     modal.innerHTML = atlasFormBobines(rel.itens[itemIndex], 'Editar Lancamento', `atlasSalvarItemBobines(${index},${itemIndex})`, `atlasRenderGerirBobines(${index}, historicoBobines[${index}])`);
 }
 
 function atlasNovoItemBobines(index) {
+    if (!atlasPodeEditarHistoricoModulo('bobines')) return alert('Sem permissao para editar este historico.');
     const modal = atlasGarantirModal('modal-gerir-bobines');
     modal.innerHTML = atlasFormBobines(null, 'Novo Lancamento', `atlasSalvarNovoItemBobines(${index})`, `atlasRenderGerirBobines(${index}, historicoBobines[${index}])`);
 }
 
 function atlasSalvarItemBobines(index, itemIndex) {
+    if (!atlasPodeEditarHistoricoModulo('bobines')) return alert('Sem permissao para editar este historico.');
     const rel = historicoBobines[index];
     rel.itens[itemIndex] = atlasColetarBobines();
     atlasSalvarBobines(index, rel, 'Editou lancamento de bobines');
@@ -403,6 +428,7 @@ function atlasSalvarItemBobines(index, itemIndex) {
 }
 
 function atlasSalvarNovoItemBobines(index) {
+    if (!atlasPodeEditarHistoricoModulo('bobines')) return alert('Sem permissao para editar este historico.');
     const rel = historicoBobines[index];
     rel.itens ||= [];
     rel.itens.push(atlasColetarBobines());
@@ -412,6 +438,7 @@ function atlasSalvarNovoItemBobines(index) {
 }
 
 function atlasRemoverItemBobines(index, itemIndex) {
+    if (!atlasPodeExcluirHistoricoModulo('bobines')) return alert('Sem permissao para excluir este historico.');
     const rel = historicoBobines[index];
     if (!confirm('Remover este lancamento?')) return;
     rel.itens.splice(itemIndex, 1);
@@ -438,7 +465,7 @@ renderizarHistoricoBobines = function() {
         Object.keys(agrupado[ano]).sort((a,b)=>b-a).forEach(mes => {
             html += `<div onclick="toggleElemento('bob-mes-${ano}-${mes}')" style="cursor:pointer; padding:10px; color:#3b82f6; background:#0f172a; margin-top:5px; border-radius:4px; font-weight:bold;">${mesesNome[mes] || mes}</div><div id="bob-mes-${ano}-${mes}" style="display:none; padding-left:10px; background:#1a202c;">`;
             agrupado[ano][mes].forEach(({ rel, index }) => {
-                html += `<div style="padding:12px; border-bottom:1px solid #334155; display:flex; justify-content:space-between; gap:8px; align-items:center;"><span style="font-size:13px;"><b style="color:white;">${atlasHtml(rel.data)}</b><br><small style="color:#94a3b8;">Op: ${atlasHtml(rel.operador)}</small>${atlasInfoEdicao(rel)}</span><div style="display:flex; gap:8px; flex-wrap:wrap;">${atlasPodeGerirHistoricos() ? `<button onclick="atlasAbrirGerirBobines(${index})" style="background:#f59e0b; color:black; border:none; padding:8px 12px; border-radius:5px; font-weight:bold; font-size:11px;">GERIR</button>` : ''}<button onclick="gerarPDF_Bobines('${atlasPDFPayload(rel)}')" style="background:#10b981; color:white; border:none; padding:8px 12px; border-radius:5px; font-weight:bold; font-size:11px;">PDF</button></div></div>`;
+                html += `<div style="padding:12px; border-bottom:1px solid #334155; display:flex; justify-content:space-between; gap:8px; align-items:center;"><span style="font-size:13px;"><b style="color:white;">${atlasHtml(rel.data)}</b><br><small style="color:#94a3b8;">Op: ${atlasHtml(rel.operador)}</small>${atlasInfoEdicao(rel)}</span><div style="display:flex; gap:8px; flex-wrap:wrap;">${atlasPodeGerirHistoricoModulo('bobines') ? `<button onclick="atlasAbrirGerirBobines(${index})" style="background:#f59e0b; color:black; border:none; padding:8px 12px; border-radius:5px; font-weight:bold; font-size:11px;">GERIR</button>` : ''}<button onclick="gerarPDF_Bobines('${atlasPDFPayload(rel)}')" style="background:#10b981; color:white; border:none; padding:8px 12px; border-radius:5px; font-weight:bold; font-size:11px;">PDF</button></div></div>`;
             });
             html += `</div>`;
         });
@@ -481,7 +508,7 @@ function atlasSalvarCorte(tipo, index, rel, acao) {
 }
 
 function atlasAbrirGerirCorte(tipo, index) {
-    if (!atlasPodeGerirHistoricos()) return alert('Apenas ADMIN ou SUPERVISOR podem gerir historicos.');
+    if (!atlasPodeGerirHistoricoModulo(tipo)) return alert('Sem permissao para gerir este historico.');
     const cfg = atlasGetStoreCorte(tipo);
     const rel = cfg.hist[index];
     if (!rel) return alert('Relatorio nao encontrado.');
@@ -499,7 +526,7 @@ function atlasRenderGerirCorte(tipo, index, rel) {
                     <button onclick="atlasFecharModal('${cfg.modal}')" style="background:#475569; color:white; border:none; padding:10px 12px; border-radius:8px; font-weight:bold;">FECHAR</button>
                 </div>
                 ${atlasInfoEdicao(rel)}
-                <button onclick="atlasNovoItemCorte('${tipo}',${index})" style="margin-top:10px; width:100%; background:#10b981; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold;">ADICIONAR ITEM</button>
+                ${atlasPodeEditarHistoricoModulo(tipo) ? `<button onclick="atlasNovoItemCorte('${tipo}',${index})" style="margin-top:10px; width:100%; background:#10b981; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold;">ADICIONAR ITEM</button>` : ''}
             </div>
             <div style="padding-top:14px;">
                 ${(rel.itens || []).map((item, i) => `
@@ -511,8 +538,8 @@ function atlasRenderGerirCorte(tipo, index, rel) {
                             RAL ${atlasHtml(item.ralI)}/${atlasHtml(item.ralS)}
                         </div>
                         <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px;">
-                            <button onclick="atlasEditarItemCorte('${tipo}',${index},${i})" style="background:#f59e0b; color:black; border:none; padding:10px; border-radius:8px; font-weight:bold;">EDITAR</button>
-                            <button onclick="atlasRemoverItemCorte('${tipo}',${index},${i})" style="background:#7f1d1d; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold;">REMOVER</button>
+                            ${atlasPodeEditarHistoricoModulo(tipo) ? `<button onclick="atlasEditarItemCorte('${tipo}',${index},${i})" style="background:#f59e0b; color:black; border:none; padding:10px; border-radius:8px; font-weight:bold;">EDITAR</button>` : ''}
+                            ${atlasPodeExcluirHistoricoModulo(tipo) ? `<button onclick="atlasRemoverItemCorte('${tipo}',${index},${i})" style="background:#7f1d1d; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold;">REMOVER</button>` : ''}
                         </div>
                     </div>
                 `).join('') || `<div style="color:#94a3b8; text-align:center; padding:20px;">Sem itens.</div>`}
@@ -570,18 +597,21 @@ function atlasColetarCorte() {
 }
 
 function atlasEditarItemCorte(tipo, index, itemIndex) {
+    if (!atlasPodeEditarHistoricoModulo(tipo)) return alert('Sem permissao para editar este historico.');
     const cfg = atlasGetStoreCorte(tipo);
     const modal = atlasGarantirModal(cfg.modal);
     modal.innerHTML = atlasFormCorte(tipo, index, cfg.hist[index].itens[itemIndex], 'Editar Item', `atlasSalvarItemCorte('${tipo}',${index},${itemIndex})`);
 }
 
 function atlasNovoItemCorte(tipo, index) {
+    if (!atlasPodeEditarHistoricoModulo(tipo)) return alert('Sem permissao para editar este historico.');
     const cfg = atlasGetStoreCorte(tipo);
     const modal = atlasGarantirModal(cfg.modal);
     modal.innerHTML = atlasFormCorte(tipo, index, null, 'Novo Item', `atlasSalvarNovoItemCorte('${tipo}',${index})`);
 }
 
 function atlasSalvarItemCorte(tipo, index, itemIndex) {
+    if (!atlasPodeEditarHistoricoModulo(tipo)) return alert('Sem permissao para editar este historico.');
     const item = atlasColetarCorte();
     if (!item) return;
     const cfg = atlasGetStoreCorte(tipo);
@@ -593,6 +623,7 @@ function atlasSalvarItemCorte(tipo, index, itemIndex) {
 }
 
 function atlasSalvarNovoItemCorte(tipo, index) {
+    if (!atlasPodeEditarHistoricoModulo(tipo)) return alert('Sem permissao para editar este historico.');
     const item = atlasColetarCorte();
     if (!item) return;
     const cfg = atlasGetStoreCorte(tipo);
@@ -605,6 +636,7 @@ function atlasSalvarNovoItemCorte(tipo, index) {
 }
 
 function atlasRemoverItemCorte(tipo, index, itemIndex) {
+    if (!atlasPodeExcluirHistoricoModulo(tipo)) return alert('Sem permissao para excluir este historico.');
     const cfg = atlasGetStoreCorte(tipo);
     const rel = cfg.hist[index];
     if (!confirm('Remover este item?')) return;
@@ -631,7 +663,7 @@ function atlasRenderHistoricoCorte(tipo) {
         Object.keys(agrupado[ano]).sort((a,b)=>b-a).forEach(mes => {
             html += `<div onclick="toggleElemento('${tipo}-mes-${ano}-${mes}')" style="cursor:pointer; padding:10px; color:#3b82f6; background:#0f172a; margin-top:5px; border-radius:4px; font-weight:bold;">${mesesNome[mes] || mes}</div><div id="${tipo}-mes-${ano}-${mes}" style="display:none; padding-left:10px; background:#1a202c;">`;
             agrupado[ano][mes].forEach(({ rel, index }) => {
-                html += `<div style="padding:12px; border-bottom:1px solid #334155; display:flex; justify-content:space-between; gap:8px; align-items:center;"><span style="font-size:13px;"><b style="color:white;">DIA ${atlasHtml(rel.dia)}/${atlasHtml(rel.mes)}</b><br><small style="color:#94a3b8;">Total: ${atlasHtml(rel.totalGeral)} m</small>${atlasInfoEdicao(rel)}</span><div style="display:flex; gap:8px; flex-wrap:wrap;">${atlasPodeGerirHistoricos() ? `<button onclick="atlasAbrirGerirCorte('${tipo}',${index})" style="background:#f59e0b; color:black; border:none; padding:8px 12px; border-radius:5px; font-weight:bold; font-size:11px;">GERIR</button>` : ''}<button onclick='${cfg.pdf}("${atlasPDFPayload(rel)}")' style="background:#10b981; color:white; border:none; padding:8px 12px; border-radius:5px; font-weight:bold; font-size:11px;">PDF</button></div></div>`;
+                html += `<div style="padding:12px; border-bottom:1px solid #334155; display:flex; justify-content:space-between; gap:8px; align-items:center;"><span style="font-size:13px;"><b style="color:white;">DIA ${atlasHtml(rel.dia)}/${atlasHtml(rel.mes)}</b><br><small style="color:#94a3b8;">Total: ${atlasHtml(rel.totalGeral)} m</small>${atlasInfoEdicao(rel)}</span><div style="display:flex; gap:8px; flex-wrap:wrap;">${atlasPodeGerirHistoricoModulo(tipo) ? `<button onclick="atlasAbrirGerirCorte('${tipo}',${index})" style="background:#f59e0b; color:black; border:none; padding:8px 12px; border-radius:5px; font-weight:bold; font-size:11px;">GERIR</button>` : ''}<button onclick='${cfg.pdf}("${atlasPDFPayload(rel)}")' style="background:#10b981; color:white; border:none; padding:8px 12px; border-radius:5px; font-weight:bold; font-size:11px;">PDF</button></div></div>`;
             });
             html += `</div>`;
         });
@@ -674,6 +706,7 @@ if (typeof gerarPDF_Embalagem === 'function' && !window.atlasPDFEmbOriginal) {
    ========================================================== */
 
 function atlasApagarRelatorioInjecao(ano, mes, index, modulo) {
+    if (!atlasPodeExcluirHistoricoModulo(modulo)) return alert('Sem permissao para excluir este historico.');
     if (!atlasPodeGerirHistoricos()) return alert('Apenas ADMIN ou SUPERVISOR podem apagar históricos.');
 
     const confirmar = confirm('Tem certeza que deseja apagar este relatório inteiro?');
@@ -702,6 +735,7 @@ function atlasApagarRelatorioInjecao(ano, mes, index, modulo) {
 }
 
 function atlasApagarRelatorioBobines(index) {
+    if (!atlasPodeExcluirHistoricoModulo('bobines')) return alert('Sem permissao para excluir este historico.');
     if (!atlasPodeGerirHistoricos()) return alert('Apenas ADMIN ou SUPERVISOR podem apagar históricos.');
 
     const confirmar = confirm('Tem certeza que deseja apagar este relatório inteiro?');
@@ -724,6 +758,7 @@ function atlasApagarRelatorioBobines(index) {
 }
 
 function atlasApagarRelatorioCorte(tipo, index) {
+    if (!atlasPodeExcluirHistoricoModulo(tipo)) return alert('Sem permissao para excluir este historico.');
     if (!atlasPodeGerirHistoricos()) return alert('Apenas ADMIN ou SUPERVISOR podem apagar históricos.');
 
     const confirmar = confirm('Tem certeza que deseja apagar este relatório inteiro?');
@@ -756,6 +791,7 @@ atlasRenderGerirInjecao = function(ano, mes, index, modulo, rel) {
     const modal = document.getElementById('modal-gerir-injecao');
     const topo = modal?.querySelector('div[style*="position:sticky"]');
     if (!topo || topo.querySelector('#btn-apagar-injecao')) return;
+    if (!atlasPodeExcluirHistoricoModulo(modulo)) return;
 
     const btn = document.createElement('button');
     btn.id = 'btn-apagar-injecao';
@@ -774,6 +810,7 @@ atlasRenderGerirBobines = function(index, rel) {
     const modal = document.getElementById('modal-gerir-bobines');
     const topo = modal?.querySelector('div[style*="position:sticky"]');
     if (!topo || topo.querySelector('#btn-apagar-bobines')) return;
+    if (!atlasPodeExcluirHistoricoModulo('bobines')) return;
 
     const btn = document.createElement('button');
     btn.id = 'btn-apagar-bobines';
@@ -793,6 +830,7 @@ atlasRenderGerirCorte = function(tipo, index, rel) {
     const modal = document.getElementById(cfg.modal);
     const topo = modal?.querySelector('div[style*="position:sticky"]');
     if (!topo || topo.querySelector('#btn-apagar-corte')) return;
+    if (!atlasPodeExcluirHistoricoModulo(tipo)) return;
 
     const btn = document.createElement('button');
     btn.id = 'btn-apagar-corte';

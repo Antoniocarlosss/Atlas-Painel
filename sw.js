@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v15-meus-modulos-operario';
+const CACHE_NAME = 'atlas-v16-historico-permissao';
 const assets = [
   '/',
   '/index.html',
