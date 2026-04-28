@@ -65,6 +65,7 @@ function usuarioPodeVerModulo(chave) {
     if (!usuarioLogado) return false;
     if (chave === 'config') return true;
     if (chave === 'permissoes') return usuarioEhAdmin();
+    if (usuarioEhAdminSupervisor() && (chave === 'lembretes' || chave === 'auditoria')) return true;
     const prefs = obterPreferenciasUsuario(usuarioLogado.id);
     const permitido = prefs.modulosVisiveis.includes(chave);
     const oculto = (prefs.modulosOcultosUsuario || []).includes(chave);
@@ -109,7 +110,7 @@ function obterPreferenciasUsuario(idUsuario) {
 
     const modulosVisiveisCargo = cargo === 'admin'
         ? [...modulosSalvos, 'permissoes', 'lembretes', 'auditoria']
-        : (cargo === 'supervisor' && salvas.permissoesAdminDefinidas !== true
+        : (cargo === 'supervisor'
             ? [...modulosSalvos, 'lembretes', 'auditoria']
             : modulosSalvos);
 

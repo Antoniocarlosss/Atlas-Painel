@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v34-criar-id-sem-autofill';
+const CACHE_NAME = 'atlas-v35-supervisor-registros-lembretes';
 const assets = [
   '/',
   '/index.html',
