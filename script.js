@@ -6565,6 +6565,158 @@ document.addEventListener('click', function(evento) {
         }, {});
     }
 
+    const ATLAS_TURNOS_KEY = 'atlas_turnos_relatorios';
+    const ATLAS_SECOES_RELATORIO = [
+        { chave: 'injecao', nome: 'Injecao' },
+        { chave: 'bobines', nome: 'Bobines' },
+        { chave: 'serra', nome: 'Serra' },
+        { chave: 'embalagem', nome: 'Embalagem' },
+        { chave: 'plano', nome: 'Plano' }
+    ];
+
+    function atlasDataISOHoje() {
+        const hoje = new Date();
+        return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
+    }
+
+    function atlasDataBRParaISO(data) {
+        const partes = String(data || '').match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if (!partes) return '';
+        return `${partes[3]}-${String(partes[2]).padStart(2, '0')}-${String(partes[1]).padStart(2, '0')}`;
+    }
+
+    function atlasTurnosLer() {
+        try {
+            return JSON.parse(localStorage.getItem(ATLAS_TURNOS_KEY)) || {};
+        } catch (erro) {
+            return {};
+        }
+    }
+
+    function atlasTurnosSalvar(dados) {
+        localStorage.setItem(ATLAS_TURNOS_KEY, JSON.stringify(dados || {}));
+    }
+
+    function atlasGarantirTurnoDia(dataISO = atlasDataISOHoje()) {
+        const dados = atlasTurnosLer();
+        dados[dataISO] ||= {};
+        ATLAS_SECOES_RELATORIO.forEach(secao => {
+            dados[dataISO][secao.chave] ||= { manha: false, tarde: false, dia: false, enviado: false, historico: [] };
+        });
+        return dados;
+    }
+
+    function atlasMarcarTurnoRelatorio(secao, turno = 'dia', dataISO = atlasDataISOHoje(), automatico = false) {
+        if (!ATLAS_SECOES_RELATORIO.some(s => s.chave === secao)) return;
+        const dados = atlasGarantirTurnoDia(dataISO);
+        const registro = dados[dataISO][secao];
+        const usuario = usuarioLogado?.id || document.getElementById('user-display')?.innerText || 'SISTEMA';
+        const dataHora = new Date().toLocaleString('pt-BR');
+
+        if (turno === 'manha') registro.manha = true;
+        if (turno === 'tarde') registro.tarde = true;
+        if (turno === 'dia') {
+            registro.dia = true;
+            registro.manha = true;
+            registro.tarde = true;
+        }
+        registro.enviado = registro.enviado || automatico || turno === 'dia';
+        registro.ultimoPor = usuario;
+        registro.ultimoEm = dataHora;
+        registro.historico ||= [];
+        registro.historico.unshift({ turno, usuario, dataHora, automatico: !!automatico });
+        atlasTurnosSalvar(dados);
+        atlasRegistrarAuditoria('Marcacao de turno', secao, `Turno: ${turno}${automatico ? ' automatico' : ''}`);
+    }
+
+    window.atlasFinalizarTurnoSecao = function(secao, turno) {
+        atlasMarcarTurnoRelatorio(secao, turno, atlasDataISOHoje(), false);
+        alert('Turno marcado com sucesso.');
+        atlasInserirPainelTurnosModulo(secao);
+    };
+
+    function atlasHtmlPainelTurnos(secao) {
+        const infoSecao = ATLAS_SECOES_RELATORIO.find(s => s.chave === secao);
+        if (!infoSecao) return '';
+        const dataISO = atlasDataISOHoje();
+        const dados = atlasGarantirTurnoDia(dataISO);
+        atlasTurnosSalvar(dados);
+        const registro = dados[dataISO][secao] || {};
+        const chip = (ativo, texto) => `<span style="display:inline-block; padding:5px 9px; border-radius:999px; background:${ativo ? '#064e3b' : '#3f1d1d'}; color:${ativo ? '#bbf7d0' : '#fecaca'}; font-size:12px; font-weight:bold;">${texto}: ${ativo ? 'OK' : 'Pendente'}</span>`;
+        return `
+            <div id="atlas-painel-turnos" style="background:#111827; border:1px solid #334155; border-radius:12px; padding:12px; margin:0 15px 14px; color:white;">
+                <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
+                    <b>Controle de turno - ${atlasTextoAuditoria(infoSecao.nome)}</b>
+                    <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                        ${chip(registro.manha, 'Manha')}
+                        ${chip(registro.tarde, 'Tarde')}
+                        ${chip(registro.dia || registro.enviado, 'Dia')}
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:8px;">
+                    <button onclick="atlasFinalizarTurnoSecao('${secao}', 'manha')" style="background:#3b82f6; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold;">FINALIZAR MANHA</button>
+                    <button onclick="atlasFinalizarTurnoSecao('${secao}', 'tarde')" style="background:#7c3aed; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold;">FINALIZAR TARDE</button>
+                    <button onclick="atlasFinalizarTurnoSecao('${secao}', 'dia')" style="background:#10b981; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold;">FINALIZAR TUDO</button>
+                </div>
+            </div>
+        `;
+    }
+
+    function atlasInserirPainelTurnosModulo(secao) {
+        if (!ATLAS_SECOES_RELATORIO.some(s => s.chave === secao)) return;
+        const render = document.getElementById('render-modulo');
+        if (!render) return;
+        const existente = document.getElementById('atlas-painel-turnos');
+        if (existente) existente.remove();
+        render.insertAdjacentHTML('afterbegin', atlasHtmlPainelTurnos(secao));
+    }
+
+    function atlasTemRelatorioHoje(secao, dataISO = atlasDataISOHoje()) {
+        if (secao === 'injecao') {
+            const db = JSON.parse(localStorage.getItem('atlas_db')) || {};
+            return Object.values(db).some(meses => Object.values(meses || {}).some(lista => (lista || []).some(rel => rel.modulo === 'injecao' && atlasDataBRParaISO(rel.data) === dataISO)));
+        }
+        if (secao === 'bobines') return (JSON.parse(localStorage.getItem('historicoBobines')) || []).some(rel => atlasDataBRParaISO(rel.data) === dataISO);
+        if (secao === 'serra') return (JSON.parse(localStorage.getItem('atlas_serra_hist')) || []).some(rel => atlasDataBRParaISO(rel.data) === dataISO);
+        if (secao === 'embalagem') return (JSON.parse(localStorage.getItem('atlas_emb_hist')) || []).some(rel => atlasDataBRParaISO(rel.data) === dataISO);
+        if (secao === 'plano') return (JSON.parse(localStorage.getItem('atlas_plano_hist')) || []).some(rel => rel.dataISO === dataISO || atlasDataBRParaISO(rel.data) === dataISO);
+        return false;
+    }
+
+    function atlasLembretesTurnos() {
+        const dataISO = atlasDataISOHoje();
+        const dados = atlasGarantirTurnoDia(dataISO);
+        let algumEnviado = false;
+        const faltasDia = [];
+        const faltasTurno = [];
+
+        ATLAS_SECOES_RELATORIO.forEach(secao => {
+            const registro = dados[dataISO][secao.chave];
+            const temRelatorio = atlasTemRelatorioHoje(secao.chave, dataISO);
+            if (temRelatorio && !registro.enviado) {
+                registro.enviado = true;
+                registro.dia = true;
+            }
+            if (temRelatorio || registro.enviado || registro.manha || registro.tarde || registro.dia) algumEnviado = true;
+        });
+        atlasTurnosSalvar(dados);
+
+        if (!algumEnviado) return [];
+
+        ATLAS_SECOES_RELATORIO.forEach(secao => {
+            const registro = dados[dataISO][secao.chave] || {};
+            const temRelatorio = atlasTemRelatorioHoje(secao.chave, dataISO);
+            if (!temRelatorio && !registro.enviado && !registro.dia) faltasDia.push(secao.nome);
+            if (!registro.manha && !registro.dia) faltasTurno.push(`${secao.nome}: manha`);
+            if (!registro.tarde && !registro.dia) faltasTurno.push(`${secao.nome}: tarde`);
+        });
+
+        return [
+            ...(faltasDia.length ? [{ nivel: 'aviso', titulo: 'Relatorios do dia pendentes', detalhe: `Ainda falta enviar: ${faltasDia.join(', ')}.` }] : []),
+            ...(faltasTurno.length ? [{ nivel: 'aviso', titulo: 'Turnos pendentes', detalhe: faltasTurno.join(' | ') }] : [])
+        ];
+    }
+
     function atlasLembretesAutomaticos() {
         const lembretes = [];
         const bobinas = JSON.parse(localStorage.getItem('atlas_stock_bobinas')) || [];
@@ -6579,12 +6731,23 @@ document.addEventListener('click', function(evento) {
             if (qtd < 10) lembretes.push({ nivel: 'critico', titulo: `Filme baixo - ${tipo}`, detalhe: `${qtd} unidade(s) disponiveis.` });
         });
 
-        conferencias
-            .filter(p => p.status === 'stand_by')
+        const conferenciaAbertas = conferencias.filter(p => p.status !== 'finalizado');
+        const conferenciaPendentes = conferenciaAbertas.filter(p => p.status !== 'stand_by');
+        const conferenciaStandBy = conferenciaAbertas.filter(p => p.status === 'stand_by');
+
+        if (conferenciaPendentes.length) {
+            lembretes.push({
+                nivel: 'aviso',
+                titulo: 'Conferencia pendente',
+                detalhe: `${conferenciaPendentes.length} pedido(s) aguardando conferencia.`
+            });
+        }
+
+        conferenciaStandBy
             .slice(0, 20)
             .forEach(p => {
                 const motivos = (p.unidades || [])
-                    .filter(u => u.status === 'nao_ok')
+                    .filter(u => u.status === 'nao_ok' || u.status === 'nao')
                     .map(u => u.motivo)
                     .filter(Boolean)
                     .join(' + ');
@@ -6595,7 +6758,7 @@ document.addEventListener('click', function(evento) {
                 });
             });
 
-        return lembretes;
+        return [...lembretes, ...atlasLembretesTurnos()];
     }
 
     function renderizarLembretesAtlas() {
@@ -6869,6 +7032,7 @@ document.addEventListener('click', function(evento) {
         }
 
         abrirModuloOriginalOperacional(nome);
+        setTimeout(() => atlasInserirPainelTurnosModulo(nome), 80);
     };
 
     function atlasValidarItensBasicos(lista, modulo) {
@@ -6891,36 +7055,61 @@ document.addEventListener('click', function(evento) {
     const finalizarTurnoOriginalLembretes = window.finalizarTurno;
     if (typeof finalizarTurnoOriginalLembretes === 'function') {
         window.finalizarTurno = function(modulo) {
-            if (!atlasConfirmarValidacao(window.producoesDoDia || producoesDoDia || [], 'injecao')) return;
+            const itens = window.producoesDoDia || producoesDoDia || [];
+            if (!atlasConfirmarValidacao(itens, 'injecao')) return;
             atlasRegistrarAuditoria('Finalizou relatorio', 'injecao', `Modulo: ${modulo}`);
-            return finalizarTurnoOriginalLembretes.apply(this, arguments);
+            const retorno = finalizarTurnoOriginalLembretes.apply(this, arguments);
+            if (itens.length) atlasMarcarTurnoRelatorio('injecao', 'dia', atlasDataISOHoje(), true);
+            return retorno;
         };
     }
 
     const fecharDiaBobinesOriginalLembretes = window.fecharDia;
     if (typeof fecharDiaBobinesOriginalLembretes === 'function') {
         window.fecharDia = function() {
-            if (!atlasConfirmarValidacao(window.lancamentosTemporarios || lancamentosTemporarios || [], 'bobines')) return;
+            const itens = window.lancamentosTemporarios || lancamentosTemporarios || [];
+            if (!atlasConfirmarValidacao(itens, 'bobines')) return;
             atlasRegistrarAuditoria('Finalizou relatorio', 'bobines', 'Fechou dia de bobines');
-            return fecharDiaBobinesOriginalLembretes.apply(this, arguments);
+            const retorno = fecharDiaBobinesOriginalLembretes.apply(this, arguments);
+            if (itens.length) atlasMarcarTurnoRelatorio('bobines', 'dia', atlasDataISOHoje(), true);
+            return retorno;
         };
     }
 
     const fecharDiaSerraOriginalLembretes = window.fecharDiaSerra;
     if (typeof fecharDiaSerraOriginalLembretes === 'function') {
         window.fecharDiaSerra = function() {
-            if (!atlasConfirmarValidacao(window.db_serra_live || db_serra_live || [], 'serra')) return;
+            const itens = window.db_serra_live || db_serra_live || [];
+            if (!atlasConfirmarValidacao(itens, 'serra')) return;
             atlasRegistrarAuditoria('Finalizou relatorio', 'serra', 'Fechou dia da serra');
-            return fecharDiaSerraOriginalLembretes.apply(this, arguments);
+            const retorno = fecharDiaSerraOriginalLembretes.apply(this, arguments);
+            if (itens.length) atlasMarcarTurnoRelatorio('serra', 'dia', atlasDataISOHoje(), true);
+            return retorno;
         };
     }
 
     const fecharDiaEmbalagemOriginalLembretes = window.fecharDiaEmbalagem;
     if (typeof fecharDiaEmbalagemOriginalLembretes === 'function') {
         window.fecharDiaEmbalagem = function() {
-            if (!atlasConfirmarValidacao(window.db_emb_live || db_emb_live || [], 'embalagem')) return;
+            const itens = window.db_emb_live || db_emb_live || [];
+            if (!atlasConfirmarValidacao(itens, 'embalagem')) return;
             atlasRegistrarAuditoria('Finalizou relatorio', 'embalagem', 'Fechou dia da embalagem');
-            return fecharDiaEmbalagemOriginalLembretes.apply(this, arguments);
+            const retorno = fecharDiaEmbalagemOriginalLembretes.apply(this, arguments);
+            if (itens.length) atlasMarcarTurnoRelatorio('embalagem', 'dia', atlasDataISOHoje(), true);
+            return retorno;
+        };
+    }
+
+    const finalizarPlanoCompletoOriginalLembretes = window.finalizarPlanoCompleto;
+    if (typeof finalizarPlanoCompletoOriginalLembretes === 'function') {
+        window.finalizarPlanoCompleto = function() {
+            const tinhaPlano = !!window.db_plano_live || !!db_plano_live;
+            const retorno = finalizarPlanoCompletoOriginalLembretes.apply(this, arguments);
+            if (tinhaPlano) {
+                atlasRegistrarAuditoria('Finalizou relatorio', 'plano', 'Finalizou plano');
+                atlasMarcarTurnoRelatorio('plano', 'dia', atlasDataISOHoje(), true);
+            }
+            return retorno;
         };
     }
 

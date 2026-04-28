@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v26-sync-delete-fixo';
+const CACHE_NAME = 'atlas-v27-lembretes-turnos';
 const assets = [
   '/',
   '/index.html',
