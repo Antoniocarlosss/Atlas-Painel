@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v25-lixeira-secoes';
+const CACHE_NAME = 'atlas-v26-sync-delete-fixo';
 const assets = [
   '/',
   '/index.html',

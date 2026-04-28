@@ -32,6 +32,7 @@ const atlasFirestore = getFirestore(atlasFirebaseApp);
 let atlasFirebaseBloqueado = false;
 let atlasFirebaseTimer = null;
 let atlasFirebaseUltimaAlteracaoLocal = 0;
+const ATLAS_FIREBASE_SYNC_KEY = "atlas_sync_local_updated_ms";
 
 function atlasFirebaseNomeUsuario() {
     return document.getElementById("user-display")?.innerText || "SEM USUARIO";
@@ -43,6 +44,24 @@ function atlasParseJSON(chave, fallback) {
     } catch (erro) {
         return fallback;
     }
+}
+
+function atlasFirebaseChaveSincronizada(chave) {
+    return chave && (chave.startsWith("atlas_") || chave === "historicoBobines");
+}
+
+function atlasFirebaseMarcarAlteracaoLocal() {
+    const agora = Date.now();
+    atlasFirebaseUltimaAlteracaoLocal = agora;
+    atlasLocalStorageSetItemOriginal.call(localStorage, ATLAS_FIREBASE_SYNC_KEY, String(agora));
+}
+
+function atlasFirebaseBackupPodeEntrar(dados) {
+    const nuvem = Number(dados?.[ATLAS_FIREBASE_SYNC_KEY] || 0);
+    const local = Number(localStorage.getItem(ATLAS_FIREBASE_SYNC_KEY) || 0);
+    if (!local) return true;
+    if (!nuvem) return false;
+    return nuvem > local;
 }
 
 function atlasDocId(texto) {
@@ -228,10 +247,13 @@ async function atlasEnviarDestinosPlano() {
 
 async function atlasEnviarBackupLocalStorage() {
     const backup = {};
+    if (!atlasFirebaseBloqueado && !localStorage.getItem(ATLAS_FIREBASE_SYNC_KEY)) {
+        atlasLocalStorageSetItemOriginal.call(localStorage, ATLAS_FIREBASE_SYNC_KEY, String(Date.now()));
+    }
 
     for (let i = 0; i < localStorage.length; i++) {
         const chave = localStorage.key(i);
-        if (chave.startsWith("atlas_") || chave === "historicoBobines") {
+        if (atlasFirebaseChaveSincronizada(chave)) {
             backup[chave] = localStorage.getItem(chave);
         }
     }
@@ -257,7 +279,8 @@ async function atlasFirebaseEnviarTudoOrganizadoInterno() {
 
 function atlasFirebaseAgendarEnvio(chave) {
     if (!chave) return;
-    if (!(chave.startsWith("atlas_") || chave === "historicoBobines")) return;
+    if (!atlasFirebaseChaveSincronizada(chave)) return;
+    if (atlasFirebaseBloqueado) return;
 
     clearTimeout(atlasFirebaseTimer);
     atlasFirebaseTimer = setTimeout(() => {
@@ -272,8 +295,8 @@ const atlasLocalStorageRemoveItemOriginal = localStorage.removeItem;
 
 localStorage.setItem = function(chave, valor) {
     const resultado = atlasLocalStorageSetItemOriginal.call(localStorage, chave, valor);
-    if (!atlasFirebaseBloqueado && (chave.startsWith("atlas_") || chave === "historicoBobines")) {
-        atlasFirebaseUltimaAlteracaoLocal = Date.now();
+    if (!atlasFirebaseBloqueado && atlasFirebaseChaveSincronizada(chave) && chave !== ATLAS_FIREBASE_SYNC_KEY) {
+        atlasFirebaseMarcarAlteracaoLocal();
     }
     atlasFirebaseAgendarEnvio(chave);
     return resultado;
@@ -281,8 +304,8 @@ localStorage.setItem = function(chave, valor) {
 
 localStorage.removeItem = function(chave) {
     const resultado = atlasLocalStorageRemoveItemOriginal.call(localStorage, chave);
-    if (!atlasFirebaseBloqueado && (chave.startsWith("atlas_") || chave === "historicoBobines")) {
-        atlasFirebaseUltimaAlteracaoLocal = Date.now();
+    if (!atlasFirebaseBloqueado && atlasFirebaseChaveSincronizada(chave) && chave !== ATLAS_FIREBASE_SYNC_KEY) {
+        atlasFirebaseMarcarAlteracaoLocal();
     }
     atlasFirebaseAgendarEnvio(chave);
     return resultado;
@@ -313,6 +336,7 @@ async function atlasFirebaseBaixarBackupInicial() {
     const chaves = Object.keys(dados);
 
     if (chaves.length === 0) return;
+    if (!atlasFirebaseBackupPodeEntrar(dados)) return;
 
     atlasFirebaseBloqueado = true;
 
@@ -346,6 +370,7 @@ async function atlasFirebaseAtualizarSemSair() {
         const chaves = Object.keys(dados);
 
         if (chaves.length === 0) return;
+        if (!atlasFirebaseBackupPodeEntrar(dados)) return;
 
         atlasFirebaseBloqueado = true;
 
