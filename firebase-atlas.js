@@ -102,12 +102,45 @@ async function atlasEnviarUsuarios() {
     await Promise.all(usuarios.map(usuario => {
         const id = atlasDocId(usuario.id);
         return atlasSetDoc(["usuarios", id], {
+            ...usuario,
             id: usuario.id,
             senha: usuario.senha,
             cargo: usuario.cargo,
             bloqueado: usuario.bloqueado === true
         });
     }));
+}
+
+async function atlasFirebaseBaixarUsuariosDireto() {
+    const snap = await getDocs(collection(atlasFirestore, "usuarios"));
+    const usuariosNuvem = snap.docs
+        .map(d => d.data())
+        .filter(usuario => usuario && usuario.id);
+
+    if (usuariosNuvem.length === 0) return false;
+
+    usuariosNuvem.sort((a, b) => {
+        const adminA = String(a.id).toLowerCase() === "admin" ? -1 : 0;
+        const adminB = String(b.id).toLowerCase() === "admin" ? -1 : 0;
+        if (adminA !== adminB) return adminA - adminB;
+        return String(a.id).localeCompare(String(b.id));
+    });
+
+    const usuariosAtuais = atlasParseJSON("atlas_usuarios", []);
+    if (JSON.stringify(usuariosAtuais) === JSON.stringify(usuariosNuvem)) return false;
+
+    atlasFirebaseBloqueado = true;
+    atlasLocalStorageSetItemOriginal.call(localStorage, "atlas_usuarios", JSON.stringify(usuariosNuvem));
+    atlasFirebaseBloqueado = false;
+
+    if (typeof window.usuariosSistema !== "undefined") {
+        window.usuariosSistema = usuariosNuvem;
+    }
+    if (typeof usuariosSistema !== "undefined") {
+        usuariosSistema = usuariosNuvem;
+    }
+
+    return true;
 }
 
 async function atlasEnviarInjecao() {
@@ -353,7 +386,8 @@ async function atlasFirebaseBaixarBackupInicial() {
 }
 
 setTimeout(() => {
-    atlasFirebaseBaixarBackupInicial()
+    atlasFirebaseBaixarUsuariosDireto()
+        .then(() => atlasFirebaseBaixarBackupInicial())
         .then(() => atlasFirebaseEnviarTudoOrganizadoInterno())
         .catch(erro => {
             console.error("Erro inicial Firebase:", erro);
@@ -361,6 +395,12 @@ setTimeout(() => {
 }, 1500);
 async function atlasFirebaseAtualizarSemSair() {
     try {
+        const atualizouUsuarios = await atlasFirebaseBaixarUsuariosDireto();
+        if (atualizouUsuarios && typeof usuarioLogado !== "undefined" && usuarioLogado) {
+            const usuarioAtualizado = atlasParseJSON("atlas_usuarios", []).find(usuario => String(usuario.id).toLowerCase() === String(usuarioLogado.id).toLowerCase());
+            if (usuarioAtualizado) usuarioLogado = usuarioAtualizado;
+        }
+
         if (Date.now() - atlasFirebaseUltimaAlteracaoLocal < 30000) return;
 
         const snap = await getDoc(doc(atlasFirestore, "backups_localstorage", "ultimo_backup"));
@@ -394,4 +434,15 @@ async function atlasFirebaseAtualizarSemSair() {
 setInterval(() => {
     atlasFirebaseAtualizarSemSair();
 }, 15000);
+
+window.atlasFirebaseForcarAtualizacao = function() {
+    return atlasFirebaseBaixarUsuariosDireto()
+        .then(() => atlasFirebaseBaixarBackupInicial())
+        .then(() => {
+            if (typeof usuariosSistema !== "undefined") {
+                usuariosSistema = atlasParseJSON("atlas_usuarios", usuariosSistema);
+            }
+            return true;
+        });
+};
 

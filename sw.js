@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v36-operario-permissoes-plano';
+const CACHE_NAME = 'atlas-v37-atualizacao-automatica';
 const assets = [
   '/',
   '/index.html',
@@ -25,6 +25,12 @@ self.addEventListener('activate', e => {
       keys.filter(key => key !== CACHE_NAME).map(key => caches.delete(key))
     )).then(() => self.clients.claim())
   );
+});
+
+self.addEventListener('message', e => {
+  if (e.data && e.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
 
 // Busca de arquivos: tenta pegar a versao nova primeiro e usa cache se estiver offline.

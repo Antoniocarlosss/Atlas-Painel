@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Atlas Painel - Gestão</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
@@ -90,15 +93,37 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="script.js?v=20260428-operario-permissoes-plano"></script>
+    <script src="script.js?v=20260428-atualizacao-automatica"></script>
     <script src="historicos-admin.js?v=20260427-lembretes-auditoria"></script>
     <script src="atlas-ajustes-fachadas.js?v=20260427-permissao-excluir"></script>
-    <script type="module" src="firebase-atlas.js?v=20260428-sync-delete-fixo"></script>
+    <script type="module" src="firebase-atlas.js?v=20260428-atualizacao-usuarios"></script>
     <script>
         if ('serviceWorker' in navigator) {
+            let atlasAtualizandoPWA = false;
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+                if (atlasAtualizandoPWA) return;
+                atlasAtualizandoPWA = true;
+                window.location.reload();
+            });
+
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=20260428-operario-permissoes-plano')
-                    .then(reg => console.log('Atlas PWA: Ativo!'))
+                navigator.serviceWorker.register('sw.js?v=20260428-atualizacao-automatica')
+                    .then(reg => {
+                        console.log('Atlas PWA: Ativo!');
+                        reg.update();
+                        if (reg.waiting) {
+                            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                        }
+                        reg.addEventListener('updatefound', () => {
+                            const novoWorker = reg.installing;
+                            if (!novoWorker) return;
+                            novoWorker.addEventListener('statechange', () => {
+                                if (novoWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                                    novoWorker.postMessage({ type: 'SKIP_WAITING' });
+                                }
+                            });
+                        });
+                    })
                     .catch(err => console.log('Erro PWA:', err));
             });
         }

@@ -306,7 +306,19 @@ function verificarAniversarioNoLoginAtlas(usuario) {
     mostrarMensagemAniversarioAtlas(usuario, status);
 }
 
-function fazerLogin() {
+async function fazerLogin() {
+    if (typeof window.atlasFirebaseForcarAtualizacao === 'function') {
+        try {
+            await Promise.race([
+                window.atlasFirebaseForcarAtualizacao(),
+                new Promise(resolve => setTimeout(resolve, 2500))
+            ]);
+            usuariosSistema = JSON.parse(localStorage.getItem('atlas_usuarios')) || usuariosSistema;
+        } catch (erro) {
+            console.warn('Nao foi possivel atualizar usuarios antes do login:', erro);
+        }
+    }
+
     const usuarioInput = document.getElementById('login-email').value.trim();
     const senhaInput = document.getElementById('login-senha').value.trim();
 
