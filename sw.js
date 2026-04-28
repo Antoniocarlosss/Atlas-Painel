@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v35-supervisor-registros-lembretes';
+const CACHE_NAME = 'atlas-v36-operario-permissoes-plano';
 const assets = [
   '/',
   '/index.html',

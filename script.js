@@ -35,15 +35,16 @@ function obterPreferenciasPadraoUsuario(idUsuario) {
     const cargo = obterCargoUsuarioPorId(idUsuario);
     const basicos = ['injecao', 'bobines', 'serra', 'embalagem', 'plano', 'config'];
     const restritos = ['gestao', 'conferencia', 'stock', 'lixeira', 'pesquisa_encomenda', 'lembretes', 'auditoria'];
+    const supervisorTotal = [...basicos, ...restritos];
     const modulosVisiveis = cargo === 'admin'
         ? [...basicos, ...restritos, 'permissoes']
-        : (cargo === 'supervisor' ? [...basicos, ...restritos] : basicos);
+        : (cargo === 'supervisor' ? supervisorTotal : [...basicos, 'lixeira']);
     const modulosEditaveis = cargo === 'admin'
         ? [...basicos, ...restritos, 'permissoes']
-        : (cargo === 'supervisor' ? ['plano', 'conferencia', 'stock'] : []);
+        : (cargo === 'supervisor' ? supervisorTotal.filter(chave => chave !== 'auditoria') : []);
     const modulosExcluiveis = cargo === 'admin'
         ? [...basicos, ...restritos, 'permissoes']
-        : [];
+        : (cargo === 'supervisor' ? supervisorTotal.filter(chave => chave !== 'auditoria') : []);
     return {
         tema: 'escuro',
         modulosVisiveis,
@@ -65,6 +66,12 @@ function usuarioPodeVerModulo(chave) {
     if (!usuarioLogado) return false;
     if (chave === 'config') return true;
     if (chave === 'permissoes') return usuarioEhAdmin();
+    const cargo = normalizarCargoUsuario(usuarioLogado.cargo);
+    if (cargo === 'operario') {
+        if (['gestao', 'stock', 'conferencia', 'pesquisa_encomenda', 'permissoes', 'lembretes', 'auditoria'].includes(chave)) return false;
+        if (chave === 'lixeira') return true;
+    }
+    if (cargo === 'supervisor') return true;
     if (usuarioEhAdminSupervisor() && (chave === 'lembretes' || chave === 'auditoria')) return true;
     const prefs = obterPreferenciasUsuario(usuarioLogado.id);
     const permitido = prefs.modulosVisiveis.includes(chave);
@@ -74,14 +81,20 @@ function usuarioPodeVerModulo(chave) {
 
 function usuarioPodeEditarModulo(chave) {
     if (!usuarioLogado) return false;
-    if (normalizarCargoUsuario(usuarioLogado.cargo) === 'admin') return true;
+    const cargo = normalizarCargoUsuario(usuarioLogado.cargo);
+    if (cargo === 'admin') return true;
+    if (cargo === 'operario' && chave === 'plano') return false;
+    if (cargo === 'supervisor' && chave !== 'permissoes' && chave !== 'auditoria') return true;
     return obterPreferenciasUsuario(usuarioLogado.id).modulosEditaveis.includes(chave);
 }
 
 function usuarioPodeExcluirModulo(chave) {
     if (!usuarioLogado) return false;
     if (chave === 'auditoria') return usuarioEhAdmin();
-    if (normalizarCargoUsuario(usuarioLogado.cargo) === 'admin') return true;
+    const cargo = normalizarCargoUsuario(usuarioLogado.cargo);
+    if (cargo === 'admin') return true;
+    if (cargo === 'operario' && chave === 'plano') return false;
+    if (cargo === 'supervisor' && chave !== 'permissoes') return true;
     return obterPreferenciasUsuario(usuarioLogado.id).modulosExcluiveis.includes(chave);
 }
 
@@ -113,12 +126,24 @@ function obterPreferenciasUsuario(idUsuario) {
         : (cargo === 'supervisor'
             ? [...modulosSalvos, 'lembretes', 'auditoria']
             : modulosSalvos);
+    const modulosSistemaSemPermissoes = [...new Set([
+        ...MODULOS_SISTEMA.map(m => m.chave),
+        'conferencia',
+        'pesquisa_encomenda',
+        'lembretes',
+        'auditoria'
+    ])].filter(chaveModulo => chaveModulo !== 'permissoes');
+    const modulosSupervisorExcluiveis = modulosSistemaSemPermissoes.filter(chaveModulo => chaveModulo !== 'auditoria');
 
     return {
         tema: salvas.tema || 'escuro',
         modulosVisiveis: [...new Set(modulosVisiveisCargo)],
-        modulosEditaveis: [...new Set(cargo === 'admin' ? [...editaveisSalvos, ...MODULOS_SISTEMA.map(m => m.chave)] : editaveisSalvos)],
-        modulosExcluiveis: [...new Set(cargo === 'admin' ? [...excluiveisSalvos, ...MODULOS_SISTEMA.map(m => m.chave)] : excluiveisSalvos)],
+        modulosEditaveis: [...new Set(cargo === 'admin'
+            ? [...editaveisSalvos, ...MODULOS_SISTEMA.map(m => m.chave)]
+            : (cargo === 'supervisor' ? [...editaveisSalvos, ...modulosSupervisorExcluiveis] : editaveisSalvos))],
+        modulosExcluiveis: [...new Set(cargo === 'admin'
+            ? [...excluiveisSalvos, ...MODULOS_SISTEMA.map(m => m.chave)]
+            : (cargo === 'supervisor' ? [...excluiveisSalvos, ...modulosSupervisorExcluiveis] : excluiveisSalvos))],
         modulosOcultosUsuario: ocultosUsuario,
         permissoesAdminDefinidas: salvas.permissoesAdminDefinidas === true
     };
@@ -3611,12 +3636,13 @@ function renderizarMenuPlanoNovo() {
     if (!render) return;
 
     render.innerHTML = `
-        <div id="container-menu-plano" style="display:grid; grid-template-columns:1fr 1fr; gap:15px; padding:15px;">
-            <div class="card" onclick="exibirMenuCriacaoPlano()" style="cursor:pointer; background:#1e293b; border-radius:10px; padding:30px 15px; text-align:center; border:1px solid #334155; ${usuarioPodeCriarPlano() ? '' : 'opacity:0.55;'}">
+        <div id="container-menu-plano" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:15px; padding:15px;">
+            ${usuarioPodeCriarPlano() ? `
+            <div class="card" onclick="exibirMenuCriacaoPlano()" style="cursor:pointer; background:#1e293b; border-radius:10px; padding:30px 15px; text-align:center; border:1px solid #334155;">
                 <i class="fas fa-plus" style="color:#3b82f6; font-size:2.5rem; margin-bottom:15px;"></i>
                 <span style="display:block; color:white; font-weight:bold; font-size:13px; text-transform:uppercase;">Criar Plano</span>
-                <small style="color:#94a3b8;">${usuarioPodeCriarPlano() ? 'Pedidos e stock' : 'Sem permissao para criar'}</small>
-            </div>
+                <small style="color:#94a3b8;">Pedidos e stock</small>
+            </div>` : ''}
 
             <div class="card" onclick="listarHistoricoPlano()" style="cursor:pointer; background:#1e293b; border-radius:10px; padding:30px 15px; text-align:center; border:1px solid #334155;">
                 <i class="fas fa-history" style="color:#3b82f6; font-size:2.5rem; margin-bottom:15px;"></i>
