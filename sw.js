@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v37-atualizacao-automatica';
+const CACHE_NAME = 'atlas-v38-login-usuario-local-primeiro';
 const assets = [
   '/',
   '/index.html',

@@ -119,25 +119,39 @@ async function atlasFirebaseBaixarUsuariosDireto() {
 
     if (usuariosNuvem.length === 0) return false;
 
-    usuariosNuvem.sort((a, b) => {
+    const usuariosAtuais = atlasParseJSON("atlas_usuarios", []);
+    const mapaMesclado = new Map();
+
+    usuariosAtuais.forEach(usuario => {
+        if (usuario && usuario.id) {
+            mapaMesclado.set(String(usuario.id).toLowerCase(), usuario);
+        }
+    });
+
+    usuariosNuvem.forEach(usuario => {
+        mapaMesclado.set(String(usuario.id).toLowerCase(), usuario);
+    });
+
+    const usuariosMesclados = Array.from(mapaMesclado.values());
+
+    usuariosMesclados.sort((a, b) => {
         const adminA = String(a.id).toLowerCase() === "admin" ? -1 : 0;
         const adminB = String(b.id).toLowerCase() === "admin" ? -1 : 0;
         if (adminA !== adminB) return adminA - adminB;
         return String(a.id).localeCompare(String(b.id));
     });
 
-    const usuariosAtuais = atlasParseJSON("atlas_usuarios", []);
-    if (JSON.stringify(usuariosAtuais) === JSON.stringify(usuariosNuvem)) return false;
+    if (JSON.stringify(usuariosAtuais) === JSON.stringify(usuariosMesclados)) return false;
 
     atlasFirebaseBloqueado = true;
-    atlasLocalStorageSetItemOriginal.call(localStorage, "atlas_usuarios", JSON.stringify(usuariosNuvem));
+    atlasLocalStorageSetItemOriginal.call(localStorage, "atlas_usuarios", JSON.stringify(usuariosMesclados));
     atlasFirebaseBloqueado = false;
 
     if (typeof window.usuariosSistema !== "undefined") {
-        window.usuariosSistema = usuariosNuvem;
+        window.usuariosSistema = usuariosMesclados;
     }
     if (typeof usuariosSistema !== "undefined") {
-        usuariosSistema = usuariosNuvem;
+        usuariosSistema = usuariosMesclados;
     }
 
     return true;

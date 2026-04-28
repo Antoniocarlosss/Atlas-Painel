@@ -93,10 +93,10 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="script.js?v=20260428-atualizacao-automatica"></script>
+    <script src="script.js?v=20260428-login-usuario-local-primeiro"></script>
     <script src="historicos-admin.js?v=20260427-lembretes-auditoria"></script>
     <script src="atlas-ajustes-fachadas.js?v=20260427-permissao-excluir"></script>
-    <script type="module" src="firebase-atlas.js?v=20260428-atualizacao-usuarios"></script>
+    <script type="module" src="firebase-atlas.js?v=20260428-usuarios-mesclados"></script>
     <script>
         if ('serviceWorker' in navigator) {
             let atlasAtualizandoPWA = false;
@@ -107,7 +107,7 @@
             });
 
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=20260428-atualizacao-automatica')
+                navigator.serviceWorker.register('sw.js?v=20260428-login-usuario-local-primeiro')
                     .then(reg => {
                         console.log('Atlas PWA: Ativo!');
                         reg.update();

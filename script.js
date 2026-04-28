@@ -307,24 +307,27 @@ function verificarAniversarioNoLoginAtlas(usuario) {
 }
 
 async function fazerLogin() {
-    if (typeof window.atlasFirebaseForcarAtualizacao === 'function') {
+    const usuarioInput = document.getElementById('login-email').value.trim();
+    const senhaInput = document.getElementById('login-senha').value.trim();
+
+    let usuarioEncontrado = usuariosSistema.find(
+        u => String(u.id).toLowerCase() === usuarioInput.toLowerCase() && String(u.senha) === senhaInput
+    );
+
+    if (!usuarioEncontrado && typeof window.atlasFirebaseForcarAtualizacao === 'function') {
         try {
             await Promise.race([
                 window.atlasFirebaseForcarAtualizacao(),
                 new Promise(resolve => setTimeout(resolve, 2500))
             ]);
             usuariosSistema = JSON.parse(localStorage.getItem('atlas_usuarios')) || usuariosSistema;
+            usuarioEncontrado = usuariosSistema.find(
+                u => String(u.id).toLowerCase() === usuarioInput.toLowerCase() && String(u.senha) === senhaInput
+            );
         } catch (erro) {
             console.warn('Nao foi possivel atualizar usuarios antes do login:', erro);
         }
     }
-
-    const usuarioInput = document.getElementById('login-email').value.trim();
-    const senhaInput = document.getElementById('login-senha').value.trim();
-
-    const usuarioEncontrado = usuariosSistema.find(
-        u => u.id === usuarioInput && u.senha === senhaInput
-    );
 
     if (usuarioEncontrado) {
         if (usuarioEncontrado.bloqueado) {
