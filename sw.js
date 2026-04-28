@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v29-lembretes-producao-conf';
+const CACHE_NAME = 'atlas-v30-registros-admin-apaga';
 const assets = [
   '/',
   '/index.html',

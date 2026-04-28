@@ -79,6 +79,7 @@ function usuarioPodeEditarModulo(chave) {
 
 function usuarioPodeExcluirModulo(chave) {
     if (!usuarioLogado) return false;
+    if (chave === 'auditoria') return usuarioEhAdmin();
     if (normalizarCargoUsuario(usuarioLogado.cargo) === 'admin') return true;
     return obterPreferenciasUsuario(usuarioLogado.id).modulosExcluiveis.includes(chave);
 }
@@ -6790,12 +6791,17 @@ document.addEventListener('click', function(evento) {
         render.innerHTML = `
             <div style="padding:15px; color:white;">
                 <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:14px; margin-bottom:15px;">
-                    <div style="display:grid; grid-template-columns:1fr auto; gap:8px;">
+                    <div style="display:grid; grid-template-columns:1fr auto ${usuarioEhAdmin() ? 'auto' : ''}; gap:8px;">
                         <input id="auditoria-busca" oninput="renderizarAuditoriaFiltradaAtlas(this.value)" onkeydown="if(event.key === 'Enter') renderizarAuditoriaFiltradaAtlas(this.value)" placeholder="Pesquisar por usuario, secao, acao ou data"
                             style="width:100%; padding:14px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; font-size:16px;">
                         <button onclick="renderizarAuditoriaFiltradaAtlas(document.getElementById('auditoria-busca')?.value || '')" style="background:#3b82f6; color:white; border:none; padding:0 16px; border-radius:8px; font-weight:bold;">
                             BUSCAR
                         </button>
+                        ${usuarioEhAdmin() ? `
+                            <button onclick="atlasApagarTodosRegistros()" style="background:#7f1d1d; color:white; border:none; padding:0 16px; border-radius:8px; font-weight:bold;">
+                                APAGAR
+                            </button>
+                        ` : ''}
                     </div>
                 </div>
                 <div id="auditoria-lista"></div>
@@ -6803,6 +6809,16 @@ document.addEventListener('click', function(evento) {
         `;
         renderizarAuditoriaFiltradaAtlas('');
     }
+
+    window.atlasApagarTodosRegistros = function() {
+        if (!usuarioEhAdmin()) return alert('Apenas ADMIN pode apagar registros.');
+        const total = (JSON.parse(localStorage.getItem(AUDITORIA_KEY)) || []).length;
+        if (!total) return alert('Nao existem registros para apagar.');
+        if (!confirm(`Apagar todos os ${total} registros? Esta acao nao pode ser desfeita.`)) return;
+        localStorage.setItem(AUDITORIA_KEY, JSON.stringify([]));
+        renderizarAuditoriaAtlas();
+        alert('Registros apagados.');
+    };
 
     window.renderizarAuditoriaFiltradaAtlas = function(termo) {
         const alvo = document.getElementById('auditoria-lista');
