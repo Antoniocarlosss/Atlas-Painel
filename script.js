@@ -6781,6 +6781,7 @@ document.addEventListener('click', function(evento) {
     function atlasRegistrosFiltrados(termo = '') {
         const busca = String(termo || '').toLowerCase();
         return (JSON.parse(localStorage.getItem(AUDITORIA_KEY)) || [])
+            .map((item, index) => ({ ...item, __atlasIndex: index }))
             .filter(item => !busca || JSON.stringify(item).toLowerCase().includes(busca));
     }
 
@@ -6833,6 +6834,18 @@ document.addEventListener('click', function(evento) {
         alert('Registros do dia apagados.');
     };
 
+    window.atlasApagarRegistroItem = function(indexOriginal) {
+        if (!usuarioEhAdmin()) return alert('Apenas ADMIN pode apagar registros.');
+        const lista = JSON.parse(localStorage.getItem(AUDITORIA_KEY)) || [];
+        const index = Number(indexOriginal);
+        const item = lista[index];
+        if (!item) return alert('Registro nao encontrado.');
+        if (!confirm(`Apagar este registro?\n\n${item.acao || ''}\n${item.dataHora || ''}`)) return;
+        lista.splice(index, 1);
+        localStorage.setItem(AUDITORIA_KEY, JSON.stringify(lista));
+        renderizarAuditoriaFiltradaAtlas(document.getElementById('auditoria-busca')?.value || '');
+    };
+
     window.renderizarAuditoriaFiltradaAtlas = function(termo) {
         const alvo = document.getElementById('auditoria-lista');
         if (!alvo) return;
@@ -6871,9 +6884,19 @@ document.addEventListener('click', function(evento) {
 
                     html += `
                         <div style="background:#111827; border:1px solid #334155; border-radius:10px; margin-top:8px; overflow:hidden;">
-                            <div onclick="togglePlanoElemento('${diaId}')" style="cursor:pointer; padding:12px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">
-                                <b>DIA ${grupoDia.data}</b>
+                            <div style="padding:12px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">
+                                <div onclick="togglePlanoElemento('${diaId}')" style="cursor:pointer; flex:1; min-width:220px;">
+                                    <b>DIA ${grupoDia.data}</b>
+                                </div>
+                                ${usuarioEhAdmin() ? `
+                                    <button onclick="atlasApagarRegistrosDia('${ano}','${mes}','${dia}')" style="background:#7f1d1d; color:white; border:none; padding:8px 10px; border-radius:8px; font-weight:bold;">
+                                        APAGAR DIA
+                                    </button>
+                                ` : ''}
                                 <span style="color:#f59e0b; font-weight:bold;">${totalDia} modificacao(oes)</span>
+                            </div>
+                            <div onclick="togglePlanoElemento('${diaId}')" style="cursor:pointer; padding:0 12px 10px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center;">
+                                <small style="color:#94a3b8;">Clique aqui para abrir os itens do dia</small>
                             </div>
                             <div style="display:grid; grid-template-columns:${usuarioEhAdmin() ? '1fr 1fr' : '1fr'}; gap:8px; padding:0 12px 12px;">
                                 <button onclick="gerarRelatorioRegistrosDiaAtlas('${ano}','${mes}','${dia}')" style="width:100%; background:#10b981; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold;">
@@ -6902,6 +6925,11 @@ document.addEventListener('click', function(evento) {
                                             Usuario: <b>${atlasTextoAuditoria(item.usuario)}</b><br>
                                             ${atlasTextoAuditoria(item.detalhes)}
                                         </div>
+                                        ${usuarioEhAdmin() ? `
+                                            <button onclick="atlasApagarRegistroItem(${Number(item.__atlasIndex)})" style="width:100%; margin-top:8px; background:#7f1d1d; color:white; border:none; padding:9px; border-radius:8px; font-weight:bold;">
+                                                APAGAR ITEM
+                                            </button>
+                                        ` : ''}
                                     </div>
                                 `).join('')}
                             </div>
