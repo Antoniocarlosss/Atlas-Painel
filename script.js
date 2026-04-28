@@ -2991,8 +2991,8 @@ function exibirCriarUsuario() {
             <input type="text" id="novo-nome-usuario" name="atlas-novo-nome-${Date.now()}" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" placeholder="Nome do usuario" value="" style="width:100%; margin-bottom:10px; padding:12px; background:#1e293b; color:white; border:1px solid #334155; border-radius:6px;">
             <label style="display:block; color:#94a3b8; font-size:12px; margin-bottom:6px;">Data de nascimento</label>
             <input type="date" id="novo-aniversario-usuario" name="atlas-novo-nascimento-${Date.now()}" autocomplete="off" title="Coloque a data completa de nascimento, com dia, mes e ano" value="" style="width:100%; margin-bottom:10px; padding:12px; background:#1e293b; color:white; border:1px solid #334155; border-radius:6px;">
-            <input type="text" id="novo-id-usuario" name="atlas-novo-login-${Date.now()}" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" placeholder="ID de entrada / login" value="" style="width:100%; margin-bottom:10px; padding:12px; background:#1e293b; color:white; border:1px solid #334155; border-radius:6px;">
-            <input type="password" id="nova-senha-usuario" name="atlas-nova-senha-${Date.now()}" autocomplete="new-password" readonly onfocus="this.removeAttribute('readonly')" placeholder="Senha" value="" style="width:100%; margin-bottom:10px; padding:12px; background:#1e293b; color:white; border:1px solid #334155; border-radius:6px;">
+            <input type="search" id="novo-id-usuario" name="atlas-novo-login-${Date.now()}" autocomplete="new-password" readonly onfocus="this.removeAttribute('readonly'); if(this.value.toLowerCase()==='admin') this.value='';" placeholder="ID de entrada / login" value="" style="width:100%; margin-bottom:10px; padding:12px; background:#1e293b; color:white; border:1px solid #334155; border-radius:6px;">
+            <input type="text" id="nova-senha-usuario" name="atlas-nova-senha-${Date.now()}" autocomplete="new-password" readonly onfocus="this.removeAttribute('readonly'); if((document.getElementById('novo-id-usuario')?.value || '').toLowerCase()==='admin') this.value='';" placeholder="Senha" value="" style="-webkit-text-security:disc; text-security:disc; width:100%; margin-bottom:10px; padding:12px; background:#1e293b; color:white; border:1px solid #334155; border-radius:6px;">
             <select id="novo-cargo-usuario" style="width:100%; margin-bottom:15px; padding:12px; background:#1e293b; color:white; border:1px solid #334155; border-radius:6px;">
                 <option value="operario">Operario</option>
                 <option value="supervisor">Supervisor</option>
@@ -3001,12 +3001,33 @@ function exibirCriarUsuario() {
         </form>
     `;
 
+    const limparCamposCriarId = () => {
+        const idCampo = document.getElementById('novo-id-usuario');
+        const senhaCampo = document.getElementById('nova-senha-usuario');
+        const nomeCampo = document.getElementById('novo-nome-usuario');
+        const dataCampo = document.getElementById('novo-aniversario-usuario');
+        const idAtual = String(idCampo?.value || '').trim().toLowerCase();
+        const pareceAutofillAdmin = idAtual === 'admin' || idAtual === String(usuarioLogado?.id || '').trim().toLowerCase();
+
+        if (nomeCampo && !nomeCampo.matches(':focus')) nomeCampo.value = '';
+        if (dataCampo && !dataCampo.matches(':focus')) dataCampo.value = '';
+        if (idCampo && pareceAutofillAdmin && !idCampo.matches(':focus')) idCampo.value = '';
+        if (senhaCampo && pareceAutofillAdmin && !senhaCampo.matches(':focus')) senhaCampo.value = '';
+    };
+
     setTimeout(() => {
         ['novo-nome-usuario', 'novo-aniversario-usuario', 'novo-id-usuario', 'nova-senha-usuario'].forEach(id => {
             const campo = document.getElementById(id);
             if (campo) campo.value = '';
         });
     }, 250);
+
+    let tentativasLimpezaCriarId = 0;
+    const timerLimpezaCriarId = setInterval(() => {
+        limparCamposCriarId();
+        tentativasLimpezaCriarId += 1;
+        if (tentativasLimpezaCriarId >= 25) clearInterval(timerLimpezaCriarId);
+    }, 200);
 }
 
 function criarUsuarioSistema() {

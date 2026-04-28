@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v33-criar-id-vazio';
+const CACHE_NAME = 'atlas-v34-criar-id-sem-autofill';
 const assets = [
   '/',
   '/index.html',
