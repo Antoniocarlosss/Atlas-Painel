@@ -6569,8 +6569,7 @@ document.addEventListener('click', function(evento) {
         { chave: 'injecao', nome: 'Injecao' },
         { chave: 'bobines', nome: 'Bobines' },
         { chave: 'serra', nome: 'Serra' },
-        { chave: 'embalagem', nome: 'Embalagem' },
-        { chave: 'plano', nome: 'Plano' }
+        { chave: 'embalagem', nome: 'Embalagem' }
     ];
 
     function atlasDataISOHoje() {
@@ -6584,6 +6583,12 @@ document.addEventListener('click', function(evento) {
         return `${partes[3]}-${String(partes[2]).padStart(2, '0')}-${String(partes[1]).padStart(2, '0')}`;
     }
 
+    function atlasDataISOParaBR(dataISO) {
+        const partes = String(dataISO || '').split('-');
+        if (partes.length !== 3) return dataISO || '';
+        return `${partes[2]}/${partes[1]}/${partes[0]}`;
+    }
+
     function atlasTemRelatorioHoje(secao, dataISO = atlasDataISOHoje()) {
         if (secao === 'injecao') {
             const db = JSON.parse(localStorage.getItem('atlas_db')) || {};
@@ -6592,24 +6597,57 @@ document.addEventListener('click', function(evento) {
         if (secao === 'bobines') return (JSON.parse(localStorage.getItem('historicoBobines')) || []).some(rel => atlasDataBRParaISO(rel.data) === dataISO);
         if (secao === 'serra') return (JSON.parse(localStorage.getItem('atlas_serra_hist')) || []).some(rel => atlasDataBRParaISO(rel.data) === dataISO);
         if (secao === 'embalagem') return (JSON.parse(localStorage.getItem('atlas_emb_hist')) || []).some(rel => atlasDataBRParaISO(rel.data) === dataISO);
-        if (secao === 'plano') return (JSON.parse(localStorage.getItem('atlas_plano_hist')) || []).some(rel => rel.dataISO === dataISO || atlasDataBRParaISO(rel.data) === dataISO);
         return false;
     }
 
-    function atlasLembretesRelatoriosPendentes() {
-        const dataISO = atlasDataISOHoje();
-        const faltasDia = [];
-        const algumEnviado = ATLAS_SECOES_RELATORIO.some(secao => atlasTemRelatorioHoje(secao.chave, dataISO));
+    function atlasDatasRelatoriosPorSecao() {
+        const datas = {};
+        ATLAS_SECOES_RELATORIO.forEach(secao => datas[secao.chave] = new Set());
 
-        if (!algumEnviado) return [];
+        const adicionar = (secao, data) => {
+            const iso = atlasDataBRParaISO(data);
+            if (iso) datas[secao]?.add(iso);
+        };
 
-        ATLAS_SECOES_RELATORIO.forEach(secao => {
-            if (!atlasTemRelatorioHoje(secao.chave, dataISO)) faltasDia.push(secao.nome);
+        const db = JSON.parse(localStorage.getItem('atlas_db')) || {};
+        Object.values(db).forEach(meses => {
+            Object.values(meses || {}).forEach(lista => {
+                (lista || []).forEach(rel => {
+                    if (rel.modulo === 'injecao') adicionar('injecao', rel.data);
+                });
+            });
         });
 
-        return [
-            ...(faltasDia.length ? [{ nivel: 'aviso', titulo: 'Relatorios do dia pendentes', detalhe: `Ainda falta enviar: ${faltasDia.join(', ')}.` }] : [])
-        ];
+        (JSON.parse(localStorage.getItem('historicoBobines')) || []).forEach(rel => adicionar('bobines', rel.data));
+        (JSON.parse(localStorage.getItem('atlas_serra_hist')) || []).forEach(rel => adicionar('serra', rel.data));
+        (JSON.parse(localStorage.getItem('atlas_emb_hist')) || []).forEach(rel => adicionar('embalagem', rel.data));
+
+        return datas;
+    }
+
+    function atlasLembretesRelatoriosPendentes() {
+        const porSecao = atlasDatasRelatoriosPorSecao();
+        const todasDatas = [...new Set(Object.values(porSecao).flatMap(set => [...set]))]
+            .sort((a, b) => b.localeCompare(a))
+            .slice(0, 10);
+
+        const lembretes = [];
+
+        todasDatas.forEach(dataISO => {
+            const faltasDia = ATLAS_SECOES_RELATORIO
+                .filter(secao => !porSecao[secao.chave]?.has(dataISO))
+                .map(secao => secao.nome);
+
+            if (faltasDia.length && faltasDia.length < ATLAS_SECOES_RELATORIO.length) {
+                lembretes.push({
+                    nivel: 'aviso',
+                    titulo: `Relatorios pendentes - ${atlasDataISOParaBR(dataISO)}`,
+                    detalhe: `Ainda falta enviar: ${faltasDia.join(', ')}.`
+                });
+            }
+        });
+
+        return lembretes;
     }
 
     function atlasLembretesAutomaticos() {
@@ -6630,13 +6668,21 @@ document.addEventListener('click', function(evento) {
         const conferenciaPendentes = conferenciaAbertas.filter(p => p.status !== 'stand_by');
         const conferenciaStandBy = conferenciaAbertas.filter(p => p.status === 'stand_by');
 
-        if (conferenciaPendentes.length) {
+        const conferenciaPorData = conferenciaPendentes.reduce((acc, pedido) => {
+            const data = pedido.data || new Date().toLocaleDateString('pt-BR');
+            acc[data] ||= [];
+            acc[data].push(pedido.pedidoNumero || 'S/N');
+            return acc;
+        }, {});
+
+        Object.keys(conferenciaPorData).sort((a, b) => atlasDataBRParaISO(b).localeCompare(atlasDataBRParaISO(a))).forEach(data => {
+            const pedidos = [...new Set(conferenciaPorData[data].map(String))].join(', ');
             lembretes.push({
                 nivel: 'aviso',
-                titulo: 'Conferencia pendente',
-                detalhe: `${conferenciaPendentes.length} pedido(s) aguardando conferencia.`
+                titulo: `Conferencia pendente - ${data}`,
+                detalhe: `Falta conferir os pedidos: ${pedidos}.`
             });
-        }
+        });
 
         conferenciaStandBy
             .slice(0, 20)

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v28-lembretes-sem-turnos';
+const CACHE_NAME = 'atlas-v29-lembretes-producao-conf';
 const assets = [
   '/',
   '/index.html',
