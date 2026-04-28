@@ -6799,7 +6799,7 @@ document.addEventListener('click', function(evento) {
                         </button>
                         ${usuarioEhAdmin() ? `
                             <button onclick="atlasApagarTodosRegistros()" style="background:#7f1d1d; color:white; border:none; padding:0 16px; border-radius:8px; font-weight:bold;">
-                                APAGAR
+                                APAGAR TODOS OS REGISTROS
                             </button>
                         ` : ''}
                     </div>
@@ -6818,6 +6818,19 @@ document.addEventListener('click', function(evento) {
         localStorage.setItem(AUDITORIA_KEY, JSON.stringify([]));
         renderizarAuditoriaAtlas();
         alert('Registros apagados.');
+    };
+
+    window.atlasApagarRegistrosDia = function(ano, mes, dia) {
+        if (!usuarioEhAdmin()) return alert('Apenas ADMIN pode apagar registros.');
+        const dataAlvo = `${String(dia).padStart(2, '0')}/${String(mes).padStart(2, '0')}/${ano}`;
+        const lista = JSON.parse(localStorage.getItem(AUDITORIA_KEY)) || [];
+        const restante = lista.filter(item => atlasDataRegistro(item).data !== dataAlvo);
+        const total = lista.length - restante.length;
+        if (!total) return alert('Nao existem registros neste dia.');
+        if (!confirm(`Apagar ${total} registro(s) do dia ${dataAlvo}?`)) return;
+        localStorage.setItem(AUDITORIA_KEY, JSON.stringify(restante));
+        renderizarAuditoriaFiltradaAtlas(document.getElementById('auditoria-busca')?.value || '');
+        alert('Registros do dia apagados.');
     };
 
     window.renderizarAuditoriaFiltradaAtlas = function(termo) {
@@ -6862,10 +6875,15 @@ document.addEventListener('click', function(evento) {
                                 <b>DIA ${grupoDia.data}</b>
                                 <span style="color:#f59e0b; font-weight:bold;">${totalDia} modificacao(oes)</span>
                             </div>
-                            <div style="padding:0 12px 12px;">
+                            <div style="display:grid; grid-template-columns:${usuarioEhAdmin() ? '1fr 1fr' : '1fr'}; gap:8px; padding:0 12px 12px;">
                                 <button onclick="gerarRelatorioRegistrosDiaAtlas('${ano}','${mes}','${dia}')" style="width:100%; background:#10b981; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold;">
                                     RELATORIO DO DIA
                                 </button>
+                                ${usuarioEhAdmin() ? `
+                                    <button onclick="atlasApagarRegistrosDia('${ano}','${mes}','${dia}')" style="width:100%; background:#7f1d1d; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold;">
+                                        APAGAR DIA
+                                    </button>
+                                ` : ''}
                             </div>
                             <div id="${diaId}" style="display:${expandir ? 'block' : 'none'}; border-top:1px solid #334155;">
                     `;
