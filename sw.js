@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v32-registros-apagar-item-dia';
+const CACHE_NAME = 'atlas-v33-criar-id-vazio';
 const assets = [
   '/',
   '/index.html',

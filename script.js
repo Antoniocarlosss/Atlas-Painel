@@ -2986,20 +2986,27 @@ function exibirCriarUsuario() {
     if (!container) return;
 
     container.innerHTML = `
-        <div style="background:#111827; padding:20px; border-radius:12px; border:1px solid #334155;">
+        <form autocomplete="off" onsubmit="return false;" style="background:#111827; padding:20px; border-radius:12px; border:1px solid #334155;">
             <h3 style="color:white; margin-top:0; margin-bottom:15px;">Criar usuario</h3>
-            <input type="text" id="novo-nome-usuario" placeholder="Nome do usuario" style="width:100%; margin-bottom:10px; padding:12px; background:#1e293b; color:white; border:1px solid #334155; border-radius:6px;">
+            <input type="text" id="novo-nome-usuario" name="atlas-novo-nome-${Date.now()}" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" placeholder="Nome do usuario" value="" style="width:100%; margin-bottom:10px; padding:12px; background:#1e293b; color:white; border:1px solid #334155; border-radius:6px;">
             <label style="display:block; color:#94a3b8; font-size:12px; margin-bottom:6px;">Data de nascimento</label>
-            <input type="date" id="novo-aniversario-usuario" title="Coloque a data completa de nascimento, com dia, mes e ano" style="width:100%; margin-bottom:10px; padding:12px; background:#1e293b; color:white; border:1px solid #334155; border-radius:6px;">
-            <input type="text" id="novo-id-usuario" placeholder="ID de entrada / login" style="width:100%; margin-bottom:10px; padding:12px; background:#1e293b; color:white; border:1px solid #334155; border-radius:6px;">
-            <input type="password" id="nova-senha-usuario" placeholder="Senha" style="width:100%; margin-bottom:10px; padding:12px; background:#1e293b; color:white; border:1px solid #334155; border-radius:6px;">
+            <input type="date" id="novo-aniversario-usuario" name="atlas-novo-nascimento-${Date.now()}" autocomplete="off" title="Coloque a data completa de nascimento, com dia, mes e ano" value="" style="width:100%; margin-bottom:10px; padding:12px; background:#1e293b; color:white; border:1px solid #334155; border-radius:6px;">
+            <input type="text" id="novo-id-usuario" name="atlas-novo-login-${Date.now()}" autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" placeholder="ID de entrada / login" value="" style="width:100%; margin-bottom:10px; padding:12px; background:#1e293b; color:white; border:1px solid #334155; border-radius:6px;">
+            <input type="password" id="nova-senha-usuario" name="atlas-nova-senha-${Date.now()}" autocomplete="new-password" readonly onfocus="this.removeAttribute('readonly')" placeholder="Senha" value="" style="width:100%; margin-bottom:10px; padding:12px; background:#1e293b; color:white; border:1px solid #334155; border-radius:6px;">
             <select id="novo-cargo-usuario" style="width:100%; margin-bottom:15px; padding:12px; background:#1e293b; color:white; border:1px solid #334155; border-radius:6px;">
                 <option value="operario">Operario</option>
                 <option value="supervisor">Supervisor</option>
             </select>
             <button onclick="criarUsuarioSistema()" style="width:100%; background:#10b981; color:white; border:none; padding:14px; border-radius:8px; font-weight:bold;">CRIAR USUARIO</button>
-        </div>
+        </form>
     `;
+
+    setTimeout(() => {
+        ['novo-nome-usuario', 'novo-aniversario-usuario', 'novo-id-usuario', 'nova-senha-usuario'].forEach(id => {
+            const campo = document.getElementById(id);
+            if (campo) campo.value = '';
+        });
+    }, 250);
 }
 
 function criarUsuarioSistema() {
