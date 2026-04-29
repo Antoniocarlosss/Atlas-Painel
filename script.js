@@ -3089,8 +3089,9 @@ function criarUsuarioSistema() {
         return;
     }
 
-    usuariosSistema.push({ nome, nascimento: aniversario, aniversario, id, senha, cargo, bloqueado: false });
+    usuariosSistema.push(marcarUsuarioAlteradoAtlas({ nome, nascimento: aniversario, aniversario, id, senha, cargo, bloqueado: false }));
     localStorage.setItem('atlas_usuarios', JSON.stringify(usuariosSistema));
+    if (typeof window.atlasFirebaseSincronizarAgora === 'function') window.atlasFirebaseSincronizarAgora();
     alert("Usuario criado com sucesso!");
     exibirCriarUsuario();
 }
@@ -3098,6 +3099,12 @@ function criarUsuarioSistema() {
 function usuarioProtegidoAdminAtlas(usuario) {
     return String(usuario?.id || '').trim().toLowerCase() === 'admin'
         || normalizarCargoUsuario(usuario?.cargo) === 'admin';
+}
+
+function marcarUsuarioAlteradoAtlas(usuario) {
+    if (!usuario) return usuario;
+    usuario._atlasUsuarioAtualizadoEm = Date.now();
+    return usuario;
 }
 
 function listarUsuariosSistema() {
@@ -3161,8 +3168,10 @@ function alterarCargoUsuario(index, novoCargo) {
         return;
     }
 
+    marcarUsuarioAlteradoAtlas(usuariosSistema[index]);
     usuariosSistema[index].cargo = novoCargo;
     localStorage.setItem('atlas_usuarios', JSON.stringify(usuariosSistema));
+    if (typeof window.atlasFirebaseSincronizarAgora === 'function') window.atlasFirebaseSincronizarAgora();
     alert("Cargo atualizado com sucesso.");
     listarUsuariosSistema();
 }
@@ -3185,8 +3194,10 @@ function alternarBloqueioUsuario(index) {
         return;
     }
 
+    marcarUsuarioAlteradoAtlas(usuariosSistema[index]);
     usuariosSistema[index].bloqueado = !usuariosSistema[index].bloqueado;
     localStorage.setItem('atlas_usuarios', JSON.stringify(usuariosSistema));
+    if (typeof window.atlasFirebaseSincronizarAgora === 'function') window.atlasFirebaseSincronizarAgora();
 
     alert(usuariosSistema[index].bloqueado ? "Usuário bloqueado." : "Usuário desbloqueado.");
     listarUsuariosSistema();
@@ -4418,9 +4429,11 @@ function alterarMinhaSenha() {
         return;
     }
 
+    marcarUsuarioAlteradoAtlas(usuariosSistema[indice]);
     usuariosSistema[indice].senha = novaSenha;
     usuarioLogado = usuariosSistema[indice];
     localStorage.setItem('atlas_usuarios', JSON.stringify(usuariosSistema));
+    if (typeof window.atlasFirebaseSincronizarAgora === 'function') window.atlasFirebaseSincronizarAgora();
 
     document.getElementById('senha-atual-ajustes').value = '';
     document.getElementById('nova-senha-ajustes').value = '';

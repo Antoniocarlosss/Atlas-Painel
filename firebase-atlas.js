@@ -50,6 +50,23 @@ function atlasFirebaseChaveSincronizada(chave) {
     return chave && (chave.startsWith("atlas_") || chave === "historicoBobines");
 }
 
+function atlasFirebaseMesclarUsuario(local, nuvem) {
+    if (!local) return nuvem;
+    if (!nuvem) return local;
+
+    const localAtualizado = Number(local._atlasUsuarioAtualizadoEm || 0);
+    const nuvemAtualizado = Number(nuvem._atlasUsuarioAtualizadoEm || 0);
+
+    if (localAtualizado > nuvemAtualizado) return local;
+    if (nuvemAtualizado > localAtualizado) return nuvem;
+
+    if (local.bloqueado === true && nuvem.bloqueado !== true) {
+        return { ...nuvem, bloqueado: true, _atlasUsuarioAtualizadoEm: Date.now() };
+    }
+
+    return nuvem;
+}
+
 function atlasFirebaseMarcarAlteracaoLocal() {
     const agora = Date.now();
     atlasFirebaseUltimaAlteracaoLocal = agora;
@@ -129,7 +146,8 @@ async function atlasFirebaseBaixarUsuariosDireto() {
     });
 
     usuariosNuvem.forEach(usuario => {
-        mapaMesclado.set(String(usuario.id).toLowerCase(), usuario);
+        const chaveUsuario = String(usuario.id).toLowerCase();
+        mapaMesclado.set(chaveUsuario, atlasFirebaseMesclarUsuario(mapaMesclado.get(chaveUsuario), usuario));
     });
 
     const usuariosMesclados = Array.from(mapaMesclado.values());
@@ -300,7 +318,7 @@ async function atlasEnviarBackupLocalStorage() {
 
     for (let i = 0; i < localStorage.length; i++) {
         const chave = localStorage.key(i);
-        if (atlasFirebaseChaveSincronizada(chave)) {
+        if (atlasFirebaseChaveSincronizada(chave) && chave !== "atlas_usuarios") {
             backup[chave] = localStorage.getItem(chave);
         }
     }
@@ -388,7 +406,7 @@ async function atlasFirebaseBaixarBackupInicial() {
     atlasFirebaseBloqueado = true;
 
     chaves.forEach(chave => {
-        if (typeof dados[chave] === "string") {
+        if (chave !== "atlas_usuarios" && typeof dados[chave] === "string") {
             localStorage.setItem(chave, dados[chave]);
         }
     });
@@ -429,7 +447,7 @@ async function atlasFirebaseAtualizarSemSair() {
         atlasFirebaseBloqueado = true;
 
         chaves.forEach(chave => {
-            if (typeof dados[chave] === "string") {
+            if (chave !== "atlas_usuarios" && typeof dados[chave] === "string") {
                 localStorage.setItem(chave, dados[chave]);
             }
         });
@@ -458,5 +476,11 @@ window.atlasFirebaseForcarAtualizacao = function() {
             }
             return true;
         });
+};
+
+window.atlasFirebaseSincronizarAgora = function() {
+    return atlasFirebaseEnviarTudoOrganizadoInterno().catch(erro => {
+        console.error("Erro ao sincronizar agora:", erro);
+    });
 };
 

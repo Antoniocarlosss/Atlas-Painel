@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v38-login-usuario-local-primeiro';
+const CACHE_NAME = 'atlas-v39-bloqueio-usuario-fixo';
 const assets = [
   '/',
   '/index.html',
