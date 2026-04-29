@@ -3583,6 +3583,12 @@ function abrirFormularioPlano(modo) {
         </div>
         <div id="plano-grupos-finalizados" style="margin-top:15px;"></div>
     `;
+    if (pedidoTravado) {
+        const selectTipo = document.getElementById('plano-tipo');
+        const selectEsp = document.getElementById('plano-esp');
+        if (selectTipo) selectTipo.value = String(tipoSelecionado);
+        if (selectEsp) selectEsp.value = String(espessuraSelecionada);
+    }
     atualizarTelaPlanoAtual();
 }
 function sincronizarDestinoPlano() {
@@ -3592,8 +3598,9 @@ function sincronizarDestinoPlano() {
 }
 function adicionarLinhaPlano(modo) {
     criarEstruturaPlanoSeNecessario();
-    const tipo = document.getElementById('plano-tipo')?.value;
-    const espessura = document.getElementById('plano-esp')?.value;
+    const pedidoTravado = modo === 'pedido' && !!db_plano_live.pedidoAtual;
+    const tipo = pedidoTravado ? db_plano_live.pedidoAtual.tipo : document.getElementById('plano-tipo')?.value;
+    const espessura = pedidoTravado ? db_plano_live.pedidoAtual.espessura : document.getElementById('plano-esp')?.value;
     const ralSuperior = document.getElementById('plano-ral-sup')?.value;
     const ralInferior = document.getElementById('plano-ral-inf')?.value;
     let item = null;
@@ -3676,9 +3683,10 @@ function removerLinhaPlano(idLinha) {
 }
 function atualizarTelaPlanoAtual() {
     if (!db_plano_live) return;
-    const tipoAtual = document.getElementById('plano-tipo')?.value;
-    const espAtual = document.getElementById('plano-esp')?.value;
     const modoAtual = db_plano_live.modoAtual || 'pedido';
+    const pedidoTravado = modoAtual === 'pedido' && !!db_plano_live.pedidoAtual;
+    const tipoAtual = pedidoTravado ? db_plano_live.pedidoAtual.tipo : document.getElementById('plano-tipo')?.value;
+    const espAtual = pedidoTravado ? db_plano_live.pedidoAtual.espessura : document.getElementById('plano-esp')?.value;
     const linhasDoBloco = db_plano_live.linhasAbertas.filter(item => item.modo === modoAtual && item.tipo === tipoAtual && String(item.espessura) === String(espAtual));
     const totalBloco = linhasDoBloco.reduce((a, b) => a + b.totalMetros, 0);
     const totalPlano = calcularTotalPlano(db_plano_live);
