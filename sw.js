@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v41-plano-comprador-centralizado';
+const CACHE_NAME = 'atlas-v42-filmes-editaveis-ajustes';
 const assets = [
   '/',
   '/index.html',

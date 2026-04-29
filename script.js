@@ -1270,9 +1270,16 @@ function setLado(lado) {
     const areaDet = document.getElementById('detalhes-especificos');
     
     if(lancamentoAtual.tipo === 'filme') {
-        const opcoesComuns = ['Filme 1163', 'Filme 1060', 'Filme 1065'];
+        const filmesConfigurados = OPCOES_FILMES_STOCK || ['5 Ondas - 1265', 'Filme Telha Canudo', 'Filme 1163', 'Filme 1060', 'Filme 1065'];
+        const opcoesComuns = filmesConfigurados.filter(v => {
+            const normalizado = normalizarStockAtlas(v);
+            return !normalizado.includes('1265') && !normalizado.includes('telha canudo');
+        });
         const opcoesFilme = lado === 'inferior'
-            ? ['5 Ondas - 1265', 'Filme Telha Canudo', ...opcoesComuns]
+            ? [...filmesConfigurados.filter(v => {
+                const normalizado = normalizarStockAtlas(v);
+                return normalizado.includes('1265') || normalizado.includes('telha canudo');
+            }), ...opcoesComuns]
             : opcoesComuns;
         let html = `
             <select id="subtipo_filme" class="input-style">
@@ -3251,6 +3258,7 @@ var OPCOES_ESPUMA_INJECAO = atlasListaConfig('atlas_config_espuma_injecao', ["30
 var OPCOES_FITA_INJECAO = atlasListaConfig('atlas_config_fita_injecao', ["30 mm", "35 mm", "40 mm", "50 mm", "65 mm ADH"]);
 var OPCOES_MEDIDAS_CHAPA_STOCK = atlasListaConfig('atlas_config_medidas_chapa_stock', ["1265", "1060", "1163", "1065"]);
 var OPCOES_FORNECEDORES_STOCK = atlasListaConfig('atlas_config_fornecedores_stock', ["Fornecedor X", "Fornecedor Y"]);
+var OPCOES_FILMES_STOCK = atlasListaConfig('atlas_config_filmes_stock', ["5 Ondas - 1265", "Filme Telha Canudo", "Filme 1163", "Filme 1060", "Filme 1065"]);
 window.OPCOES_TIPO_PLANO = OPCOES_TIPO_PLANO;
 window.OPCOES_RAL_SUP = OPCOES_RAL_SUP;
 window.OPCOES_RAL_INF = OPCOES_RAL_INF;
@@ -3259,6 +3267,7 @@ window.OPCOES_ESPUMA_INJECAO = OPCOES_ESPUMA_INJECAO;
 window.OPCOES_FITA_INJECAO = OPCOES_FITA_INJECAO;
 window.OPCOES_MEDIDAS_CHAPA_STOCK = OPCOES_MEDIDAS_CHAPA_STOCK;
 window.OPCOES_FORNECEDORES_STOCK = OPCOES_FORNECEDORES_STOCK;
+window.OPCOES_FILMES_STOCK = OPCOES_FILMES_STOCK;
 var OPCOES_QUALIDADE = ["P1", "P2", "Descarte"];
 var MESES_PT = ["", "JANEIRO", "FEVEREIRO", "MARCO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
 
@@ -4505,6 +4514,7 @@ function abrirAjustesSistema() {
             ${htmlEditorListaSistema('Fita - InjeÃ§Ã£o', 'atlas_config_fita_injecao', OPCOES_FITA_INJECAO, 'OPCOES_FITA_INJECAO')}
             ${htmlEditorListaSistema('Medidas de chapa - Stock', 'atlas_config_medidas_chapa_stock', OPCOES_MEDIDAS_CHAPA_STOCK, 'OPCOES_MEDIDAS_CHAPA_STOCK')}
             ${htmlEditorListaSistema('Fornecedores - Stock', 'atlas_config_fornecedores_stock', OPCOES_FORNECEDORES_STOCK, 'OPCOES_FORNECEDORES_STOCK')}
+            ${htmlEditorListaSistema('Filmes - Stock / Bobines', 'atlas_config_filmes_stock', OPCOES_FILMES_STOCK, 'OPCOES_FILMES_STOCK')}
         </div>
     `;
 }
@@ -4518,6 +4528,7 @@ function htmlEditorListaSistema(titulo, chave, lista, variavel) {
                 ${(lista || []).map((valor, index) => `
                     <div style="display:flex; gap:8px; align-items:center; background:#0f172a; border:1px solid #334155; border-radius:8px; padding:8px;">
                         <span style="flex:1;">${textoSeguroConferencia(valor)}</span>
+                        <button onclick="editarItemListaSistema('${chave}','${variavel}',${index})" style="background:#f59e0b; color:white; border:none; border-radius:6px; padding:8px 10px; font-weight:bold;">EDITAR</button>
                         <button onclick="removerItemListaSistema('${chave}','${variavel}',${index})" style="background:#7f1d1d; color:white; border:none; border-radius:6px; padding:8px 10px; font-weight:bold;">X</button>
                     </div>
                 `).join('') || `<div style="color:#94a3b8;">Nenhum item.</div>`}
@@ -4564,6 +4575,10 @@ function atualizarVariavelListaSistema(variavel, lista) {
         OPCOES_FORNECEDORES_STOCK = lista;
         window.OPCOES_FORNECEDORES_STOCK = lista;
     }
+    if (variavel === 'OPCOES_FILMES_STOCK') {
+        OPCOES_FILMES_STOCK = lista;
+        window.OPCOES_FILMES_STOCK = lista;
+    }
 }
 
 function obterVariavelListaSistema(variavel) {
@@ -4576,6 +4591,7 @@ function obterVariavelListaSistema(variavel) {
     if (variavel === 'OPCOES_FITA_INJECAO') return OPCOES_FITA_INJECAO;
     if (variavel === 'OPCOES_MEDIDAS_CHAPA_STOCK') return OPCOES_MEDIDAS_CHAPA_STOCK;
     if (variavel === 'OPCOES_FORNECEDORES_STOCK') return OPCOES_FORNECEDORES_STOCK;
+    if (variavel === 'OPCOES_FILMES_STOCK') return OPCOES_FILMES_STOCK;
     return [];
 }
 
@@ -4595,6 +4611,48 @@ function removerItemListaSistema(chave, variavel, index) {
     const atual = obterVariavelListaSistema(variavel);
     const lista = atlasSalvarListaConfig(chave, atual.filter((_, i) => i !== index));
     atualizarVariavelListaSistema(variavel, lista);
+    abrirAjustesSistema();
+}
+
+function renomearFilmeSistemaAtlas(antigo, novo) {
+    const igual = valor => normalizarStockAtlas(valor) === normalizarStockAtlas(antigo);
+    let alterouStock = false;
+
+    atlasStockFilmes = JSON.parse(localStorage.getItem('atlas_stock_filmes')) || [];
+    atlasStockFilmes.forEach(item => {
+        if (igual(item.tipo)) {
+            item.tipo = novo;
+            registrarHistoricoFilmeStock(item, `Tipo renomeado de ${antigo} para ${novo}`, atlasUsuarioAtualNome(), new Date().toLocaleString('pt-BR'));
+            alterouStock = true;
+        }
+    });
+    if (alterouStock) salvarStockAtlas();
+
+    let alterouHistorico = false;
+    const historico = JSON.parse(localStorage.getItem('historicoBobines')) || [];
+    historico.forEach(rel => (rel.itens || []).forEach(item => {
+        if (item.tipo === 'filme' && igual(item.subtipo)) {
+            item.subtipo = novo;
+            alterouHistorico = true;
+        }
+    }));
+    if (alterouHistorico) localStorage.setItem('historicoBobines', JSON.stringify(historico));
+}
+
+function editarItemListaSistema(chave, variavel, index) {
+    if (!usuarioPodeEditarModulo('config')) return alert('Sem permissao para editar nos Ajustes.');
+    const atual = obterVariavelListaSistema(variavel);
+    const antigo = atual[index];
+    if (typeof antigo === 'undefined') return;
+
+    const novo = prompt('Novo nome:', antigo);
+    if (novo === null) return;
+    const valor = novo.trim();
+    if (!valor) return alert('Informe um valor.');
+
+    const lista = atlasSalvarListaConfig(chave, atual.map((item, i) => i === index ? valor : item));
+    atualizarVariavelListaSistema(variavel, lista);
+    if (variavel === 'OPCOES_FILMES_STOCK') renomearFilmeSistemaAtlas(antigo, valor);
     abrirAjustesSistema();
 }
 
@@ -7964,6 +8022,9 @@ function htmlResumoFilmesStock(lista) {
 }
 
 function normalizarNomeFilmeStock(nome) {
+    const configurado = (OPCOES_FILMES_STOCK || []).find(opcao => normalizarStockAtlas(opcao) === normalizarStockAtlas(nome));
+    if (configurado) return configurado;
+
     const texto = normalizarStockAtlas(nome);
     if (texto.includes('telha canudo')) return 'Filme Telha Canudo';
     if (texto.includes('5 ondas') || texto.includes('1265')) return '5 Ondas - 1265';
@@ -8000,7 +8061,7 @@ function renderizarStockFilmesAtlas(termoBusca = '') {
     migrarFilmesDuplicadosStockAtlas();
     const c = document.getElementById('stock-conteudo') || document.getElementById('render-modulo');
     if (!c) return;
-    const tipos = ['5 Ondas - 1265', 'Filme Telha Canudo', 'Filme 1163', 'Filme 1060', 'Filme 1065'];
+    const tipos = OPCOES_FILMES_STOCK || ['5 Ondas - 1265', 'Filme Telha Canudo', 'Filme 1163', 'Filme 1060', 'Filme 1065'];
     const listaFiltrada = filtrarListaStock(atlasStockFilmes, termoBusca);
     const grupos = grupoFornecedorStock(listaFiltrada);
     const sugestoesFilmes = atlasStockFilmes.flatMap(f => [f.tipo, f.fornecedor]);
