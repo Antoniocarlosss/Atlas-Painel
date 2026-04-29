@@ -3662,22 +3662,22 @@ function renderizarMenuPlanoNovo() {
     if (!render) return;
 
     render.innerHTML = `
-        <div id="container-menu-plano" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:15px; padding:15px;">
+        <div id="container-menu-plano" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 360px)); gap:18px; padding:15px; align-items:stretch;">
             ${usuarioPodeCriarPlano() ? `
-            <div class="card" onclick="exibirMenuCriacaoPlano()" style="cursor:pointer; background:#1e293b; border-radius:10px; padding:30px 15px; text-align:center; border:1px solid #334155;">
+            <div class="card" onclick="exibirMenuCriacaoPlano()" style="cursor:pointer; background:#1e293b; border-radius:10px; padding:30px 15px; text-align:center; border:1px solid #334155; min-height:150px;">
                 <i class="fas fa-plus" style="color:#3b82f6; font-size:2.5rem; margin-bottom:15px;"></i>
                 <span style="display:block; color:white; font-weight:bold; font-size:13px; text-transform:uppercase;">Criar Plano</span>
                 <small style="color:#94a3b8;">Pedidos e stock</small>
             </div>` : ''}
 
-            <div class="card" onclick="listarHistoricoPlano()" style="cursor:pointer; background:#1e293b; border-radius:10px; padding:30px 15px; text-align:center; border:1px solid #334155;">
+            <div class="card" onclick="listarHistoricoPlano()" style="cursor:pointer; background:#1e293b; border-radius:10px; padding:30px 15px; text-align:center; border:1px solid #334155; min-height:150px;">
                 <i class="fas fa-history" style="color:#3b82f6; font-size:2.5rem; margin-bottom:15px;"></i>
                 <span style="display:block; color:white; font-weight:bold; font-size:13px; text-transform:uppercase;">Historico</span>
                 <small style="color:#94a3b8;">Planos finalizados</small>
             </div>
 
             ${usuarioPodeVerAnalisePlano() ? `
-            <div class="card" onclick="abrirMenuHistoricoComprador()" style="cursor:pointer; background:#1e293b; border-radius:10px; padding:30px 15px; text-align:center; border:1px solid #334155; grid-column:1 / -1;">
+            <div class="card" onclick="abrirMenuHistoricoComprador()" style="cursor:pointer; background:#1e293b; border-radius:10px; padding:30px 15px; text-align:center; border:1px solid #334155; min-height:150px;">
                 <i class="fas fa-chart-pie" style="color:#10b981; font-size:2.5rem; margin-bottom:15px;"></i>
                 <span style="display:block; color:white; font-weight:bold; font-size:13px; text-transform:uppercase;">Historico por Comprador</span>
                 <small style="color:#94a3b8;">Resumo mensal e anual da empresa</small>

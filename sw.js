@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v39-bloqueio-usuario-fixo';
+const CACHE_NAME = 'atlas-v40-plano-menu-alinhado';
 const assets = [
   '/',
   '/index.html',
