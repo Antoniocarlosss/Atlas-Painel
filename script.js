@@ -3662,7 +3662,7 @@ function renderizarMenuPlanoNovo() {
     if (!render) return;
 
     render.innerHTML = `
-        <div id="container-menu-plano" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 360px)); gap:18px; padding:15px; align-items:stretch;">
+        <div id="container-menu-plano" style="display:grid; grid-template-columns:repeat(2, minmax(260px, 420px)); gap:18px; padding:15px; align-items:stretch; justify-content:center;">
             ${usuarioPodeCriarPlano() ? `
             <div class="card" onclick="exibirMenuCriacaoPlano()" style="cursor:pointer; background:#1e293b; border-radius:10px; padding:30px 15px; text-align:center; border:1px solid #334155; min-height:150px;">
                 <i class="fas fa-plus" style="color:#3b82f6; font-size:2.5rem; margin-bottom:15px;"></i>
@@ -3677,7 +3677,7 @@ function renderizarMenuPlanoNovo() {
             </div>
 
             ${usuarioPodeVerAnalisePlano() ? `
-            <div class="card" onclick="abrirMenuHistoricoComprador()" style="cursor:pointer; background:#1e293b; border-radius:10px; padding:30px 15px; text-align:center; border:1px solid #334155; min-height:150px;">
+            <div class="card plano-card-comprador" onclick="abrirMenuHistoricoComprador()" style="cursor:pointer; background:#1e293b; border-radius:10px; padding:30px 15px; text-align:center; border:1px solid #334155; min-height:150px; grid-column:1 / -1; width:min(420px, 100%); justify-self:center;">
                 <i class="fas fa-chart-pie" style="color:#10b981; font-size:2.5rem; margin-bottom:15px;"></i>
                 <span style="display:block; color:white; font-weight:bold; font-size:13px; text-transform:uppercase;">Historico por Comprador</span>
                 <small style="color:#94a3b8;">Resumo mensal e anual da empresa</small>

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v40-plano-menu-alinhado';
+const CACHE_NAME = 'atlas-v41-plano-comprador-centralizado';
 const assets = [
   '/',
   '/index.html',
