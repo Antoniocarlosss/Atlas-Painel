@@ -3533,6 +3533,12 @@ function abrirFormularioPlano(modo) {
     const tipoSelecionado = pedidoAtual?.tipo || OPCOES_TIPO_PLANO[0] || '';
     const espessuraSelecionada = pedidoAtual?.espessura || OPCOES_ESPESSURA_PLANO[0] || '';
     const pedidoTravado = modo === 'pedido' && !!pedidoAtual;
+    const campoTipoPlano = pedidoTravado
+        ? `<input id="plano-tipo" value="${textoSeguroConferencia(tipoSelecionado)}" readonly style="background:#111827; color:#10b981; border:1px solid #334155; width:100%; padding:12px; border-radius:6px; margin-top:5px; font-weight:bold;">`
+        : `<select id="plano-tipo" onchange="atualizarTelaPlanoAtual()" style="background:#1e293b; color:white; border:1px solid #334155; width:100%; padding:12px; border-radius:6px; margin-top:5px;">${OPCOES_TIPO_PLANO.map(v=>`<option value="${v}" ${String(v) === String(tipoSelecionado) ? 'selected' : ''}>${v}</option>`).join('')}</select>`;
+    const campoEspessuraPlano = pedidoTravado
+        ? `<input id="plano-esp" value="${textoSeguroConferencia(espessuraSelecionada)}" readonly style="background:#111827; color:#10b981; border:1px solid #334155; width:100%; padding:12px; border-radius:6px; margin-top:5px; font-weight:bold;">`
+        : `<select id="plano-esp" onchange="atualizarTelaPlanoAtual()" style="background:#1e293b; color:white; border:1px solid #334155; width:100%; padding:12px; border-radius:6px; margin-top:5px;">${OPCOES_ESPESSURA_PLANO.map(v=>`<option value="${v}" ${String(v) === String(espessuraSelecionada) ? 'selected' : ''}>${v} mm</option>`).join('')}</select>`;
     c.innerHTML = `
         <div style="display:flex; align-items:center; margin-bottom:15px;">
             <button onclick="exibirMenuCriacaoPlano()" style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer; margin-right:15px;"><i class="fas fa-arrow-left"></i></button>
@@ -3544,8 +3550,8 @@ function abrirFormularioPlano(modo) {
             ${pedidoTravado ? `<div style="color:#10b981; font-size:12px; margin-top:6px;"><b>Pedido travado:</b> ${pedidoAtual.numero} | ${pedidoAtual.destino} | ${textoSeguroConferencia(tipoSelecionado)} ${textoSeguroConferencia(espessuraSelecionada)} mm</div>` : ''}
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
-            <div><label style="color:#94a3b8; font-size:11px;">TIPO DE CHAPA</label><select id="plano-tipo" onchange="atualizarTelaPlanoAtual()" ${pedidoTravado ? 'disabled' : ''} style="background:#1e293b; color:white; border:1px solid #334155; width:100%; padding:12px; border-radius:6px; margin-top:5px;">${OPCOES_TIPO_PLANO.map(v=>`<option value="${v}" ${String(v) === String(tipoSelecionado) ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
-            <div><label style="color:#94a3b8; font-size:11px;">ESPESSURA</label><select id="plano-esp" onchange="atualizarTelaPlanoAtual()" ${pedidoTravado ? 'disabled' : ''} style="background:#1e293b; color:white; border:1px solid #334155; width:100%; padding:12px; border-radius:6px; margin-top:5px;">${OPCOES_ESPESSURA_PLANO.map(v=>`<option value="${v}" ${String(v) === String(espessuraSelecionada) ? 'selected' : ''}>${v} mm</option>`).join('')}</select></div>
+            <div><label style="color:#94a3b8; font-size:11px;">TIPO DE CHAPA</label>${campoTipoPlano}</div>
+            <div><label style="color:#94a3b8; font-size:11px;">ESPESSURA</label>${campoEspessuraPlano}</div>
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
             <div><label style="color:#94a3b8; font-size:11px;">RAL SUPERIOR</label><select id="plano-ral-sup" style="background:#1e293b; color:white; border:1px solid #334155; width:100%; padding:12px; border-radius:6px; margin-top:5px;">${OPCOES_RAL_SUP.map(v=>`<option value="${v}">${v}</option>`).join('')}</select></div>
@@ -3583,12 +3589,6 @@ function abrirFormularioPlano(modo) {
         </div>
         <div id="plano-grupos-finalizados" style="margin-top:15px;"></div>
     `;
-    if (pedidoTravado) {
-        const selectTipo = document.getElementById('plano-tipo');
-        const selectEsp = document.getElementById('plano-esp');
-        if (selectTipo) selectTipo.value = String(tipoSelecionado);
-        if (selectEsp) selectEsp.value = String(espessuraSelecionada);
-    }
     atualizarTelaPlanoAtual();
 }
 function sincronizarDestinoPlano() {
@@ -3721,9 +3721,10 @@ function finalizarEspessuraPlano() {
 }
 function moverBlocoAtualParaFinalizados(mensagemEspessura) {
     if (!db_plano_live) return alert('Nenhum plano em andamento.');
-    const tipoAtual = document.getElementById('plano-tipo')?.value;
-    const espAtual = document.getElementById('plano-esp')?.value;
     const modoAtual = db_plano_live.modoAtual || 'pedido';
+    const pedidoTravado = modoAtual === 'pedido' && !!db_plano_live.pedidoAtual;
+    const tipoAtual = pedidoTravado ? db_plano_live.pedidoAtual.tipo : document.getElementById('plano-tipo')?.value;
+    const espAtual = pedidoTravado ? db_plano_live.pedidoAtual.espessura : document.getElementById('plano-esp')?.value;
     const linhasDoBloco = db_plano_live.linhasAbertas.filter(item => item.modo === modoAtual && item.tipo === tipoAtual && String(item.espessura) === String(espAtual));
     if (linhasDoBloco.length === 0) return alert('Nao ha linhas para finalizar neste bloco.');
     const ids = new Set(linhasDoBloco.map(item => item.id));
