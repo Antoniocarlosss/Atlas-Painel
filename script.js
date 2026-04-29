@@ -2061,7 +2061,7 @@ let db_serra_hist = JSON.parse(localStorage.getItem('atlas_serra_hist')) || [];
 function renderizarMenuSerra() {
     const render = document.getElementById('render-modulo');
     render.innerHTML = `
-        <div id="menu-inicial-serra" style="display:grid; grid-template-columns: 1fr 1fr; gap:15px; padding:15px;">
+        <div id="menu-inicial-serra" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:15px; padding:15px;">
             <div class="card" onclick="exibirSetupSerra()" style="cursor:pointer; background:#1e293b; border-radius:10px; padding:30px 15px; text-align:center; border:1px solid #334155;">
                 <i class="fas fa-plus" style="color:#3b82f6; font-size:2.5rem; margin-bottom:15px;"></i>
                 <span style="display:block; color:white; font-weight:bold; font-size:13px; text-transform:uppercase;">Novo Relatório</span>
@@ -2069,6 +2069,11 @@ function renderizarMenuSerra() {
             <div class="card" onclick="listarHistoricoSerra()" style="cursor:pointer; background:#1e293b; border-radius:10px; padding:30px 15px; text-align:center; border:1px solid #334155;">
                 <i class="fas fa-history" style="color:#3b82f6; font-size:2.5rem; margin-bottom:15px;"></i>
                 <span style="display:block; color:white; font-weight:bold; font-size:13px; text-transform:uppercase;">Histórico Serra</span>
+            </div>
+            <div class="card" onclick="abrirPacotesSerraPlano()" style="cursor:pointer; background:#1e293b; border-radius:10px; padding:30px 15px; text-align:center; border:1px solid #334155;">
+                <i class="fas fa-box-open" style="color:#10b981; font-size:2.5rem; margin-bottom:15px;"></i>
+                <span style="display:block; color:white; font-weight:bold; font-size:13px; text-transform:uppercase;">Pacotes do Plano</span>
+                <small style="color:#94a3b8;">Montar por encomenda</small>
             </div>
         </div>
         <div id="container-acao-serra" style="display:none; padding:15px;"></div>
@@ -2093,6 +2098,106 @@ function alternarAbaSerra(mostrarAcao) {
 }
 
 // --- 3. CONFIGURAÇÃO INICIAL ---
+function obterLimitePacoteSerra(tipo, espessura) {
+    const regra = (OPCOES_PACOTES_SERRA || []).find(r =>
+        normalizarStockAtlas(r.tipo) === normalizarStockAtlas(tipo) &&
+        String(r.espessura) === String(espessura)
+    );
+    return Math.max(1, Number(regra?.maximo || 16));
+}
+
+function obterItensPlanoParaPacotesSerra(numeroPedido) {
+    const numero = String(numeroPedido || '').trim();
+    const fontes = [];
+    if (db_plano_live) {
+        fontes.push({ origem: 'Plano em andamento', data: formatarDataPlanoBR(db_plano_live.dataISO), itens: [
+            ...(db_plano_live.linhasAbertas || []),
+            ...((db_plano_live.gruposFinalizados || []).flatMap(g => g.itens || []))
+        ] });
+    }
+    (JSON.parse(localStorage.getItem('atlas_plano_hist')) || []).forEach(rel => {
+        fontes.push({ origem: 'Historico do plano', data: rel.data || '', itens: rel.itens || [] });
+    });
+    return fontes.flatMap(fonte => (fonte.itens || [])
+        .filter(item => item.modo === 'pedido' && String(item.pedidoNumero || '').trim() === numero)
+        .map(item => ({ ...item, origemPlano: fonte.origem, dataPlano: fonte.data })));
+}
+
+function montarPacotesSerraPorPedido(itensPlano) {
+    const grupos = {};
+    itensPlano.forEach(item => {
+        const chave = `${item.tipo || ''}|||${item.espessura || ''}|||${item.ralInferior || ''}|||${item.ralSuperior || ''}`;
+        grupos[chave] ||= { tipo: item.tipo || '', espessura: item.espessura || '', ralInferior: item.ralInferior || '', ralSuperior: item.ralSuperior || '', unidades: [] };
+        const qtd = Math.max(0, Number(item.quantidadeChapas || 0));
+        for (let i = 0; i < qtd; i++) grupos[chave].unidades.push({ metros: Number(item.metrosUnidade || 0), destino: item.destino || '' });
+    });
+    return Object.values(grupos).map(grupo => {
+        grupo.unidades.sort((a, b) => Number(b.metros || 0) - Number(a.metros || 0));
+        const limite = obterLimitePacoteSerra(grupo.tipo, grupo.espessura);
+        const pacotes = [];
+        for (let i = 0; i < grupo.unidades.length; i += limite) pacotes.push(grupo.unidades.slice(i, i + limite));
+        return { ...grupo, limite, pacotes };
+    });
+}
+
+function abrirPacotesSerraPlano() {
+    alternarAbaSerra(true);
+    const c = document.getElementById('container-acao-serra');
+    if (!c) return;
+    c.innerHTML = `
+        <div style="display:flex; align-items:center; margin-bottom:15px;">
+            <button onclick="alternarAbaSerra(false)" style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer; margin-right:15px;"><i class="fas fa-arrow-left"></i></button>
+            <h3 style="color:#10b981; font-size:14px; margin:0; text-transform:uppercase;">Pacotes por encomenda</h3>
+        </div>
+        <div style="background:#111827; border:1px solid #334155; border-radius:12px; padding:15px;">
+            <input id="serra-pacote-pedido" inputmode="numeric" placeholder="Numero da encomenda" style="width:100%; padding:14px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; font-size:18px; margin-bottom:10px;">
+            <button onclick="buscarPacotesSerraPlano()" style="width:100%; background:#10b981; color:white; border:none; padding:14px; border-radius:8px; font-weight:bold;">MONTAR PACOTES</button>
+        </div>
+        <div id="resultado-pacotes-serra" style="margin-top:15px;"></div>
+    `;
+}
+
+function buscarPacotesSerraPlano() {
+    const numero = document.getElementById('serra-pacote-pedido')?.value.trim();
+    const destino = document.getElementById('resultado-pacotes-serra');
+    if (!numero) return alert('Informe o numero da encomenda.');
+    if (!destino) return;
+    const itens = obterItensPlanoParaPacotesSerra(numero);
+    if (!itens.length) {
+        destino.innerHTML = `<div style="background:#111827; border:1px solid #334155; border-radius:10px; padding:15px; color:#fbbf24;">Encomenda ${textoSeguroConferencia(numero)} nao encontrada no plano.</div>`;
+        return;
+    }
+    const grupos = montarPacotesSerraPorPedido(itens);
+    const totalUnidades = grupos.reduce((acc, g) => acc + g.unidades.length, 0);
+    destino.innerHTML = `
+        <div style="background:#1e293b; border:1px solid #334155; border-radius:10px; padding:12px; margin-bottom:12px; color:white;">
+            <b>Encomenda ${textoSeguroConferencia(numero)}</b><br>
+            <small style="color:#94a3b8;">${totalUnidades} chapa(s), do maior metro para o menor.</small>
+        </div>
+        ${grupos.map(grupo => `
+            <div style="background:#111827; border:1px solid #334155; border-radius:12px; margin-bottom:14px; overflow:hidden;">
+                <div style="background:#0f172a; padding:12px; color:white; font-weight:bold;">
+                    ${textoSeguroConferencia(grupo.tipo)} ${textoSeguroConferencia(grupo.espessura)} mm
+                    <span style="color:#94a3b8;"> | INF ${textoSeguroConferencia(grupo.ralInferior)} / SUP ${textoSeguroConferencia(grupo.ralSuperior)} | Max. ${grupo.limite} un.</span>
+                </div>
+                ${grupo.pacotes.map((pacote, idx) => {
+                    const resumo = pacote.reduce((acc, unidade) => {
+                        const chave = Number(unidade.metros || 0).toFixed(2);
+                        acc[chave] = (acc[chave] || 0) + 1;
+                        return acc;
+                    }, {});
+                    return `<div style="padding:12px; border-top:1px solid #334155; color:white;">
+                        <b style="color:#10b981;">Pacote ${idx + 1}: ${pacote.length} un.</b>
+                        <div style="margin-top:8px; display:flex; flex-wrap:wrap; gap:8px;">
+                            ${Object.keys(resumo).sort((a, b) => Number(b) - Number(a)).map(metros => `<span style="background:#1e293b; border:1px solid #334155; border-radius:8px; padding:8px 10px;">${resumo[metros]}x ${metros} m</span>`).join('')}
+                        </div>
+                    </div>`;
+                }).join('')}
+            </div>
+        `).join('')}
+    `;
+}
+
 function exibirSetupSerra() {
     alternarAbaSerra(true);
 
@@ -3247,6 +3352,15 @@ function atlasSalvarListaConfig(chave, lista) {
     return limpa;
 }
 
+function atlasListaObjetosConfig(chave, padrao) {
+    try {
+        const lista = JSON.parse(localStorage.getItem(chave));
+        return Array.isArray(lista) && lista.length ? lista : padrao;
+    } catch (erro) {
+        return padrao;
+    }
+}
+
 var OPCOES_TIPO_PLANO = atlasListaConfig('atlas_config_tipos_painel', ["5 Ondas", "Fachada Oculta", "Fachada Visível", "Telha Canudo"]);
 var OPCOES_ESPESSURA_PLANO = [30, 40, 50, 60, 80, 100, 120];
 var OPCOES_RAL_SUP = atlasListaConfig('atlas_config_ral_superior', ["9010", "9006", "7016"]);
@@ -3259,6 +3373,11 @@ var OPCOES_FITA_INJECAO = atlasListaConfig('atlas_config_fita_injecao', ["30 mm"
 var OPCOES_MEDIDAS_CHAPA_STOCK = atlasListaConfig('atlas_config_medidas_chapa_stock', ["1265", "1060", "1163", "1065"]);
 var OPCOES_FORNECEDORES_STOCK = atlasListaConfig('atlas_config_fornecedores_stock', ["Fornecedor X", "Fornecedor Y"]);
 var OPCOES_FILMES_STOCK = atlasListaConfig('atlas_config_filmes_stock', ["5 Ondas - 1265", "Filme Telha Canudo", "Filme 1163", "Filme 1060", "Filme 1065"]);
+var OPCOES_PACOTES_SERRA = atlasListaObjetosConfig('atlas_config_pacotes_serra', [
+    { tipo: "5 Ondas", espessura: "30", maximo: 16 },
+    { tipo: "5 Ondas", espessura: "40", maximo: 12 },
+    { tipo: "Fachada Oculta", espessura: "30", maximo: 24 }
+]);
 window.OPCOES_TIPO_PLANO = OPCOES_TIPO_PLANO;
 window.OPCOES_RAL_SUP = OPCOES_RAL_SUP;
 window.OPCOES_RAL_INF = OPCOES_RAL_INF;
@@ -3268,6 +3387,7 @@ window.OPCOES_FITA_INJECAO = OPCOES_FITA_INJECAO;
 window.OPCOES_MEDIDAS_CHAPA_STOCK = OPCOES_MEDIDAS_CHAPA_STOCK;
 window.OPCOES_FORNECEDORES_STOCK = OPCOES_FORNECEDORES_STOCK;
 window.OPCOES_FILMES_STOCK = OPCOES_FILMES_STOCK;
+window.OPCOES_PACOTES_SERRA = OPCOES_PACOTES_SERRA;
 var OPCOES_QUALIDADE = ["P1", "P2", "Descarte"];
 var MESES_PT = ["", "JANEIRO", "FEVEREIRO", "MARCO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
 
@@ -4515,6 +4635,30 @@ function abrirAjustesSistema() {
             ${htmlEditorListaSistema('Medidas de chapa - Stock', 'atlas_config_medidas_chapa_stock', OPCOES_MEDIDAS_CHAPA_STOCK, 'OPCOES_MEDIDAS_CHAPA_STOCK')}
             ${htmlEditorListaSistema('Fornecedores - Stock', 'atlas_config_fornecedores_stock', OPCOES_FORNECEDORES_STOCK, 'OPCOES_FORNECEDORES_STOCK')}
             ${htmlEditorListaSistema('Filmes - Stock / Bobines', 'atlas_config_filmes_stock', OPCOES_FILMES_STOCK, 'OPCOES_FILMES_STOCK')}
+            ${htmlEditorPacotesSerraSistema()}
+        </div>
+    `;
+}
+
+function htmlEditorPacotesSerraSistema() {
+    return `
+        <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:20px;">
+            <h3 style="margin-top:0; margin-bottom:10px;">Pacotes da Serra</h3>
+            <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:12px;">
+                ${(OPCOES_PACOTES_SERRA || []).map((regra, index) => `
+                    <div style="display:flex; gap:8px; align-items:center; background:#0f172a; border:1px solid #334155; border-radius:8px; padding:8px; flex-wrap:wrap;">
+                        <span style="flex:1; min-width:180px;">${textoSeguroConferencia(regra.tipo)} ${textoSeguroConferencia(regra.espessura)} mm - max. ${textoSeguroConferencia(regra.maximo)} un.</span>
+                        <button onclick="editarPacoteSerraSistema(${index})" style="background:#f59e0b; color:white; border:none; border-radius:6px; padding:8px 10px; font-weight:bold;">EDITAR</button>
+                        <button onclick="removerPacoteSerraSistema(${index})" style="background:#7f1d1d; color:white; border:none; border-radius:6px; padding:8px 10px; font-weight:bold;">X</button>
+                    </div>
+                `).join('') || `<div style="color:#94a3b8;">Nenhuma regra.</div>`}
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 90px 90px auto; gap:8px;">
+                <input id="pacote-serra-tipo" placeholder="Tipo de chapa" style="padding:12px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">
+                <input id="pacote-serra-esp" inputmode="numeric" placeholder="mm" style="padding:12px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">
+                <input id="pacote-serra-max" inputmode="numeric" placeholder="un." style="padding:12px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">
+                <button onclick="adicionarPacoteSerraSistema()" style="background:#10b981; color:white; border:none; border-radius:8px; padding:12px; font-weight:bold;">ADICIONAR</button>
+            </div>
         </div>
     `;
 }
@@ -4653,6 +4797,49 @@ function editarItemListaSistema(chave, variavel, index) {
     const lista = atlasSalvarListaConfig(chave, atual.map((item, i) => i === index ? valor : item));
     atualizarVariavelListaSistema(variavel, lista);
     if (variavel === 'OPCOES_FILMES_STOCK') renomearFilmeSistemaAtlas(antigo, valor);
+    abrirAjustesSistema();
+}
+
+function salvarPacotesSerraSistema() {
+    OPCOES_PACOTES_SERRA = (OPCOES_PACOTES_SERRA || []).map(regra => ({
+        tipo: String(regra.tipo || '').trim(),
+        espessura: String(regra.espessura || '').replace('mm', '').trim(),
+        maximo: Math.max(1, Number(regra.maximo || 1))
+    })).filter(regra => regra.tipo && regra.espessura);
+    window.OPCOES_PACOTES_SERRA = OPCOES_PACOTES_SERRA;
+    localStorage.setItem('atlas_config_pacotes_serra', JSON.stringify(OPCOES_PACOTES_SERRA));
+}
+
+function adicionarPacoteSerraSistema() {
+    if (!usuarioPodeEditarModulo('config')) return alert('Sem permissao para editar nos Ajustes.');
+    const tipo = document.getElementById('pacote-serra-tipo')?.value.trim();
+    const espessura = document.getElementById('pacote-serra-esp')?.value.trim();
+    const maximo = Number(document.getElementById('pacote-serra-max')?.value || 0);
+    if (!tipo || !espessura || !maximo) return alert('Informe tipo, espessura e quantidade por pacote.');
+    OPCOES_PACOTES_SERRA.push({ tipo, espessura, maximo });
+    salvarPacotesSerraSistema();
+    abrirAjustesSistema();
+}
+
+function editarPacoteSerraSistema(index) {
+    if (!usuarioPodeEditarModulo('config')) return alert('Sem permissao para editar nos Ajustes.');
+    const regra = OPCOES_PACOTES_SERRA[index];
+    if (!regra) return;
+    const tipo = prompt('Tipo de chapa:', regra.tipo);
+    if (tipo === null) return;
+    const espessura = prompt('Espessura em mm:', regra.espessura);
+    if (espessura === null) return;
+    const maximo = prompt('Maximo de unidades por pacote:', regra.maximo);
+    if (maximo === null) return;
+    OPCOES_PACOTES_SERRA[index] = { tipo: tipo.trim(), espessura: espessura.replace('mm', '').trim(), maximo: Math.max(1, Number(maximo || 1)) };
+    salvarPacotesSerraSistema();
+    abrirAjustesSistema();
+}
+
+function removerPacoteSerraSistema(index) {
+    if (!usuarioPodeExcluirModulo('config')) return alert('Sem permissao para excluir nos Ajustes.');
+    OPCOES_PACOTES_SERRA.splice(index, 1);
+    salvarPacotesSerraSistema();
     abrirAjustesSistema();
 }
 

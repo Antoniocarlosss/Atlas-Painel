@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v42-filmes-editaveis-ajustes';
+const CACHE_NAME = 'atlas-v43-pacotes-serra-plano';
 const assets = [
   '/',
   '/index.html',
