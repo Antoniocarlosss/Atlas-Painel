@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v43-pacotes-serra-plano';
+const CACHE_NAME = 'atlas-v44-plano-pedido-travado';
 const assets = [
   '/',
   '/index.html',

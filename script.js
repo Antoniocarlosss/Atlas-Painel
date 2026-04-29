@@ -3517,10 +3517,22 @@ function abrirFormularioPlano(modo) {
     criarEstruturaPlanoSeNecessario();
     db_plano_live.modoAtual = modo;
     db_plano_live.dataISO = document.getElementById('plano-data')?.value || db_plano_live.dataISO;
+    if (modo === 'pedido' && db_plano_live.pedidoAtual && (!db_plano_live.pedidoAtual.tipo || !db_plano_live.pedidoAtual.espessura)) {
+        const primeiraLinhaPedido = (db_plano_live.linhasAbertas || []).find(item =>
+            item.modo === 'pedido' && String(item.pedidoNumero || '') === String(db_plano_live.pedidoAtual.numero || '')
+        );
+        if (primeiraLinhaPedido) {
+            db_plano_live.pedidoAtual.tipo = primeiraLinhaPedido.tipo;
+            db_plano_live.pedidoAtual.espessura = primeiraLinhaPedido.espessura;
+        }
+    }
     salvarPlanoLive();
     if (!alternarAbaPlano(true)) return;
     const c = document.getElementById('container-acao-plano');
     const pedidoAtual = db_plano_live.pedidoAtual;
+    const tipoSelecionado = pedidoAtual?.tipo || OPCOES_TIPO_PLANO[0] || '';
+    const espessuraSelecionada = pedidoAtual?.espessura || OPCOES_ESPESSURA_PLANO[0] || '';
+    const pedidoTravado = modo === 'pedido' && !!pedidoAtual;
     c.innerHTML = `
         <div style="display:flex; align-items:center; margin-bottom:15px;">
             <button onclick="exibirMenuCriacaoPlano()" style="background:none; border:none; color:#94a3b8; font-size:18px; cursor:pointer; margin-right:15px;"><i class="fas fa-arrow-left"></i></button>
@@ -3529,11 +3541,11 @@ function abrirFormularioPlano(modo) {
         <div style="background:#1e293b; padding:12px; border-radius:8px; margin-bottom:15px; border-left:4px solid ${modo === 'pedido' ? '#10b981' : '#f59e0b'};">
             <div style="color:white; font-weight:bold; font-size:13px;">Plano em andamento</div>
             <div style="color:#94a3b8; font-size:12px; margin-top:4px;">Data: ${formatarDataPlanoBR(db_plano_live.dataISO)} | Operador: ${db_plano_live.operador}</div>
-            ${pedidoAtual && modo === 'pedido' ? `<div style="color:#10b981; font-size:12px; margin-top:6px;"><b>Pedido travado:</b> ${pedidoAtual.numero} | ${pedidoAtual.destino}</div>` : ''}
+            ${pedidoTravado ? `<div style="color:#10b981; font-size:12px; margin-top:6px;"><b>Pedido travado:</b> ${pedidoAtual.numero} | ${pedidoAtual.destino} | ${textoSeguroConferencia(tipoSelecionado)} ${textoSeguroConferencia(espessuraSelecionada)} mm</div>` : ''}
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
-            <div><label style="color:#94a3b8; font-size:11px;">TIPO DE CHAPA</label><select id="plano-tipo" onchange="atualizarTelaPlanoAtual()" style="background:#1e293b; color:white; border:1px solid #334155; width:100%; padding:12px; border-radius:6px; margin-top:5px;">${OPCOES_TIPO_PLANO.map(v=>`<option value="${v}">${v}</option>`).join('')}</select></div>
-            <div><label style="color:#94a3b8; font-size:11px;">ESPESSURA</label><select id="plano-esp" onchange="atualizarTelaPlanoAtual()" style="background:#1e293b; color:white; border:1px solid #334155; width:100%; padding:12px; border-radius:6px; margin-top:5px;">${OPCOES_ESPESSURA_PLANO.map(v=>`<option value="${v}">${v} mm</option>`).join('')}</select></div>
+            <div><label style="color:#94a3b8; font-size:11px;">TIPO DE CHAPA</label><select id="plano-tipo" onchange="atualizarTelaPlanoAtual()" ${pedidoTravado ? 'disabled' : ''} style="background:#1e293b; color:white; border:1px solid #334155; width:100%; padding:12px; border-radius:6px; margin-top:5px;">${OPCOES_TIPO_PLANO.map(v=>`<option value="${v}" ${String(v) === String(tipoSelecionado) ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
+            <div><label style="color:#94a3b8; font-size:11px;">ESPESSURA</label><select id="plano-esp" onchange="atualizarTelaPlanoAtual()" ${pedidoTravado ? 'disabled' : ''} style="background:#1e293b; color:white; border:1px solid #334155; width:100%; padding:12px; border-radius:6px; margin-top:5px;">${OPCOES_ESPESSURA_PLANO.map(v=>`<option value="${v}" ${String(v) === String(espessuraSelecionada) ? 'selected' : ''}>${v} mm</option>`).join('')}</select></div>
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
             <div><label style="color:#94a3b8; font-size:11px;">RAL SUPERIOR</label><select id="plano-ral-sup" style="background:#1e293b; color:white; border:1px solid #334155; width:100%; padding:12px; border-radius:6px; margin-top:5px;">${OPCOES_RAL_SUP.map(v=>`<option value="${v}">${v}</option>`).join('')}</select></div>
@@ -3595,7 +3607,7 @@ function adicionarLinhaPlano(modo) {
         if (!quantidade || quantidade <= 0) return alert('Informe a quantidade de chapas.');
         if (!metros || metros <= 0) return alert('Informe os metros por chapa.');
         if (!db_plano_live.pedidoAtual) {
-            db_plano_live.pedidoAtual = { numero, destino };
+            db_plano_live.pedidoAtual = { numero, destino, tipo, espessura };
             if (!destinosPlano.includes(destino)) {
                 destinosPlano.push(destino);
                 destinosPlano.sort();
