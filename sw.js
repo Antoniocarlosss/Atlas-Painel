@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v46-plano-campos-fixos';
+const CACHE_NAME = 'atlas-v47-pacotes-medidas-iguais';
 const assets = [
   '/',
   '/index.html',

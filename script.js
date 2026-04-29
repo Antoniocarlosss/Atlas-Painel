@@ -2135,7 +2135,24 @@ function montarPacotesSerraPorPedido(itensPlano) {
         grupo.unidades.sort((a, b) => Number(b.metros || 0) - Number(a.metros || 0));
         const limite = obterLimitePacoteSerra(grupo.tipo, grupo.espessura);
         const pacotes = [];
-        for (let i = 0; i < grupo.unidades.length; i += limite) pacotes.push(grupo.unidades.slice(i, i + limite));
+        const porMedida = {};
+        grupo.unidades.forEach(unidade => {
+            const chaveMedida = Number(unidade.metros || 0).toFixed(2);
+            porMedida[chaveMedida] ||= [];
+            porMedida[chaveMedida].push(unidade);
+        });
+
+        const sobras = [];
+        Object.keys(porMedida).sort((a, b) => Number(b) - Number(a)).forEach(medida => {
+            const unidadesDaMedida = porMedida[medida];
+            while (unidadesDaMedida.length >= limite) {
+                pacotes.push(unidadesDaMedida.splice(0, limite));
+            }
+            sobras.push(...unidadesDaMedida);
+        });
+
+        sobras.sort((a, b) => Number(b.metros || 0) - Number(a.metros || 0));
+        for (let i = 0; i < sobras.length; i += limite) pacotes.push(sobras.slice(i, i + limite));
         return { ...grupo, limite, pacotes };
     });
 }
