@@ -7202,10 +7202,15 @@ function gerarPDF_Injecao_Final(dadosEncoded) {
     const montarPagina = (par, paginaIndex) => {
         const prodA = par[0] || {};
         const prodB = par[1] || {};
+        const valorQuimicoPDF = valor => {
+            const texto = String(valor ?? '').trim();
+            if (!texto || texto === '0') return '--';
+            return `${texto} kg`;
+        };
         const linhasConsumo = quimicos.map(([nome, chave, cor, texto]) => {
             const valorA = chave === 'polpir' ? '' : (prodA[chave] || '');
             const valorB = chave === 'polpir' ? '' : (prodB[chave] || '');
-            return `<tr><td class="quimico" style="background:${cor}; color:${texto};">${nome}</td><td colspan="2" class="valor-quimico">${seguro(valorA)}</td><td colspan="2" class="valor-quimico">${seguro(valorB)}</td></tr>`;
+            return `<tr><td class="quimico" style="background:${cor}; color:${texto};">${nome}</td><td colspan="2" class="valor-quimico">${seguro(valorQuimicoPDF(valorA))}</td><td colspan="2" class="valor-quimico">${seguro(valorQuimicoPDF(valorB))}</td></tr>`;
         }).join('');
         const metrosA = prodA.metros ? `${Number(prodA.metros || 0).toFixed(2)} m` : '';
         const metrosB = prodB.metros ? `${Number(prodB.metros || 0).toFixed(2)} m` : '';
@@ -7250,7 +7255,7 @@ function gerarPDF_Injecao_Final(dadosEncoded) {
                     <thead><tr><th colspan="3">Dados Inje&ccedil;&atilde;o Parciais</th></tr></thead>
                     <tbody>
                         <tr><th>Comprimento</th><td>${metrosA}</td><td>${metrosB}</td></tr>
-                        <tr><th>Metros totais do dia</th><td colspan="2">${totalDia.toFixed(2)} m</td></tr>
+                        <tr><th>Metros totais do dia</th><td colspan="2" class="total-dia-pdf">${totalDia.toFixed(2)} m</td></tr>
                     </tbody>
                 </table>
 
@@ -7307,6 +7312,7 @@ function gerarPDF_Injecao_Final(dadosEncoded) {
                 .valor-quimico { text-align: center; font-weight: 700; }
                 .dados { width: 58%; margin: 0 auto 4mm; }
                 .dados th { background: #f5f5f5; }
+                .total-dia-pdf { text-align: center; font-weight: 900; font-size: 13px; }
                 .observacoes { margin-top: 4mm; }
                 .observacoes .hora { width: 27mm; }
                 .no-print { text-align: center; padding: 15px; background: #111827; position: sticky; bottom: 0; }
