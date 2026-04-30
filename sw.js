@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v47-pacotes-medidas-iguais';
+const CACHE_NAME = 'atlas-v48-pdf-injecao-modelo';
 const assets = [
   '/',
   '/index.html',

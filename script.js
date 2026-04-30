@@ -1141,6 +1141,139 @@ function gerarPDF_Injecao_Final(dadosEncoded) {
 /* ==========================================================================
    MÓDULO: BOBINES
    ========================================================================== */
+function gerarPDF_Injecao_Final(dadosEncoded) {
+    const rel = JSON.parse(decodeURIComponent(dadosEncoded));
+    const janela = window.open('', '_blank');
+    if (!janela) {
+        alert('O navegador bloqueou a abertura do PDF.');
+        return;
+    }
+
+    const seguro = valor => String(valor ?? '').replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+    const itens = Array.isArray(rel.itens) ? rel.itens : [];
+    const primeiro = itens[0] || {};
+    let totalMetrosDia = 0;
+    const produtos = itens.slice(0, 2);
+    while (produtos.length < 2) produtos.push({});
+
+    const quimicos = [
+        { nome: 'MDI', chave: 'mdi', cor: '#9b2c2c', texto: '#fff' },
+        { nome: 'POL PUR', chave: 'pol', cor: '#d9ead3', texto: '#000' },
+        { nome: 'POL PIR', chave: 'polpir', cor: '#d9ead3', texto: '#000' },
+        { nome: 'CAT 1', chave: 'cat1', cor: '#f4cccc', texto: '#000' },
+        { nome: 'CAT 2', chave: 'cat2', cor: '#f4cccc', texto: '#000' },
+        { nome: 'CAT 3', chave: 'cat3', cor: '#f4cccc', texto: '#000' },
+        { nome: 'CAT 4', chave: 'cat4', cor: '#f4cccc', texto: '#000' },
+        { nome: 'PENT', chave: 'pen', cor: '#fff200', texto: '#000' }
+    ];
+    const cabecalhoProdutos = produtos.map(() => `<th>Tipo de Painel / Ral</th><th>Espessura</th>`).join('');
+    const dadosProdutos = produtos.map(item => `<td>${seguro(item.nome || '')}</td><td>${seguro(item.esp ? item.esp + ' mm' : '')}</td>`).join('');
+    const linhasConsumo = quimicos.map(q => {
+        const valores = produtos.map(item => q.chave === 'polpir' ? '' : (item[q.chave] || ''));
+        return `<tr><td class="quimico" style="background:${q.cor}; color:${q.texto};">${q.nome}</td><td>${seguro(valores[0] || '')}</td><td></td><td>${seguro(valores[1] || '')}</td><td></td></tr>`;
+    }).join('');
+
+    const linhasObservacoes = [];
+    itens.forEach(item => {
+        totalMetrosDia += parseFloat(item.metros) || 0;
+        (item.paragens || []).forEach(p => linhasObservacoes.push({ hora: p.tempo || '', texto: `${item.nome || ''} ${item.esp || ''} mm - ${p.motivo || ''}` }));
+        (item.densidades || []).forEach(d => {
+            if (d.horario) linhasObservacoes.push({ hora: d.horario, texto: `Densidade: ${textoDensidadesInjecao([d])}` });
+        });
+    });
+    while (linhasObservacoes.length < 10) linhasObservacoes.push({ hora: '', texto: '' });
+    const htmlObservacoes = linhasObservacoes.slice(0, 12).map(obs => `<tr><td class="hora">${seguro(obs.hora)}</td><td>${seguro(obs.texto)}</td></tr>`).join('');
+    const densidadePrimeira = textoDensidadesInjecao(primeiro.densidades) || '';
+
+    janela.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Gestao de Producao Diaria - Injecao</title>
+            <style>
+                * { box-sizing: border-box; }
+                body { margin: 0; background: #ddd; font-family: Arial, Helvetica, sans-serif; color: #000; }
+                .page { width: 210mm; min-height: 297mm; margin: 0 auto; background: #fff; padding: 22mm 24mm 16mm; position: relative; }
+                .topo { display: flex; align-items: flex-end; gap: 22mm; margin-bottom: 12mm; }
+                .logo { width: 62mm; height: auto; object-fit: contain; }
+                .titulo { font-size: 22px; font-weight: 800; text-align: center; flex: 1; margin-bottom: 5mm; }
+                .campos-duplos { display: grid; grid-template-columns: 1fr 1fr; gap: 24mm; margin-bottom: 8mm; }
+                .campo { display: grid; grid-template-columns: auto 1fr; align-items: end; gap: 4px; margin-bottom: 3mm; font-size: 14px; font-weight: 700; }
+                .linha { border-bottom: 2px solid #111; min-height: 18px; }
+                table { width: 100%; border-collapse: collapse; font-size: 13px; }
+                th, td { border: 2px solid #111; padding: 4px 6px; height: 24px; }
+                th { font-weight: 800; text-align: center; }
+                .consumos { width: 78%; margin: 5mm auto 10mm; }
+                .consumos caption { caption-side: top; border: 2px solid #111; border-bottom: 0; padding: 7px; font-weight: 800; }
+                .quimico { width: 30mm; text-align: center; font-weight: 800; }
+                .dados { width: 56%; margin: 0 auto 6mm; }
+                .dados th { background: #f5f5f5; }
+                .observacoes { margin-top: 4mm; }
+                .observacoes .hora { width: 28mm; }
+                .no-print { text-align: center; padding: 15px; background: #111827; }
+                .no-print button { padding: 14px 20px; background: #111; color: #fff; border: 3px solid #E31C24; border-radius: 10px; font-weight: 800; cursor: pointer; }
+                @media print {
+                    body { background: #fff; }
+                    .page { margin: 0; width: auto; min-height: auto; padding: 18mm 20mm 12mm; }
+                    .no-print { display: none !important; }
+                    @page { size: A4 portrait; margin: 0; }
+                    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="page">
+                <div class="topo">
+                    <img src="logo.png" class="logo" alt="Atlas Painel">
+                    <div class="titulo">Gestão de Produção Diária - Injeção</div>
+                </div>
+                <div class="campos-duplos">
+                    <div>
+                        <div class="campo"><span>Data:</span><span class="linha">${seguro(rel.data || '')}</span></div>
+                        <div style="height:7mm;"></div>
+                        <div class="campo"><span>Fita Atlas:</span><span class="linha">${seguro(primeiro.fita || '')}</span></div>
+                        <div class="campo"><span>Esponja:</span><span class="linha">${seguro(primeiro.espuma || '')}</span></div>
+                        <div class="campo"><span>Velocidade:</span><span class="linha">${seguro(primeiro.vel || '')}</span></div>
+                        <div style="height:8mm;"></div>
+                        <div class="campo"><span>Densidade:</span><span class="linha">${seguro(densidadePrimeira)}</span></div>
+                        <div class="campo"><span>Densidade Real:</span><span class="linha"></span></div>
+                    </div>
+                    <div>
+                        <div class="campo"><span>Funcionario:</span><span class="linha">${seguro(rel.operador || '')}</span></div>
+                        <div style="height:7mm;"></div>
+                        <div class="campo"><span>Fita Atlas:</span><span class="linha"></span></div>
+                        <div class="campo"><span>Esponja:</span><span class="linha"></span></div>
+                        <div class="campo"><span>Velocidade:</span><span class="linha"></span></div>
+                        <div style="height:8mm;"></div>
+                        <div class="campo"><span>Densidade:</span><span class="linha"></span></div>
+                        <div class="campo"><span>Densidade Real:</span><span class="linha"></span></div>
+                    </div>
+                </div>
+                <table class="consumos">
+                    <caption>Consumos Parciais</caption>
+                    <thead><tr><th></th>${cabecalhoProdutos}</tr><tr><th></th>${dadosProdutos}</tr></thead>
+                    <tbody>${linhasConsumo}</tbody>
+                </table>
+                <table class="dados">
+                    <thead><tr><th colspan="3">Dados Injeção Parciais</th></tr></thead>
+                    <tbody><tr><th>Comprimento</th><td>${totalMetrosDia.toFixed(2)} m</td><td></td></tr></tbody>
+                </table>
+                <table class="observacoes">
+                    <thead><tr><th class="hora">Hora</th><th>Observações: (arranque, paragem união rebentou, valor incorreto, etc)</th></tr></thead>
+                    <tbody>${htmlObservacoes}</tbody>
+                </table>
+            </div>
+            <div class="no-print"><button onclick="window.print()">CONFIRMAR E GERAR PDF</button></div>
+        </body>
+        </html>
+    `);
+    janela.document.close();
+    setTimeout(() => janela.focus(), 300);
+}
+
 function renderizarMenuBobines() {
     const render = document.getElementById('render-modulo');
     
