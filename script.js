@@ -7137,6 +7137,198 @@ document.addEventListener('click', function(evento) {
     };
 })();
 
+function gerarPDF_Injecao_Final(dadosEncoded) {
+    const rel = JSON.parse(decodeURIComponent(dadosEncoded));
+    const janela = window.open('', '_blank');
+    if (!janela) return alert('O navegador bloqueou a abertura do PDF.');
+
+    const seguro = valor => String(valor ?? '').replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+    const itens = Array.isArray(rel.itens) ? rel.itens : [];
+    const totalDia = itens.reduce((soma, item) => soma + (parseFloat(item.metros) || 0), 0);
+    const quimicos = [
+        ['MDI', 'mdi', '#9b2c2c', '#fff'],
+        ['POL PUR', 'pol', '#d9ead3', '#000'],
+        ['POL PIR', 'polpir', '#d9ead3', '#000'],
+        ['CAT 1', 'cat1', '#f4cccc', '#000'],
+        ['CAT 2', 'cat2', '#f4cccc', '#000'],
+        ['CAT 3', 'cat3', '#f4cccc', '#000'],
+        ['CAT 4', 'cat4', '#f4cccc', '#000'],
+        ['PENT', 'pen', '#fff200', '#000']
+    ];
+
+    const textoPainelRal = item => {
+        const nome = item?.nome || '';
+        const ral = item?.ral || item?.ralInferior || item?.ralSuperior || '';
+        return ral ? `${nome} / ${ral}` : nome;
+    };
+
+    const camposProducao = (item, lado, pagina) => {
+        const densidade = textoDensidadesInjecao(item?.densidades) || '';
+        const data = lado === 'esquerda' ? rel.data || '' : '';
+        const funcionario = lado === 'direita' ? rel.operador || '' : '';
+        return `
+            <div>
+                <div class="campo"><span>${lado === 'esquerda' ? 'Data:' : 'Funcionario:'}</span><span class="linha">${seguro(lado === 'esquerda' ? data : funcionario)}</span></div>
+                <div class="espaco-campos"></div>
+                <div class="campo"><span>Fita Atlas:</span><span class="linha">${seguro(item?.fita || '')}</span></div>
+                <div class="campo"><span>Esponja:</span><span class="linha">${seguro(item?.espuma || '')}</span></div>
+                <div class="campo"><span>Velocidade:</span><span class="linha">${seguro(item?.vel || '')}</span></div>
+                <div class="espaco-densidade"></div>
+                <div class="campo"><span>Densidade:</span><span class="linha">${seguro(densidade)}</span></div>
+                <div class="campo"><span>Densidade Real:</span><span class="linha"></span></div>
+            </div>
+        `;
+    };
+
+    const observacoesPagina = (par, paginaIndex) => {
+        const linhas = [];
+        par.forEach(item => {
+            if (!item) return;
+            (item.paragens || []).forEach(p => {
+                linhas.push({ hora: p.tempo || '', texto: `${item.nome || ''} ${item.esp || ''} mm - ${p.motivo || ''}` });
+            });
+            (item.densidades || []).forEach(d => {
+                if (d.horario) linhas.push({ hora: d.horario, texto: `Densidade: ${textoDensidadesInjecao([d])}` });
+            });
+        });
+        while (linhas.length < 9) linhas.push({ hora: '', texto: '' });
+        return linhas.slice(0, 9).map(linha => `
+            <tr><td class="hora">${seguro(linha.hora)}</td><td>${seguro(linha.texto)}</td></tr>
+        `).join('');
+    };
+
+    const montarPagina = (par, paginaIndex) => {
+        const prodA = par[0] || {};
+        const prodB = par[1] || {};
+        const linhasConsumo = quimicos.map(([nome, chave, cor, texto]) => {
+            const valorA = chave === 'polpir' ? '' : (prodA[chave] || '');
+            const valorB = chave === 'polpir' ? '' : (prodB[chave] || '');
+            return `<tr><td class="quimico" style="background:${cor}; color:${texto};">${nome}</td><td>${seguro(valorA)}</td><td></td><td>${seguro(valorB)}</td><td></td></tr>`;
+        }).join('');
+        const metrosA = prodA.metros ? `${Number(prodA.metros || 0).toFixed(2)} m` : '';
+        const metrosB = prodB.metros ? `${Number(prodB.metros || 0).toFixed(2)} m` : '';
+
+        return `
+            <section class="page">
+                <div class="topo">
+                    <div class="logo-css">
+                        <div class="logo-bars"><span></span><span></span></div>
+                        <div><div class="atlas-word">ATLAS</div><div class="painel-word">PAINEL</div></div>
+                    </div>
+                    <div class="titulo">Gest&atilde;o de Produ&ccedil;&atilde;o Di&aacute;ria - Inje&ccedil;&atilde;o</div>
+                </div>
+
+                <div class="campos-duplos">
+                    ${camposProducao(prodA, 'esquerda', paginaIndex)}
+                    ${camposProducao(prodB, 'direita', paginaIndex)}
+                </div>
+
+                <table class="consumos">
+                    <caption>Consumos Parciais</caption>
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th>Tipo de Painel / Ral</th>
+                            <th>Espessura</th>
+                            <th>Tipo de Painel / Ral</th>
+                            <th>Espessura</th>
+                        </tr>
+                        <tr>
+                            <th></th>
+                            <td>${seguro(textoPainelRal(prodA))}</td>
+                            <td>${seguro(prodA.esp ? prodA.esp + ' mm' : '')}</td>
+                            <td>${seguro(textoPainelRal(prodB))}</td>
+                            <td>${seguro(prodB.esp ? prodB.esp + ' mm' : '')}</td>
+                        </tr>
+                    </thead>
+                    <tbody>${linhasConsumo}</tbody>
+                </table>
+
+                <table class="dados">
+                    <thead><tr><th colspan="4">Dados Inje&ccedil;&atilde;o Parciais</th></tr></thead>
+                    <tbody>
+                        <tr><th>Comprimento</th><td>${metrosA}</td><td>${metrosB}</td><td></td></tr>
+                        <tr><th>Metros totais do dia</th><td colspan="3">${totalDia.toFixed(2)} m</td></tr>
+                    </tbody>
+                </table>
+
+                <table class="observacoes">
+                    <thead><tr><th class="hora">Hora</th><th>Observa&ccedil;&otilde;es: (arranque, paragem uni&atilde;o rebentou, valor incorreto, etc)</th></tr></thead>
+                    <tbody>${observacoesPagina(par, paginaIndex)}</tbody>
+                </table>
+            </section>
+        `;
+    };
+
+    const paginas = [];
+    for (let i = 0; i < Math.max(itens.length, 1); i += 2) {
+        paginas.push(montarPagina([itens[i], itens[i + 1]], i / 2));
+    }
+
+    janela.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Gestao de Producao Diaria - Injecao</title>
+            <style>
+                * { box-sizing: border-box; }
+                body { margin: 0; background: #d1d5db; font-family: Arial, Helvetica, sans-serif; color: #000; }
+                .page {
+                    width: 210mm;
+                    height: 297mm;
+                    overflow: hidden;
+                    margin: 0 auto 10mm;
+                    background: #fff;
+                    padding: 17mm 21mm 10mm;
+                    page-break-after: always;
+                }
+                .page:last-of-type { page-break-after: auto; }
+                .topo { display: flex; align-items: flex-end; gap: 16mm; margin-bottom: 11mm; }
+                .logo-css { width: 58mm; display:flex; align-items:center; gap:2.2mm; }
+                .logo-bars { width:14mm; display:grid; gap:2mm; transform:skewX(-14deg); }
+                .logo-bars span { display:block; height:4.2mm; background:#e31c24; }
+                .atlas-word { font-family: Arial Black, Arial, sans-serif; font-size: 32px; line-height:.78; letter-spacing:-1px; color:#111; }
+                .painel-word { font-size: 10px; letter-spacing: 7px; font-weight: 800; margin-left: 4px; margin-top: 4px; }
+                .titulo { font-size: 21px; font-weight: 800; text-align: center; flex: 1; margin-bottom: 3mm; }
+                .campos-duplos { display: grid; grid-template-columns: 1fr 1fr; gap: 23mm; margin-bottom: 7mm; }
+                .campo { display: grid; grid-template-columns: auto 1fr; align-items: end; gap: 4px; margin-bottom: 2.1mm; font-size: 12px; font-weight: 700; }
+                .linha { border-bottom: 2px solid #111; min-height: 15px; padding-left: 3px; }
+                .espaco-campos { height: 6mm; }
+                .espaco-densidade { height: 7mm; }
+                table { width: 100%; border-collapse: collapse; font-size: 11px; }
+                th, td { border: 2px solid #111; padding: 2px 5px; height: 18px; }
+                th { font-weight: 800; text-align: center; }
+                .consumos { width: 78%; margin: 4mm auto 8mm; }
+                .consumos caption { caption-side: top; border: 2px solid #111; border-bottom: 0; padding: 5px; font-weight: 800; }
+                .quimico { width: 29mm; text-align: center; font-weight: 800; }
+                .dados { width: 58%; margin: 0 auto 4mm; }
+                .dados th { background: #f5f5f5; }
+                .observacoes { margin-top: 4mm; }
+                .observacoes .hora { width: 27mm; }
+                .no-print { text-align: center; padding: 15px; background: #111827; position: sticky; bottom: 0; }
+                .no-print button { padding: 14px 20px; background: #111; color: #fff; border: 3px solid #E31C24; border-radius: 10px; font-weight: 800; cursor: pointer; }
+                @media print {
+                    body { background: #fff; }
+                    .page { margin: 0; width: 210mm; height: 297mm; padding: 17mm 21mm 10mm; }
+                    .no-print { display: none !important; }
+                    @page { size: A4 portrait; margin: 0; }
+                    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                }
+            </style>
+        </head>
+        <body>
+            ${paginas.join('')}
+            <div class="no-print"><button onclick="window.print()">CONFIRMAR E GERAR PDF</button></div>
+        </body>
+        </html>
+    `);
+    janela.document.close();
+    setTimeout(() => janela.focus(), 300);
+}
+
 /* ==========================================================
    LEMBRETES, AUDITORIA, PESQUISA GERAL E VALIDACOES
    ========================================================== */

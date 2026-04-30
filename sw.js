@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v49-pdf-injecao-uma-folha';
+const CACHE_NAME = 'atlas-v50-pdf-injecao-duas-producoes';
 const assets = [
   '/',
   '/index.html',
