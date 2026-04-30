@@ -7205,7 +7205,7 @@ function gerarPDF_Injecao_Final(dadosEncoded) {
         const linhasConsumo = quimicos.map(([nome, chave, cor, texto]) => {
             const valorA = chave === 'polpir' ? '' : (prodA[chave] || '');
             const valorB = chave === 'polpir' ? '' : (prodB[chave] || '');
-            return `<tr><td class="quimico" style="background:${cor}; color:${texto};">${nome}</td><td>${seguro(valorA)}</td><td></td><td>${seguro(valorB)}</td><td></td></tr>`;
+            return `<tr><td class="quimico" style="background:${cor}; color:${texto};">${nome}</td><td colspan="2" class="valor-quimico">${seguro(valorA)}</td><td colspan="2" class="valor-quimico">${seguro(valorB)}</td></tr>`;
         }).join('');
         const metrosA = prodA.metros ? `${Number(prodA.metros || 0).toFixed(2)} m` : '';
         const metrosB = prodB.metros ? `${Number(prodB.metros || 0).toFixed(2)} m` : '';
@@ -7247,10 +7247,10 @@ function gerarPDF_Injecao_Final(dadosEncoded) {
                 </table>
 
                 <table class="dados">
-                    <thead><tr><th colspan="4">Dados Inje&ccedil;&atilde;o Parciais</th></tr></thead>
+                    <thead><tr><th colspan="3">Dados Inje&ccedil;&atilde;o Parciais</th></tr></thead>
                     <tbody>
-                        <tr><th>Comprimento</th><td>${metrosA}</td><td>${metrosB}</td><td></td></tr>
-                        <tr><th>Metros totais do dia</th><td colspan="3">${totalDia.toFixed(2)} m</td></tr>
+                        <tr><th>Comprimento</th><td>${metrosA}</td><td>${metrosB}</td></tr>
+                        <tr><th>Metros totais do dia</th><td colspan="2">${totalDia.toFixed(2)} m</td></tr>
                     </tbody>
                 </table>
 
@@ -7304,6 +7304,7 @@ function gerarPDF_Injecao_Final(dadosEncoded) {
                 .consumos { width: 78%; margin: 4mm auto 8mm; }
                 .consumos caption { caption-side: top; border: 2px solid #111; border-bottom: 0; padding: 5px; font-weight: 800; }
                 .quimico { width: 29mm; text-align: center; font-weight: 800; }
+                .valor-quimico { text-align: center; font-weight: 700; }
                 .dados { width: 58%; margin: 0 auto 4mm; }
                 .dados th { background: #f5f5f5; }
                 .observacoes { margin-top: 4mm; }
