@@ -7137,6 +7137,353 @@ document.addEventListener('click', function(evento) {
     };
 })();
 
+/* ==========================================================
+   PLANO - PDF AGRUPADO + GERIR EM TABELA
+   ========================================================== */
+
+(function() {
+    if (window.atlasPlanoPdfTabelaGestaoAtivo) return;
+    window.atlasPlanoPdfTabelaGestaoAtivo = true;
+
+    function atlasPlanoSeguro(valor) {
+        return String(valor ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function atlasNumeroPlano(valor) {
+        const numero = Number(String(valor ?? '').replace(',', '.'));
+        return Number.isFinite(numero) ? numero : 0;
+    }
+
+    function atlasFormatoMetroPlano(valor) {
+        return atlasNumeroPlano(valor).toFixed(2).replace('.', ',');
+    }
+
+    function atlasEspessuraTexto(valor) {
+        const texto = String(valor ?? '').trim();
+        if (!texto) return '-';
+        return texto.toLowerCase().includes('mm') ? texto : `${texto} mm`;
+    }
+
+    function atlasOrdenarEspessurasPlano(a, b) {
+        const na = Number(String(a).replace(/[^\d,.]/g, '').replace(',', '.'));
+        const nb = Number(String(b).replace(/[^\d,.]/g, '').replace(',', '.'));
+        if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb;
+        return String(a).localeCompare(String(b), 'pt-BR', { numeric: true });
+    }
+
+    function atlasOpcoesPlano(lista, selecionado, sufixo) {
+        return (lista || []).map(valor => {
+            const limpo = String(valor ?? '');
+            const texto = sufixo && !limpo.toLowerCase().includes(String(sufixo).toLowerCase()) ? `${limpo}${sufixo}` : limpo;
+            return `<option value="${atlasPlanoSeguro(limpo)}" ${String(selecionado) === limpo ? 'selected' : ''}>${atlasPlanoSeguro(texto)}</option>`;
+        }).join('');
+    }
+
+    window.montarHTMLPlano = function(rel, comBotaoImpressao) {
+        const itens = (rel.itens || []).filter(item => item.encomendaCancelada !== true);
+        const gruposTipo = {};
+
+        itens.forEach(item => {
+            const tipo = String(item.tipo || 'Sem tipo').trim() || 'Sem tipo';
+            const esp = String(item.espessura || 'Sem espessura').trim() || 'Sem espessura';
+            gruposTipo[tipo] ||= {};
+            gruposTipo[tipo][esp] ||= [];
+            gruposTipo[tipo][esp].push(item);
+        });
+
+        let htmlGrupos = '';
+
+        Object.keys(gruposTipo).sort((a, b) => a.localeCompare(b, 'pt-BR')).forEach(tipo => {
+            htmlGrupos += `<section class="grupo-tipo"><h2>${atlasPlanoSeguro(tipo)}</h2>`;
+
+            Object.keys(gruposTipo[tipo]).sort(atlasOrdenarEspessurasPlano).forEach(esp => {
+                const linhas = gruposTipo[tipo][esp].slice().sort((a, b) => {
+                    const pedidoA = String(a.pedidoNumero || '');
+                    const pedidoB = String(b.pedidoNumero || '');
+                    if (pedidoA !== pedidoB) return pedidoA.localeCompare(pedidoB, 'pt-BR', { numeric: true });
+                    return atlasNumeroPlano(b.metrosUnidade) - atlasNumeroPlano(a.metrosUnidade);
+                });
+
+                const totalEsp = linhas.reduce((acc, item) => acc + atlasNumeroPlano(item.totalMetros), 0);
+
+                htmlGrupos += `
+                    <div class="grupo-esp">
+                        <h3>${atlasPlanoSeguro(atlasEspessuraTexto(esp))}</h3>
+                        <table class="tabela-plano">
+                            <thead>
+                                <tr>
+                                    <th>Pedido / Cliente</th>
+                                    <th>RAL Inf.</th>
+                                    <th>RAL Sup.</th>
+                                    <th>Tipo / Descricao</th>
+                                    <th>Qtd</th>
+                                    <th>Metro</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${linhas.map(item => `
+                                    <tr>
+                                        <td>
+                                            <b>${atlasPlanoSeguro(item.pedidoNumero || (item.modo === 'stock' ? 'STOCK' : 'S/N'))}</b>
+                                            <br><span>${atlasPlanoSeguro(item.destino || item.qualidade || '')}</span>
+                                        </td>
+                                        <td>${atlasPlanoSeguro(item.ralInferior || '-')}</td>
+                                        <td>${atlasPlanoSeguro(item.ralSuperior || '-')}</td>
+                                        <td>${atlasPlanoSeguro(item.descricao || item.tipo || tipo)}</td>
+                                        <td>${atlasPlanoSeguro(item.quantidadeChapas || 0)}</td>
+                                        <td>${atlasFormatoMetroPlano(item.metrosUnidade)}</td>
+                                        <td><b>${atlasFormatoMetroPlano(item.totalMetros)}</b></td>
+                                    </tr>
+                                `).join('')}
+                                <tr class="total-esp">
+                                    <td colspan="6">TOTAL ${atlasPlanoSeguro(tipo)} ${atlasPlanoSeguro(atlasEspessuraTexto(esp))}</td>
+                                    <td>${atlasFormatoMetroPlano(totalEsp)} m</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            });
+
+            htmlGrupos += `</section>`;
+        });
+
+        const totalGeral = itens.reduce((acc, item) => acc + atlasNumeroPlano(item.totalMetros), 0);
+        const blocoEdicao = rel.editadoPor && rel.editadoEm
+            ? `<div class="edicao">Editado por: <b>${atlasPlanoSeguro(rel.editadoPor)}</b> em <b>${atlasPlanoSeguro(rel.editadoEm)}</b></div>`
+            : '';
+
+        return `
+            <html>
+            <head>
+                <title>Plano de Pedidos</title>
+                <style>
+                    @page { size: A4 portrait; margin: 10mm; }
+                    * { box-sizing: border-box; }
+                    body { font-family: Arial, sans-serif; color:#000; margin:0; padding:0; background:#fff; }
+                    .cabecalho { display:flex; justify-content:space-between; align-items:center; border-bottom:4px solid #E31C24; padding:6px 0 10px 0; margin-bottom:10px; }
+                    .marca { font-weight:900; font-size:22px; letter-spacing:1px; }
+                    .marca span { color:#E31C24; }
+                    .titulo { text-align:center; font-weight:800; font-size:18px; }
+                    .dados { text-align:right; font-size:11px; line-height:1.45; }
+                    .edicao { border:1px solid #f59e0b; background:#fff7ed; padding:6px; font-size:10px; margin-bottom:8px; }
+                    .grupo-tipo { page-break-inside:avoid; margin-bottom:14px; }
+                    .grupo-tipo h2 { margin:8px 0 4px 0; text-align:center; font-size:18px; text-transform:uppercase; }
+                    .grupo-esp { margin-bottom:12px; page-break-inside:avoid; }
+                    .grupo-esp h3 { margin:0; text-align:center; border:2px solid #000; border-bottom:none; padding:5px; font-size:15px; background:#f2f2f2; }
+                    .tabela-plano { width:100%; border-collapse:collapse; table-layout:fixed; font-size:10px; }
+                    .tabela-plano th, .tabela-plano td { border:1.5px solid #000; padding:5px 4px; text-align:center; vertical-align:middle; }
+                    .tabela-plano th { background:#d9d9d9; font-size:10px; }
+                    .tabela-plano td:first-child { text-align:center; width:18%; }
+                    .tabela-plano td span { font-size:9px; }
+                    .total-esp td { background:#f2f2f2; font-weight:800; }
+                    .total-geral { margin-top:10px; border:2px solid #000; padding:8px; text-align:center; font-size:18px; font-weight:900; }
+                    .no-print { margin-top:16px; }
+                    .no-print button { width:100%; padding:16px; border:0; border-radius:8px; background:#111827; color:#fff; font-size:16px; font-weight:800; }
+                    @media print {
+                        .no-print { display:none !important; }
+                        body { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="cabecalho">
+                    <div class="marca"><span>ATLAS</span> PAINEL</div>
+                    <div class="titulo">PLANO DE PEDIDOS</div>
+                    <div class="dados">
+                        Data: <b>${atlasPlanoSeguro(rel.data || '')}</b><br>
+                        Operador: <b>${atlasPlanoSeguro(rel.operador || '')}</b>
+                    </div>
+                </div>
+
+                ${blocoEdicao}
+                ${htmlGrupos || '<div style="text-align:center; padding:30px;">Nenhum pedido no plano.</div>'}
+
+                <div class="total-geral">TOTAL GERAL DO PLANO: ${atlasFormatoMetroPlano(totalGeral)} m</div>
+
+                ${comBotaoImpressao ? `
+                    <div class="no-print">
+                        <button onclick="window.print()">CONFIRMAR E GERAR PDF</button>
+                    </div>
+                ` : ''}
+            </body>
+            </html>
+        `;
+    };
+
+    window.abrirGestaoPlanoHistorico = function(indexPlano) {
+        if (!usuarioPodeEditarPlanoHistorico()) {
+            alert('Apenas ADMIN ou SUPERVISOR podem gerir planos do historico.');
+            return;
+        }
+
+        if (!document.getElementById('modal-plano-historico')) {
+            const modal = document.createElement('div');
+            modal.id = 'modal-plano-historico';
+            modal.style = 'display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:10000; padding:10px; overflow:auto;';
+            document.body.appendChild(modal);
+        }
+
+        renderizarGestaoPlanoHistorico(indexPlano);
+    };
+
+    window.renderizarGestaoPlanoHistorico = function(indexPlano) {
+        const rel = db_plano_hist[indexPlano];
+        const modal = document.getElementById('modal-plano-historico');
+        if (!rel || !modal) return;
+
+        const linhas = rel.itens || [];
+        const total = linhas.reduce((acc, item) => acc + atlasNumeroPlano(item.totalMetros), 0);
+
+        modal.innerHTML = `
+            <div style="max-width:1180px; margin:0 auto; background:#020617; min-height:100%; border:1px solid #334155; border-radius:14px; padding:14px; color:white;">
+                <div style="position:sticky; top:0; background:#020617; z-index:3; border-bottom:1px solid #334155; padding-bottom:12px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+                        <div>
+                            <h2 style="margin:0; font-size:20px;">Gerir Plano</h2>
+                            <div style="color:#94a3b8; font-size:13px; margin-top:4px;">
+                                ${atlasPlanoSeguro(rel.data || '')} | Total atual:
+                                <b style="color:#10b981;">${atlasFormatoMetroPlano(total)} m</b>
+                            </div>
+                        </div>
+                        <button onclick="fecharGestaoPlanoHistorico()" style="background:#475569; color:white; border:none; padding:12px 16px; border-radius:8px; font-weight:bold;">FECHAR</button>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns:1.1fr 1fr 1fr 1fr .8fr .8fr .8fr; gap:8px; margin-top:12px;">
+                        <input id="grid-add-pedido" placeholder="Pedido" style="padding:11px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">
+                        <input id="grid-add-destino" placeholder="Cliente" style="padding:11px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">
+                        <select id="grid-add-tipo" style="padding:11px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">${atlasOpcoesPlano(OPCOES_TIPO_PLANO, '')}</select>
+                        <select id="grid-add-esp" style="padding:11px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">${atlasOpcoesPlano(OPCOES_ESPESSURA_PLANO, '', ' mm')}</select>
+                        <input id="grid-add-qtd" type="number" inputmode="numeric" placeholder="Qtd" style="padding:11px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">
+                        <input id="grid-add-metros" type="number" inputmode="decimal" step="0.01" placeholder="Metro" style="padding:11px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">
+                        <button onclick="adicionarLinhaPlanoExcel(${indexPlano})" style="background:#10b981; color:white; border:none; border-radius:8px; font-weight:bold;">ADICIONAR</button>
+                    </div>
+                </div>
+
+                <div style="overflow:auto; margin-top:14px; border:1px solid #334155; border-radius:10px;">
+                    <table style="width:100%; min-width:980px; border-collapse:collapse; font-size:13px;">
+                        <thead>
+                            <tr style="background:#1e293b;">
+                                <th style="padding:10px; border-bottom:1px solid #334155;">Pedido</th>
+                                <th style="padding:10px; border-bottom:1px solid #334155;">Cliente</th>
+                                <th style="padding:10px; border-bottom:1px solid #334155;">Tipo</th>
+                                <th style="padding:10px; border-bottom:1px solid #334155;">Esp.</th>
+                                <th style="padding:10px; border-bottom:1px solid #334155;">RAL Inf.</th>
+                                <th style="padding:10px; border-bottom:1px solid #334155;">RAL Sup.</th>
+                                <th style="padding:10px; border-bottom:1px solid #334155;">Qtd</th>
+                                <th style="padding:10px; border-bottom:1px solid #334155;">Metro</th>
+                                <th style="padding:10px; border-bottom:1px solid #334155;">Total</th>
+                                <th style="padding:10px; border-bottom:1px solid #334155;">Acoes</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${linhas.map((item, idx) => `
+                                <tr style="background:${idx % 2 ? '#111827' : '#0f172a'};">
+                                    <td style="padding:6px;"><input id="grid-${idx}-pedido" value="${atlasPlanoSeguro(item.pedidoNumero || '')}" style="width:100%; padding:9px; background:#020617; color:white; border:1px solid #334155; border-radius:7px;"></td>
+                                    <td style="padding:6px;"><input id="grid-${idx}-destino" value="${atlasPlanoSeguro(item.destino || '')}" style="width:100%; padding:9px; background:#020617; color:white; border:1px solid #334155; border-radius:7px;"></td>
+                                    <td style="padding:6px;"><select id="grid-${idx}-tipo" style="width:100%; padding:9px; background:#020617; color:white; border:1px solid #334155; border-radius:7px;">${atlasOpcoesPlano(OPCOES_TIPO_PLANO, item.tipo)}</select></td>
+                                    <td style="padding:6px;"><select id="grid-${idx}-esp" style="width:100%; padding:9px; background:#020617; color:white; border:1px solid #334155; border-radius:7px;">${atlasOpcoesPlano(OPCOES_ESPESSURA_PLANO, item.espessura, ' mm')}</select></td>
+                                    <td style="padding:6px;"><select id="grid-${idx}-ral-inf" style="width:100%; padding:9px; background:#020617; color:white; border:1px solid #334155; border-radius:7px;">${atlasOpcoesPlano(OPCOES_RAL_INF, item.ralInferior)}</select></td>
+                                    <td style="padding:6px;"><select id="grid-${idx}-ral-sup" style="width:100%; padding:9px; background:#020617; color:white; border:1px solid #334155; border-radius:7px;">${atlasOpcoesPlano(OPCOES_RAL_SUP, item.ralSuperior)}</select></td>
+                                    <td style="padding:6px;"><input id="grid-${idx}-qtd" type="number" inputmode="numeric" value="${atlasPlanoSeguro(item.quantidadeChapas || 0)}" style="width:82px; padding:9px; background:#020617; color:white; border:1px solid #334155; border-radius:7px;"></td>
+                                    <td style="padding:6px;"><input id="grid-${idx}-metros" type="number" inputmode="decimal" step="0.01" value="${atlasPlanoSeguro(item.metrosUnidade || 0)}" style="width:95px; padding:9px; background:#020617; color:white; border:1px solid #334155; border-radius:7px;"></td>
+                                    <td style="padding:6px; color:#10b981; font-weight:bold; text-align:center;">${atlasFormatoMetroPlano(item.totalMetros)} m</td>
+                                    <td style="padding:6px;">
+                                        <div style="display:flex; gap:6px;">
+                                            <button onclick="salvarLinhaPlanoExcel(${indexPlano}, ${idx})" style="background:#3b82f6; color:white; border:none; padding:9px 10px; border-radius:7px; font-weight:bold;">SALVAR</button>
+                                            <button onclick="excluirLinhaPlanoExcel(${indexPlano}, ${idx})" style="background:#7f1d1d; color:white; border:none; padding:9px 10px; border-radius:7px; font-weight:bold;">EXCLUIR</button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+
+        modal.style.display = 'block';
+    };
+
+    window.salvarLinhaPlanoExcel = function(indexPlano, linha) {
+        const rel = db_plano_hist[indexPlano];
+        const item = rel?.itens?.[linha];
+        if (!rel || !item) return;
+
+        const qtd = atlasNumeroPlano(document.getElementById(`grid-${linha}-qtd`)?.value);
+        const metros = atlasNumeroPlano(document.getElementById(`grid-${linha}-metros`)?.value);
+        if (qtd <= 0 || metros <= 0) return alert('Informe quantidade e metros validos.');
+
+        item.pedidoNumero = document.getElementById(`grid-${linha}-pedido`)?.value.trim() || item.pedidoNumero || '';
+        item.destino = document.getElementById(`grid-${linha}-destino`)?.value.trim() || item.destino || '';
+        item.tipo = document.getElementById(`grid-${linha}-tipo`)?.value || item.tipo;
+        item.espessura = document.getElementById(`grid-${linha}-esp`)?.value || item.espessura;
+        item.ralInferior = document.getElementById(`grid-${linha}-ral-inf`)?.value || item.ralInferior;
+        item.ralSuperior = document.getElementById(`grid-${linha}-ral-sup`)?.value || item.ralSuperior;
+        item.quantidadeChapas = qtd;
+        item.metrosUnidade = metros;
+        item.totalMetrosAntesCancelamento = Number((qtd * metros).toFixed(2));
+        item.totalMetros = item.encomendaCancelada ? 0 : item.totalMetrosAntesCancelamento;
+        item.descricao = `${item.tipo} ${item.espessura} mm`;
+
+        salvarPlanoHistoricoEditado(indexPlano, rel, `Editou linha do plano ${item.pedidoNumero || 'stock'}`);
+        renderizarGestaoPlanoHistorico(indexPlano);
+        listarHistoricoPlano();
+    };
+
+    window.excluirLinhaPlanoExcel = function(indexPlano, linha) {
+        const rel = db_plano_hist[indexPlano];
+        const item = rel?.itens?.[linha];
+        if (!rel || !item) return;
+        if (!confirm(`Excluir esta linha?\n\n${item.pedidoNumero || 'STOCK'} - ${item.destino || item.qualidade || ''}`)) return;
+
+        rel.itens.splice(linha, 1);
+        salvarPlanoHistoricoEditado(indexPlano, rel, `Removeu linha do plano ${item.pedidoNumero || 'stock'}`);
+        renderizarGestaoPlanoHistorico(indexPlano);
+        listarHistoricoPlano();
+    };
+
+    window.adicionarLinhaPlanoExcel = function(indexPlano) {
+        const rel = db_plano_hist[indexPlano];
+        if (!rel) return;
+
+        const qtd = atlasNumeroPlano(document.getElementById('grid-add-qtd')?.value);
+        const metros = atlasNumeroPlano(document.getElementById('grid-add-metros')?.value);
+        if (qtd <= 0 || metros <= 0) return alert('Informe quantidade e metros validos para adicionar.');
+
+        const pedidoNumero = document.getElementById('grid-add-pedido')?.value.trim() || 'S/N';
+        const destino = document.getElementById('grid-add-destino')?.value.trim() || '';
+        const tipo = document.getElementById('grid-add-tipo')?.value || OPCOES_TIPO_PLANO[0] || '';
+        const espessura = document.getElementById('grid-add-esp')?.value || OPCOES_ESPESSURA_PLANO[0] || '';
+
+        rel.itens ||= [];
+        rel.itens.push({
+            id: Date.now() + '-' + Math.random().toString(16).slice(2),
+            modo: 'pedido',
+            pedidoNumero,
+            destino,
+            tipo,
+            espessura,
+            ralInferior: OPCOES_RAL_INF[0] || '',
+            ralSuperior: OPCOES_RAL_SUP[0] || '',
+            quantidadeChapas: qtd,
+            metrosUnidade: metros,
+            totalMetros: Number((qtd * metros).toFixed(2)),
+            descricao: `${tipo} ${espessura} mm`
+        });
+
+        salvarPlanoHistoricoEditado(indexPlano, rel, `Adicionou linha ao plano ${pedidoNumero}`);
+        renderizarGestaoPlanoHistorico(indexPlano);
+        listarHistoricoPlano();
+    };
+})();
+
 function gerarPDF_Injecao_Final(dadosEncoded) {
     const rel = JSON.parse(decodeURIComponent(dadosEncoded));
     const janela = window.open('', '_blank');
