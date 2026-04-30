@@ -7163,6 +7163,14 @@ document.addEventListener('click', function(evento) {
         return atlasNumeroPlano(valor).toFixed(2).replace('.', ',');
     }
 
+    function atlasFormatoMetroPlanoDetalhado(valor) {
+        const numero = atlasNumeroPlano(valor);
+        const milimetros = Math.round(numero * 1000);
+        let metros = numero.toFixed(2).replace('.', ',');
+        metros = metros.replace(/,00$/, '').replace(/(\,\d*[1-9])0$/, '$1');
+        return `${milimetros} (${metros} metros)`;
+    }
+
     function atlasEspessuraTexto(valor) {
         const texto = String(valor ?? '').trim();
         if (!texto) return '-';
@@ -7210,6 +7218,51 @@ document.addEventListener('click', function(evento) {
                 });
 
                 const totalEsp = linhas.reduce((acc, item) => acc + atlasNumeroPlano(item.totalMetros), 0);
+                const pedidos = {};
+                const ordemPedidos = [];
+
+                linhas.forEach(item => {
+                    const pedido = item.pedidoNumero || (item.modo === 'stock' ? 'STOCK' : 'S/N');
+                    const cliente = item.destino || item.qualidade || '';
+                    const chave = `${pedido}|||${cliente}`;
+
+                    if (!pedidos[chave]) {
+                        pedidos[chave] = [];
+                        ordemPedidos.push(chave);
+                    }
+
+                    pedidos[chave].push(item);
+                });
+
+                const htmlLinhas = ordemPedidos.map(chave => {
+                    const itensPedido = pedidos[chave].slice().sort((a, b) => atlasNumeroPlano(b.metrosUnidade) - atlasNumeroPlano(a.metrosUnidade));
+                    const [pedido, cliente] = chave.split('|||');
+                    const totalPedido = itensPedido.reduce((acc, item) => acc + atlasNumeroPlano(item.totalMetros), 0);
+                    const rowspan = itensPedido.length + 1;
+
+                    return `
+                        ${itensPedido.map((item, indice) => `
+                            <tr>
+                                ${indice === 0 ? `
+                                    <td rowspan="${rowspan}" class="pedido-mesclado">
+                                        <b>${atlasPlanoSeguro(pedido)}</b>
+                                        <br><span>${atlasPlanoSeguro(cliente)}</span>
+                                    </td>
+                                ` : ''}
+                                <td>${atlasPlanoSeguro(item.ralInferior || '-')}</td>
+                                <td>${atlasPlanoSeguro(item.ralSuperior || '-')}</td>
+                                <td>${atlasPlanoSeguro(item.descricao || item.tipo || tipo)}</td>
+                                <td>${atlasPlanoSeguro(item.quantidadeChapas || 0)}</td>
+                                <td>${atlasFormatoMetroPlanoDetalhado(item.metrosUnidade)}</td>
+                                <td><b>${atlasFormatoMetroPlano(item.totalMetros)}</b></td>
+                            </tr>
+                        `).join('')}
+                        <tr class="total-pedido">
+                            <td colspan="5">TOTAL PEDIDO ${atlasPlanoSeguro(pedido)}${cliente ? ' - ' + atlasPlanoSeguro(cliente) : ''}</td>
+                            <td>${atlasFormatoMetroPlano(totalPedido)} m</td>
+                        </tr>
+                    `;
+                }).join('');
 
                 htmlGrupos += `
                     <div class="grupo-esp">
@@ -7227,20 +7280,7 @@ document.addEventListener('click', function(evento) {
                                 </tr>
                             </thead>
                             <tbody>
-                                ${linhas.map(item => `
-                                    <tr>
-                                        <td>
-                                            <b>${atlasPlanoSeguro(item.pedidoNumero || (item.modo === 'stock' ? 'STOCK' : 'S/N'))}</b>
-                                            <br><span>${atlasPlanoSeguro(item.destino || item.qualidade || '')}</span>
-                                        </td>
-                                        <td>${atlasPlanoSeguro(item.ralInferior || '-')}</td>
-                                        <td>${atlasPlanoSeguro(item.ralSuperior || '-')}</td>
-                                        <td>${atlasPlanoSeguro(item.descricao || item.tipo || tipo)}</td>
-                                        <td>${atlasPlanoSeguro(item.quantidadeChapas || 0)}</td>
-                                        <td>${atlasFormatoMetroPlano(item.metrosUnidade)}</td>
-                                        <td><b>${atlasFormatoMetroPlano(item.totalMetros)}</b></td>
-                                    </tr>
-                                `).join('')}
+                                ${htmlLinhas}
                                 <tr class="total-esp">
                                     <td colspan="6">TOTAL ${atlasPlanoSeguro(tipo)} ${atlasPlanoSeguro(atlasEspessuraTexto(esp))}</td>
                                     <td>${atlasFormatoMetroPlano(totalEsp)} m</td>
@@ -7281,7 +7321,9 @@ document.addEventListener('click', function(evento) {
                     .tabela-plano th, .tabela-plano td { border:1.5px solid #000; padding:5px 4px; text-align:center; vertical-align:middle; }
                     .tabela-plano th { background:#d9d9d9; font-size:10px; }
                     .tabela-plano td:first-child { text-align:center; width:18%; }
+                    .pedido-mesclado { background:#f8fafc; font-size:11px; }
                     .tabela-plano td span { font-size:9px; }
+                    .total-pedido td { background:#fff; font-weight:800; }
                     .total-esp td { background:#f2f2f2; font-weight:800; }
                     .total-geral { margin-top:10px; border:2px solid #000; padding:8px; text-align:center; font-size:18px; font-weight:900; }
                     .no-print { margin-top:16px; }
