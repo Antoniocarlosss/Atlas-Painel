@@ -1274,6 +1274,146 @@ function gerarPDF_Injecao_Final(dadosEncoded) {
     setTimeout(() => janela.focus(), 300);
 }
 
+function gerarPDF_Injecao_Final(dadosEncoded) {
+    const rel = JSON.parse(decodeURIComponent(dadosEncoded));
+    const janela = window.open('', '_blank');
+    if (!janela) return alert('O navegador bloqueou a abertura do PDF.');
+
+    const seguro = valor => String(valor ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const itens = Array.isArray(rel.itens) ? rel.itens : [];
+    const produtos = itens.slice(0, 2);
+    while (produtos.length < 2) produtos.push({});
+    const prodA = produtos[0] || {};
+    const prodB = produtos[1] || {};
+    let totalMetrosDia = 0;
+
+    const quimicos = [
+        ['MDI', 'mdi', '#9b2c2c', '#fff'],
+        ['POL PUR', 'pol', '#d9ead3', '#000'],
+        ['POL PIR', 'polpir', '#d9ead3', '#000'],
+        ['CAT 1', 'cat1', '#f4cccc', '#000'],
+        ['CAT 2', 'cat2', '#f4cccc', '#000'],
+        ['CAT 3', 'cat3', '#f4cccc', '#000'],
+        ['CAT 4', 'cat4', '#f4cccc', '#000'],
+        ['PENT', 'pen', '#fff200', '#000']
+    ];
+    const cabecalhoProdutos = produtos.map(() => `<th>Tipo de Painel / Ral</th><th>Espessura</th>`).join('');
+    const dadosProdutos = produtos.map(item => `<td>${seguro(item.nome || '')}</td><td>${seguro(item.esp ? item.esp + ' mm' : '')}</td>`).join('');
+    const linhasConsumo = quimicos.map(([nome, chave, cor, texto]) => {
+        const v1 = chave === 'polpir' ? '' : (prodA[chave] || '');
+        const v2 = chave === 'polpir' ? '' : (prodB[chave] || '');
+        return `<tr><td class="quimico" style="background:${cor}; color:${texto};">${nome}</td><td>${seguro(v1)}</td><td></td><td>${seguro(v2)}</td><td></td></tr>`;
+    }).join('');
+
+    const linhasObservacoes = [];
+    itens.forEach(item => {
+        totalMetrosDia += parseFloat(item.metros) || 0;
+        (item.paragens || []).forEach(p => linhasObservacoes.push({ hora: p.tempo || '', texto: `${item.nome || ''} ${item.esp || ''} mm - ${p.motivo || ''}` }));
+        (item.densidades || []).forEach(d => {
+            if (d.horario) linhasObservacoes.push({ hora: d.horario, texto: `Densidade: ${textoDensidadesInjecao([d])}` });
+        });
+    });
+    while (linhasObservacoes.length < 10) linhasObservacoes.push({ hora: '', texto: '' });
+
+    const htmlObservacoes = linhasObservacoes.slice(0, 10).map(obs => `<tr><td class="hora">${seguro(obs.hora)}</td><td>${seguro(obs.texto)}</td></tr>`).join('');
+    const densA = textoDensidadesInjecao(prodA.densidades) || '';
+    const densB = textoDensidadesInjecao(prodB.densidades) || '';
+
+    janela.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Gestao de Producao Diaria - Injecao</title>
+            <style>
+                * { box-sizing: border-box; }
+                body { margin: 0; background: #ddd; font-family: Arial, Helvetica, sans-serif; color: #000; }
+                .page { width: 210mm; height: 297mm; overflow: hidden; margin: 0 auto; background: #fff; padding: 14mm 20mm 8mm; }
+                .topo { display: flex; align-items: flex-end; gap: 17mm; margin-bottom: 8mm; }
+                .logo-css { width: 56mm; display:flex; align-items:center; gap:2mm; }
+                .logo-bars { width:14mm; display:grid; gap:2mm; transform:skewX(-14deg); }
+                .logo-bars span { display:block; height:4.1mm; background:#e31c24; }
+                .atlas-word { font-family: Arial Black, Arial, sans-serif; font-size: 31px; line-height:.78; letter-spacing:-1px; color:#111; }
+                .painel-word { font-size: 10px; letter-spacing: 7px; font-weight: 800; margin-left: 4px; margin-top: 4px; }
+                .titulo { font-size: 20px; font-weight: 800; text-align: center; flex: 1; margin-bottom: 3mm; }
+                .campos-duplos { display: grid; grid-template-columns: 1fr 1fr; gap: 22mm; margin-bottom: 6mm; }
+                .campo { display: grid; grid-template-columns: auto 1fr; align-items: end; gap: 4px; margin-bottom: 2mm; font-size: 12px; font-weight: 700; }
+                .linha { border-bottom: 2px solid #111; min-height: 15px; }
+                table { width: 100%; border-collapse: collapse; font-size: 11px; }
+                th, td { border: 2px solid #111; padding: 2px 5px; height: 19px; }
+                th { font-weight: 800; text-align: center; }
+                .consumos { width: 78%; margin: 4mm auto 7mm; }
+                .consumos caption { caption-side: top; border: 2px solid #111; border-bottom: 0; padding: 5px; font-weight: 800; }
+                .quimico { width: 28mm; text-align: center; font-weight: 800; }
+                .dados { width: 56%; margin: 0 auto 4mm; }
+                .dados th { background: #f5f5f5; }
+                .observacoes { margin-top: 3mm; font-size: 11px; }
+                .observacoes th, .observacoes td { height: 17px; }
+                .observacoes .hora { width: 26mm; }
+                .no-print { text-align: center; padding: 15px; background: #111827; }
+                .no-print button { padding: 14px 20px; background: #111; color: #fff; border: 3px solid #E31C24; border-radius: 10px; font-weight: 800; cursor: pointer; }
+                @media print {
+                    body { background: #fff; }
+                    .page { margin: 0; width: 210mm; height: 297mm; padding: 14mm 20mm 8mm; }
+                    .no-print { display: none !important; }
+                    @page { size: A4 portrait; margin: 0; }
+                    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="page">
+                <div class="topo">
+                    <div class="logo-css">
+                        <div class="logo-bars"><span></span><span></span></div>
+                        <div><div class="atlas-word">ATLAS</div><div class="painel-word">PAINEL</div></div>
+                    </div>
+                    <div class="titulo">Gest&atilde;o de Produ&ccedil;&atilde;o Di&aacute;ria - Inje&ccedil;&atilde;o</div>
+                </div>
+                <div class="campos-duplos">
+                    <div>
+                        <div class="campo"><span>Data:</span><span class="linha">${seguro(rel.data || '')}</span></div>
+                        <div style="height:6mm;"></div>
+                        <div class="campo"><span>Fita Atlas:</span><span class="linha">${seguro(prodA.fita || '')}</span></div>
+                        <div class="campo"><span>Esponja:</span><span class="linha">${seguro(prodA.espuma || '')}</span></div>
+                        <div class="campo"><span>Velocidade:</span><span class="linha">${seguro(prodA.vel || '')}</span></div>
+                        <div style="height:7mm;"></div>
+                        <div class="campo"><span>Densidade:</span><span class="linha">${seguro(densA)}</span></div>
+                        <div class="campo"><span>Densidade Real:</span><span class="linha"></span></div>
+                    </div>
+                    <div>
+                        <div class="campo"><span>Funcionario:</span><span class="linha">${seguro(rel.operador || '')}</span></div>
+                        <div style="height:6mm;"></div>
+                        <div class="campo"><span>Fita Atlas:</span><span class="linha">${seguro(prodB.fita || '')}</span></div>
+                        <div class="campo"><span>Esponja:</span><span class="linha">${seguro(prodB.espuma || '')}</span></div>
+                        <div class="campo"><span>Velocidade:</span><span class="linha">${seguro(prodB.vel || '')}</span></div>
+                        <div style="height:7mm;"></div>
+                        <div class="campo"><span>Densidade:</span><span class="linha">${seguro(densB)}</span></div>
+                        <div class="campo"><span>Densidade Real:</span><span class="linha"></span></div>
+                    </div>
+                </div>
+                <table class="consumos">
+                    <caption>Consumos Parciais</caption>
+                    <thead><tr><th></th>${cabecalhoProdutos}</tr><tr><th></th>${dadosProdutos}</tr></thead>
+                    <tbody>${linhasConsumo}</tbody>
+                </table>
+                <table class="dados">
+                    <thead><tr><th colspan="3">Dados Inje&ccedil;&atilde;o Parciais</th></tr></thead>
+                    <tbody><tr><th>Comprimento</th><td>${totalMetrosDia.toFixed(2)} m</td><td></td></tr></tbody>
+                </table>
+                <table class="observacoes">
+                    <thead><tr><th class="hora">Hora</th><th>Observa&ccedil;&otilde;es: (arranque, paragem uni&atilde;o rebentou, valor incorreto, etc)</th></tr></thead>
+                    <tbody>${htmlObservacoes}</tbody>
+                </table>
+            </div>
+            <div class="no-print"><button onclick="window.print()">CONFIRMAR E GERAR PDF</button></div>
+        </body>
+        </html>
+    `);
+    janela.document.close();
+    setTimeout(() => janela.focus(), 300);
+}
+
 function renderizarMenuBobines() {
     const render = document.getElementById('render-modulo');
     
