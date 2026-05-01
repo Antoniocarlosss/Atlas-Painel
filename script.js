@@ -2157,18 +2157,23 @@ gerarPDF_Bobines = function(dadosEncoded) {
     };
     const totaisSerraPorRal = (() => {
         const historicoSerra = JSON.parse(localStorage.getItem('atlas_serra_hist')) || [];
-        const mapa = {};
+        const superior = {};
+        const inferior = {};
         historicoSerra.filter(r => r.data === rel.data).forEach(r => {
             (r.itens || []).forEach(i => {
                 const total = Number(i.qtd || 0) * Number(i.metros || 0);
-                [i.ralI, i.ralS].filter(Boolean).forEach(ral => {
-                    mapa[ral] = (mapa[ral] || 0) + total;
-                });
+                if (i.ralS) superior[i.ralS] = (superior[i.ralS] || 0) + total;
+                if (i.ralI) inferior[i.ralI] = (inferior[i.ralI] || 0) + total;
             });
         });
-        return Object.entries(mapa).sort((a, b) => a[1] - b[1]);
+        return {
+            superior: Object.entries(superior).sort((a, b) => a[1] - b[1]),
+            inferior: Object.entries(inferior).sort((a, b) => a[1] - b[1])
+        };
     })();
-    const linhasUnioes = totaisSerraPorRal.map(([ral, metros]) => `<tr><td>RAL ${textoSeguroConferencia(ral)}</td><td>${Number(metros || 0).toFixed(2)} m</td></tr>`).join('');
+    const linhasUnioes = lista => lista.map(([ral, metros]) => `<tr><td>RAL ${textoSeguroConferencia(ral)}</td><td>${Number(metros || 0).toFixed(2)} m</td></tr>`).join('');
+    const linhasUnioesSuperior = linhasUnioes(totaisSerraPorRal.superior);
+    const linhasUnioesInferior = linhasUnioes(totaisSerraPorRal.inferior);
 
     janela.document.write(`
         <!DOCTYPE html>
@@ -2177,35 +2182,36 @@ gerarPDF_Bobines = function(dadosEncoded) {
             <meta charset="UTF-8">
             <title>Gestao de Producao Diaria - Bobines / Filmes</title>
             <style>
-                @page { size:A4; margin:10mm; }
+                @page { size:A4; margin:7mm; }
                 * { box-sizing:border-box; }
                 body { font-family:Arial, sans-serif; color:#111; margin:0; background:#fff; }
-                .folha { width:190mm; min-height:277mm; margin:auto; padding:16mm 18mm 10mm; }
-                .topo { display:flex; align-items:center; gap:34mm; margin-bottom:20mm; }
+                .folha { width:196mm; min-height:auto; margin:auto; padding:8mm 14mm 5mm; page-break-after:avoid; page-break-inside:avoid; }
+                .topo { display:flex; align-items:center; gap:26mm; margin-bottom:11mm; }
                 .logo-css { display:flex; align-items:center; gap:8px; }
-                .logo-barras { display:grid; gap:6px; }
-                .logo-barras span { display:block; width:38px; height:10px; background:#e31c24; transform:skew(-18deg); }
-                .logo-texto { font-weight:900; font-size:38px; line-height:.78; letter-spacing:-1px; }
-                .logo-painel { font-size:11px; letter-spacing:12px; margin-left:56px; margin-top:5px; display:block; }
-                h1 { font-size:20px; margin:0; flex:1; text-align:center; }
-                .linha-info { display:grid; grid-template-columns:1fr 1.25fr; gap:28mm; margin-bottom:7mm; font-size:13px; }
-                .campo-linha { border-bottom:2px solid #111; min-height:18px; display:inline-block; min-width:44mm; padding-left:6px; font-weight:bold; }
-                .quadros { display:grid; grid-template-columns:1fr 1fr; gap:14mm; align-items:start; margin-top:6mm; }
+                .logo-barras { display:grid; gap:4px; }
+                .logo-barras span { display:block; width:30px; height:8px; background:#e31c24; transform:skew(-18deg); }
+                .logo-texto { font-weight:900; font-size:31px; line-height:.78; letter-spacing:-1px; }
+                .logo-painel { font-size:9px; letter-spacing:9px; margin-left:45px; margin-top:4px; display:block; }
+                h1 { font-size:17px; margin:0; flex:1; text-align:center; }
+                .linha-info { display:grid; grid-template-columns:1fr 1.25fr; gap:23mm; margin-bottom:5mm; font-size:11px; }
+                .campo-linha { border-bottom:2px solid #111; min-height:15px; display:inline-block; min-width:36mm; padding-left:5px; font-weight:bold; }
+                .quadros { display:grid; grid-template-columns:1fr 1fr; gap:10mm; align-items:start; margin-top:4mm; }
                 table { border-collapse:collapse; width:100%; }
-                th, td { border:2px solid #111; padding:4px 6px; text-align:center; font-size:13px; height:24px; }
+                th, td { border:2px solid #111; padding:2px 5px; text-align:center; font-size:11px; height:19px; }
                 th { font-weight:800; background:#f4f4f4; }
-                .box-tabela th:first-child { font-size:16px; }
-                .filme-tabela { margin-top:8mm; }
-                .unioes { width:64mm; margin:13mm 0 0 5mm; }
-                .unioes th { font-size:18px; }
-                .rodape { display:flex; justify-content:flex-end; margin-top:23mm; }
-                .assinatura { display:inline-block; width:70mm; border-bottom:2px solid #111; height:18px; }
+                .box-tabela th:first-child { font-size:13px; }
+                .filme-tabela { margin-top:5mm; }
+                .unioes-wrap { display:grid; grid-template-columns:1fr 1fr; gap:10mm; margin:9mm auto 0; width:118mm; }
+                .unioes th { font-size:13px; }
+                .unioes .subtitulo { font-size:10px; line-height:1.15; }
+                .rodape { display:flex; justify-content:flex-end; margin-top:10mm; font-size:12px; }
+                .assinatura { display:inline-block; width:58mm; border-bottom:2px solid #111; height:15px; }
                 .no-print { position:fixed; z-index:9999; }
                 .print-topo { top:12px; right:12px; display:flex; gap:8px; }
                 .print-topo button { padding:12px 18px; border:0; border-radius:8px; color:#fff; font-weight:900; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.25); }
                 .btn-imprimir { background:#111827; border:3px solid #e31c24 !important; }
                 .btn-fechar { background:#e31c24; }
-                @media print { .no-print { display:none !important; } .folha { margin:0; } body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+                @media print { html, body { width:210mm; min-height:297mm; } .no-print { display:none !important; } .folha { margin:0 auto; } body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
             </style>
         </head>
         <body>
@@ -2225,12 +2231,20 @@ gerarPDF_Bobines = function(dadosEncoded) {
                     <div>${renderBobine('Registo Perfiladora Superior', '1060mm', porLado('superior'))}${renderFilmes('superior')}</div>
                     <div>${renderBobine('Registo Perfiladora Inferior', '1250mm', porLado('inferior'))}${renderFilmes('inferior')}</div>
                 </div>
-                <table class="unioes">
-                    <tr><th colspan="2">Unioes em Producao</th></tr>
-                    <tr><th>(fim de bobine/cor/espessura)</th><th>Quantidade</th></tr>
-                    ${linhasUnioes || linhasVazias(1)}
-                    ${linhasVazias(Math.max(0, 5 - totaisSerraPorRal.length))}
-                </table>
+                <div class="unioes-wrap">
+                    <table class="unioes">
+                        <tr><th colspan="2">Unioes Superior</th></tr>
+                        <tr><th class="subtitulo">RAL usado na serra</th><th>Metros</th></tr>
+                        ${linhasUnioesSuperior || linhasVazias(1)}
+                        ${linhasVazias(Math.max(0, 4 - totaisSerraPorRal.superior.length))}
+                    </table>
+                    <table class="unioes">
+                        <tr><th colspan="2">Unioes Inferior</th></tr>
+                        <tr><th class="subtitulo">RAL usado na serra</th><th>Metros</th></tr>
+                        ${linhasUnioesInferior || linhasVazias(1)}
+                        ${linhasVazias(Math.max(0, 4 - totaisSerraPorRal.inferior.length))}
+                    </table>
+                </div>
                 <div class="rodape"><div>Ass: <span class="assinatura"></span></div></div>
                 <div class="no-print print-topo">
                     <button class="btn-imprimir" onclick="window.print()">IMPRIMIR / PDF</button>
