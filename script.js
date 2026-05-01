@@ -7464,14 +7464,37 @@ document.addEventListener('click', function(evento) {
                 .plano-btn-add { background:#10b981; }
                 .plano-urgente-box { display:flex; align-items:center; justify-content:center; gap:8px; background:#fff; color:#b91c1c; border:1px solid #111827; border-radius:0; padding:9px; font-weight:900; }
                 .plano-toast { position:fixed; top:18px; left:50%; transform:translateX(-50%); z-index:20000; background:#10b981; color:#fff; border:2px solid #047857; box-shadow:0 12px 35px rgba(0,0,0,.35); padding:14px 22px; border-radius:8px; font-weight:900; font-size:16px; text-align:center; }
+                @media (min-width: 761px) and (max-width: 1180px) {
+                    .plano-modal { padding:12px; }
+                    .plano-add { grid-template-columns:repeat(3, minmax(160px, 1fr)); }
+                    .plano-add .linha-cheia { grid-column:span 2; }
+                    .plano-tabela { min-width:1080px; font-size:12px; }
+                    .plano-grupo-grid { grid-template-columns:130px 1fr 120px 125px 130px; }
+                }
                 @media (max-width: 760px) {
-                    .plano-modal { padding:8px; border-radius:0; }
-                    .plano-add { grid-template-columns:1fr 1fr; }
+                    .plano-modal { padding:8px; border-radius:0; border-left:0; border-right:0; }
+                    .plano-topo { position:static; padding-bottom:10px; }
+                    .plano-topo > div:first-child { align-items:flex-start !important; }
+                    .plano-topo h2 { font-size:20px !important; }
+                    .plano-add { grid-template-columns:1fr; padding:8px; gap:7px; }
                     .plano-add .linha-cheia { grid-column:auto; }
-                    .plano-wrap { max-height:none; }
-                    .plano-tabela { min-width:1180px; font-size:12px; }
-                    .plano-input, .plano-select { font-size:13px; padding:9px; }
-                    .plano-grupo-grid { grid-template-columns:1fr 1fr; }
+                    .plano-btn, .plano-btn-add, .plano-btn-fechar { width:100%; min-height:44px; }
+                    .plano-wrap { max-height:none; overflow:visible; border:0; background:transparent; margin-top:10px; }
+                    .plano-tabela { min-width:0; width:100%; display:block; border-collapse:separate; font-size:13px; }
+                    .plano-tabela thead { display:none; }
+                    .plano-tabela tbody, .plano-tabela tr, .plano-tabela td { display:block; width:100%; }
+                    .plano-tabela tr { margin-bottom:10px; border:2px solid #0f172a; background:#fff; }
+                    .plano-tabela td { border:0; border-bottom:1px solid #cbd5e1; padding:8px; background:#fff !important; }
+                    .plano-tabela td:last-child { border-bottom:0; }
+                    .plano-tabela td[data-label]::before { content:attr(data-label); display:block; margin-bottom:5px; color:#334155; font-size:11px; font-weight:900; text-transform:uppercase; }
+                    .plano-input, .plano-select { font-size:15px; padding:11px; min-height:44px; }
+                    .plano-grupo { border:0 !important; margin-top:14px !important; margin-bottom:0 !important; }
+                    .plano-grupo-celula { padding:8px !important; border:2px solid #0f172a !important; }
+                    .plano-grupo-grid { grid-template-columns:1fr; }
+                    .plano-total { font-size:18px; text-align:left; }
+                    .plano-total::before { color:#047857 !important; }
+                    .plano-tabela td[data-label="Acoes"] div { flex-direction:column; }
+                    .plano-toast { width:calc(100% - 28px); top:10px; font-size:15px; }
                 }
             </style>
             <div class="plano-modal">
@@ -7553,9 +7576,9 @@ document.addEventListener('click', function(evento) {
                                         const item = linhas[idx];
                                         return `
                                             <tr>
-                                                <td><select id="grid-${idx}-tipo" class="plano-select">${opcoesPlano(OPCOES_TIPO_PLANO, item.tipo)}</select></td>
-                                                <td><select id="grid-${idx}-esp" class="plano-select">${opcoesPlano(OPCOES_ESPESSURA_PLANO, item.espessura, ' mm')}</select></td>
-                                                <td>
+                                                <td data-label="Tipo"><select id="grid-${idx}-tipo" class="plano-select">${opcoesPlano(OPCOES_TIPO_PLANO, item.tipo)}</select></td>
+                                                <td data-label="Espessura"><select id="grid-${idx}-esp" class="plano-select">${opcoesPlano(OPCOES_ESPESSURA_PLANO, item.espessura, ' mm')}</select></td>
+                                                <td data-label="RAL inferior / Acab. inferior">
                                                     <select id="grid-${idx}-ral-inf" class="plano-select">${opcoesPlano(OPCOES_RAL_INF, item.ralInferior)}</select>
                                                     <select id="grid-${idx}-perfil-inf" class="plano-select" style="margin-top:5px;" ${tipoPlanoAceitaPerfil(item.tipo) ? '' : 'disabled'}>
                                                         <option value="">Acab. inf.</option>
@@ -7564,7 +7587,7 @@ document.addEventListener('click', function(evento) {
                                                         <option value="Lisa" ${(item.perfilInferior || item.acabamentoInferior || item.perfilPainel) === 'Lisa' ? 'selected' : ''}>Lisa</option>
                                                     </select>
                                                 </td>
-                                                <td>
+                                                <td data-label="RAL superior / Acab. superior">
                                                     <select id="grid-${idx}-ral-sup" class="plano-select">${opcoesPlano(OPCOES_RAL_SUP, item.ralSuperior)}</select>
                                                     <select id="grid-${idx}-perfil-sup" class="plano-select" style="margin-top:5px;" ${tipoPlanoAceitaPerfil(item.tipo) ? '' : 'disabled'}>
                                                         <option value="">Acab. sup.</option>
@@ -7573,13 +7596,13 @@ document.addEventListener('click', function(evento) {
                                                         <option value="Lisa" ${(item.perfilSuperior || item.acabamentoSuperior || item.perfilPainel) === 'Lisa' ? 'selected' : ''}>Lisa</option>
                                                     </select>
                                                 </td>
-                                                <td>
+                                                <td data-label="Descricao / mensagem">
                                                     <input id="grid-${idx}-info" class="plano-input" value="${segPlano(item.descricaoManual || item.infoManual || item.observacaoPlano || '')}" placeholder="Info manual">
                                                 </td>
-                                                <td><input id="grid-${idx}-qtd" type="number" inputmode="numeric" class="plano-input" value="${segPlano(item.quantidadeChapas || 0)}"></td>
-                                                <td><input id="grid-${idx}-metros" type="number" inputmode="decimal" step="0.01" class="plano-input" value="${segPlano(item.metrosUnidade || 0)}"></td>
-                                                <td class="plano-total">${metroPlano(item.totalMetros)} m</td>
-                                                <td>
+                                                <td data-label="Quantidade"><input id="grid-${idx}-qtd" type="number" inputmode="numeric" class="plano-input" value="${segPlano(item.quantidadeChapas || 0)}"></td>
+                                                <td data-label="Metro"><input id="grid-${idx}-metros" type="number" inputmode="decimal" step="0.01" class="plano-input" value="${segPlano(item.metrosUnidade || 0)}"></td>
+                                                <td data-label="Total" class="plano-total">${metroPlano(item.totalMetros)} m</td>
+                                                <td data-label="Acoes">
                                                     <div style="display:flex; gap:6px;">
                                                         <button onclick="salvarLinhaPlanoExcel(${indexPlano}, ${idx})" class="plano-btn" style="background:#3b82f6;">SALVAR</button>
                                                         <button onclick="excluirLinhaPlanoExcel(${indexPlano}, ${idx})" class="plano-btn" style="background:#7f1d1d;">EXCLUIR</button>
