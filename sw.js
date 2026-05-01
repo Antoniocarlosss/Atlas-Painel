@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v72-bobines-stock-pdf';
+const CACHE_NAME = 'atlas-v73-filme-superior-1010';
 const assets = [
   '/',
   '/index.html',

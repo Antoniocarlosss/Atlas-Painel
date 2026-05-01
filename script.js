@@ -1553,7 +1553,7 @@ function setLado(lado) {
                 const normalizado = normalizarStockAtlas(v);
                 return normalizado.includes('5 ondas') || normalizado.includes('telha');
             }), ...opcoesComuns]
-            : opcoesComuns;
+            : filmesConfigurados.filter(v => normalizarStockAtlas(v).includes('fachada') || normalizarStockAtlas(v).includes('1010'));
         let html = `
             <select id="subtipo_filme" class="input-style">
                 ${opcoesFilme.map(v => `<option value="${v}">${v}</option>`).join('')}
@@ -2146,12 +2146,15 @@ gerarPDF_Bobines = function(dadosEncoded) {
         `;
     };
     const tiposFilmePdf = ['Telha (1180mm)', 'Ondulado (1055mm)', '5 Ondas (1175mm)', 'Fachada (1010)'];
-    const renderFilmes = lado => `
+    const renderFilmes = lado => {
+        const tipos = lado === 'superior' ? ['Fachada (1010)'] : tiposFilmePdf;
+        return `
         <table class="filme-tabela">
             <tr><th>Registo Filme</th><th>Quantidade</th></tr>
-            ${tiposFilmePdf.map(tipo => `<tr><td>${tipo}</td><td>${totalFilme(tipo, lado) || ''}</td></tr>`).join('')}
+            ${tipos.map(tipo => `<tr><td>${tipo}</td><td>${totalFilme(tipo, lado) || ''}</td></tr>`).join('')}
         </table>
     `;
+    };
     const totaisSerraPorRal = (() => {
         const historicoSerra = JSON.parse(localStorage.getItem('atlas_serra_hist')) || [];
         const mapa = {};
