@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v63-gerir-plano-excel';
+const CACHE_NAME = 'atlas-v64-perfil-so-fachada';
 const assets = [
   '/',
   '/index.html',

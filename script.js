@@ -7199,10 +7199,18 @@ document.addEventListener('click', function(evento) {
         return unicos.length === 1 ? unicos[0] : null;
     }
 
+    function tipoPlanoAceitaPerfil(tipo) {
+        const texto = String(tipo || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase();
+        return texto.includes('fachada oculta') || texto.includes('fachada visivel');
+    }
+
     function descricaoPlanoItem(item, tipo, esp) {
         const partes = [];
         const base = item.descricaoManual || item.infoManual || item.observacaoPlano || '';
-        const perfil = item.perfilPainel || item.perfilFachada || item.acabamento || '';
+        const perfil = tipoPlanoAceitaPerfil(item.tipo || tipo) ? (item.perfilPainel || item.perfilFachada || item.acabamento || '') : '';
         const espInf = item.espChapaInf || item.espessuraChapaInferior || '';
         const espSup = item.espChapaSup || item.espessuraChapaSuperior || '';
 
@@ -7601,7 +7609,7 @@ document.addEventListener('click', function(evento) {
         item.ralSuperior = document.getElementById(`grid-${linha}-ral-sup`)?.value || item.ralSuperior;
         item.infoManual = document.getElementById(`grid-${linha}-info`)?.value.trim() || '';
         item.descricaoManual = item.infoManual;
-        item.perfilPainel = document.getElementById(`grid-${linha}-perfil`)?.value || '';
+        item.perfilPainel = tipoPlanoAceitaPerfil(item.tipo) ? (document.getElementById(`grid-${linha}-perfil`)?.value || '') : '';
         item.urgente = !!document.getElementById(`grid-${linha}-urgente`)?.checked;
         item.quantidadeChapas = qtd;
         item.metrosUnidade = metros;
@@ -7627,7 +7635,7 @@ document.addEventListener('click', function(evento) {
         const tipo = document.getElementById('grid-add-tipo')?.value || OPCOES_TIPO_PLANO[0] || '';
         const espessura = document.getElementById('grid-add-esp')?.value || OPCOES_ESPESSURA_PLANO[0] || '';
         const infoManual = document.getElementById('grid-add-info')?.value.trim() || '';
-        const perfilPainel = document.getElementById('grid-add-perfil')?.value || '';
+        const perfilPainel = tipoPlanoAceitaPerfil(tipo) ? (document.getElementById('grid-add-perfil')?.value || '') : '';
 
         rel.itens ||= [];
         rel.itens.push({
@@ -7662,7 +7670,7 @@ document.addEventListener('click', function(evento) {
 
         blocoRal.insertAdjacentHTML('afterend', `
             <div id="plano-extra-info" style="display:grid; grid-template-columns:1fr 1fr auto; gap:10px; margin-bottom:12px; align-items:end;">
-                <div>
+                <div id="plano-perfil-wrap">
                     <label style="color:#94a3b8; font-size:11px;">PERFIL / ACABAMENTO OPCIONAL</label>
                     <select id="plano-perfil-painel" style="background:#1e293b; color:white; border:1px solid #334155; width:100%; padding:12px; border-radius:6px; margin-top:5px;">
                         <option value="">Opcional</option>
@@ -7680,6 +7688,20 @@ document.addEventListener('click', function(evento) {
                 </label>
             </div>
         `);
+
+        const atualizarPerfil = () => {
+            const tipoAtual = document.getElementById('plano-tipo')?.value || db_plano_live?.pedidoAtual?.tipo || '';
+            const podePerfil = tipoPlanoAceitaPerfil(tipoAtual);
+            const extraInfo = document.getElementById('plano-extra-info');
+            const wrap = document.getElementById('plano-perfil-wrap');
+            const select = document.getElementById('plano-perfil-painel');
+            if (wrap) wrap.style.display = podePerfil ? 'block' : 'none';
+            if (extraInfo) extraInfo.style.gridTemplateColumns = podePerfil ? '1fr 1fr auto' : '1fr auto';
+            if (!podePerfil && select) select.value = '';
+        };
+
+        document.getElementById('plano-tipo')?.addEventListener('change', atualizarPerfil);
+        atualizarPerfil();
     }
 
     const abrirFormularioPlanoOriginalMesclado = window.abrirFormularioPlano;
@@ -7694,9 +7716,10 @@ document.addEventListener('click', function(evento) {
     const adicionarLinhaPlanoOriginalMesclado = window.adicionarLinhaPlano;
     if (typeof adicionarLinhaPlanoOriginalMesclado === 'function') {
         window.adicionarLinhaPlano = function(modo) {
+            const tipoAtual = document.getElementById('plano-tipo')?.value || db_plano_live?.pedidoAtual?.tipo || '';
             const extra = {
                 infoManual: document.getElementById('plano-info-manual')?.value.trim() || '',
-                perfilPainel: document.getElementById('plano-perfil-painel')?.value || '',
+                perfilPainel: tipoPlanoAceitaPerfil(tipoAtual) ? (document.getElementById('plano-perfil-painel')?.value || '') : '',
                 urgente: !!document.getElementById('plano-urgente')?.checked
             };
             const antes = db_plano_live?.linhasAbertas?.length || 0;
