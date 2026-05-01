@@ -7625,6 +7625,7 @@ document.addEventListener('click', function(evento) {
                 rel.itens[idx].pedidoNumero = pedido;
                 rel.itens[idx].destino = cliente;
                 rel.itens[idx].urgente = urgente;
+                aplicarCamposLinhaPlanoExcel(rel.itens[idx], idx);
             }
         });
 
@@ -7633,14 +7634,11 @@ document.addEventListener('click', function(evento) {
         listarHistoricoPlano();
     };
 
-    window.salvarLinhaPlanoExcel = function(indexPlano, linha) {
-        const rel = db_plano_hist[indexPlano];
-        const item = rel?.itens?.[linha];
-        if (!rel || !item) return;
-
+    function aplicarCamposLinhaPlanoExcel(item, linha) {
+        if (!item) return false;
         const qtd = numPlano(document.getElementById(`grid-${linha}-qtd`)?.value);
         const metros = numPlano(document.getElementById(`grid-${linha}-metros`)?.value);
-        if (qtd <= 0 || metros <= 0) return alert('Informe quantidade e metros validos.');
+        if (qtd <= 0 || metros <= 0) return false;
 
         item.tipo = document.getElementById(`grid-${linha}-tipo`)?.value || item.tipo;
         item.espessura = document.getElementById(`grid-${linha}-esp`)?.value || item.espessura;
@@ -7648,8 +7646,8 @@ document.addEventListener('click', function(evento) {
         item.ralSuperior = document.getElementById(`grid-${linha}-ral-sup`)?.value || item.ralSuperior;
         item.infoManual = document.getElementById(`grid-${linha}-info`)?.value.trim() || '';
         item.descricaoManual = item.infoManual;
-        item.perfilInferior = tipoPlanoAceitaPerfil(item.tipo) ? (document.getElementById(`grid-${linha}-perfil-inf`)?.value || '') : '';
-        item.perfilSuperior = tipoPlanoAceitaPerfil(item.tipo) ? (document.getElementById(`grid-${linha}-perfil-sup`)?.value || '') : '';
+        item.perfilInferior = tipoPlanoAceitaPerfil(item.tipo) ? (document.getElementById(`grid-${linha}-perfil-inf`)?.value || 'Canelada') : '';
+        item.perfilSuperior = tipoPlanoAceitaPerfil(item.tipo) ? (document.getElementById(`grid-${linha}-perfil-sup`)?.value || 'Canelada') : '';
         item.acabamentoInferior = item.perfilInferior;
         item.acabamentoSuperior = item.perfilSuperior;
         item.perfilPainel = '';
@@ -7658,6 +7656,15 @@ document.addEventListener('click', function(evento) {
         item.totalMetrosAntesCancelamento = Number((qtd * metros).toFixed(2));
         item.totalMetros = item.encomendaCancelada ? 0 : item.totalMetrosAntesCancelamento;
         item.descricao = `${item.tipo} ${item.espessura} mm`;
+        return true;
+    }
+
+    window.salvarLinhaPlanoExcel = function(indexPlano, linha) {
+        const rel = db_plano_hist[indexPlano];
+        const item = rel?.itens?.[linha];
+        if (!rel || !item) return;
+
+        if (!aplicarCamposLinhaPlanoExcel(item, linha)) return alert('Informe quantidade e metros validos.');
 
         salvarPlanoHistoricoEditado(indexPlano, rel, `Editou linha do plano ${item.pedidoNumero || 'stock'}`);
         renderizarGestaoPlanoHistorico(indexPlano);

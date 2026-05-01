@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v66-urgencia-pedido-acab-ral';
+const CACHE_NAME = 'atlas-v67-salvar-pedido-gerir';
 const assets = [
   '/',
   '/index.html',
