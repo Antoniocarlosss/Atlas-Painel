@@ -7463,6 +7463,7 @@ document.addEventListener('click', function(evento) {
                 .plano-btn-fechar { background:#475569; }
                 .plano-btn-add { background:#10b981; }
                 .plano-urgente-box { display:flex; align-items:center; justify-content:center; gap:8px; background:#fff; color:#b91c1c; border:1px solid #111827; border-radius:0; padding:9px; font-weight:900; }
+                .plano-toast { position:fixed; top:18px; left:50%; transform:translateX(-50%); z-index:20000; background:#10b981; color:#fff; border:2px solid #047857; box-shadow:0 12px 35px rgba(0,0,0,.35); padding:14px 22px; border-radius:8px; font-weight:900; font-size:16px; text-align:center; }
                 @media (max-width: 760px) {
                     .plano-modal { padding:8px; border-radius:0; }
                     .plano-add { grid-template-columns:1fr 1fr; }
@@ -7611,6 +7612,17 @@ document.addEventListener('click', function(evento) {
         });
     };
 
+    window.mostrarAvisoPlanoExcel = function(texto) {
+        const antigo = document.getElementById('plano-toast-salvo');
+        if (antigo) antigo.remove();
+        const aviso = document.createElement('div');
+        aviso.id = 'plano-toast-salvo';
+        aviso.className = 'plano-toast';
+        aviso.textContent = texto || 'Pedido salvo';
+        document.body.appendChild(aviso);
+        setTimeout(() => aviso.remove(), 1800);
+    };
+
     window.salvarGrupoPedidoPlanoExcel = function(indexPlano, grupoIndex) {
         const rel = db_plano_hist[indexPlano];
         const indices = window.atlasPlanoGrupoGestao?.[indexPlano]?.[grupoIndex] || [];
@@ -7631,6 +7643,7 @@ document.addEventListener('click', function(evento) {
 
         salvarPlanoHistoricoEditado(indexPlano, rel, `Editou pedido ${pedido} - ${cliente}${urgente ? ' - URGENTE' : ''}`);
         renderizarGestaoPlanoHistorico(indexPlano);
+        setTimeout(() => mostrarAvisoPlanoExcel(`Pedido ${pedido} salvo`), 50);
         listarHistoricoPlano();
     };
 
