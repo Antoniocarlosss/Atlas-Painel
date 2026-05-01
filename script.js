@@ -7270,7 +7270,12 @@ document.addEventListener('click', function(evento) {
                     const ralSupUnico = valorUnico(itensPedido.map(item => item.ralSuperior));
                     const ralInfUnico = valorUnico(itensPedido.map(item => item.ralInferior));
                     const ralUnicoIgual = ralInfUnico && ralSupUnico && ralInfUnico === ralSupUnico;
-                    const descUnica = valorUnico(itensPedido.map(item => descricaoPlanoItem(item, tipo, esp)));
+                    const descricoesPedido = Array.from(new Set(
+                        itensPedido
+                            .map(item => descricaoPlanoItem(item, tipo, esp))
+                            .filter(desc => desc && desc !== '--')
+                    ));
+                    const descPedido = descricoesPedido.length ? descricoesPedido.join(' | ') : '--';
                     const pedidoUrgente = itensPedido.some(item => item.urgente === true || item.urgente === 'sim');
 
                     return `
@@ -7289,8 +7294,7 @@ document.addEventListener('click', function(evento) {
                                 ${!ralUnicoIgual && !ralSupUnico ? `<td>${segPlano(item.ralSuperior || '-')}</td>` : ''}
                                 ${!ralUnicoIgual && ralInfUnico && indice === 0 ? `<td rowspan="${itensPedido.length}" class="ral-mesclado">${segPlano(ralInfUnico)}</td>` : ''}
                                 ${!ralUnicoIgual && !ralInfUnico ? `<td>${segPlano(item.ralInferior || '-')}</td>` : ''}
-                                ${descUnica && indice === 0 ? `<td rowspan="${itensPedido.length}" class="desc">${segPlano(descUnica)}</td>` : ''}
-                                ${!descUnica ? `<td class="desc">${segPlano(descricaoPlanoItem(item, tipo, esp))}</td>` : ''}
+                                ${indice === 0 ? `<td rowspan="${itensPedido.length}" class="desc">${segPlano(descPedido)}</td>` : ''}
                                 <td>${segPlano(item.quantidadeChapas || 0)}</td>
                                 <td>${metroPlanoDetalhado(item.metrosUnidade)}</td>
                                 <td><b>${metroPlano(item.totalMetros)}</b></td>
