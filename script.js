@@ -6113,19 +6113,7 @@ if (typeof montarHTMLPlano === 'function' && !window.montarHTMLPlanoOriginalComE
     window.montarHTMLPlanoOriginalComEdicao = montarHTMLPlano;
 
     montarHTMLPlano = function(rel, comBotaoImpressao) {
-        let html = window.montarHTMLPlanoOriginalComEdicao(rel, comBotaoImpressao);
-
-        if (rel.editadoPor && rel.editadoEm) {
-            const blocoEdicao = `
-                <div style="margin-top:12px; background:#fff7ed; color:#000; padding:10px; border:2px solid #f59e0b; font-size:12px; font-weight:bold;">
-                    EDITADO POR: ${rel.editadoPor} | DATA/HORA: ${rel.editadoEm}
-                </div>
-            `;
-
-            html = html.replace('<div style="margin-top:20px;">', blocoEdicao + '<div style="margin-top:20px;">');
-        }
-
-        return html;
+        return window.montarHTMLPlanoOriginalComEdicao(rel, comBotaoImpressao);
     };
 }
 /* ==========================================================
@@ -7471,9 +7459,7 @@ document.addEventListener('click', function(evento) {
         });
 
         const totalGeral = itens.reduce((acc, item) => acc + numPlano(item.totalMetros), 0);
-        const blocoEdicao = rel.editadoPor && rel.editadoEm
-            ? `<div class="edicao">Editado por: <b>${segPlano(rel.editadoPor)}</b> em <b>${segPlano(rel.editadoEm)}</b></div>`
-            : '';
+        const blocoEdicao = '';
 
         return `
             <html>
@@ -8193,9 +8179,7 @@ document.addEventListener('click', function(evento) {
         });
 
         const totalGeral = itens.reduce((acc, item) => acc + atlasNumeroPlano(item.totalMetros), 0);
-        const blocoEdicao = rel.editadoPor && rel.editadoEm
-            ? `<div class="edicao">Editado por: <b>${atlasPlanoSeguro(rel.editadoPor)}</b> em <b>${atlasPlanoSeguro(rel.editadoEm)}</b></div>`
-            : '';
+        const blocoEdicao = '';
 
         return `
             <html>

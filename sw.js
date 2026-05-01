@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v74-bobines-botao-imprimir';
+const CACHE_NAME = 'atlas-v75-pdf-sem-edicao';
 const assets = [
   '/',
   '/index.html',
