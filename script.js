@@ -3844,8 +3844,8 @@ function abrirFormularioPlano(modo) {
             <div><label style="color:#94a3b8; font-size:11px;">ESPESSURA</label>${campoEspessuraPlano}</div>
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
-            <div><label style="color:#94a3b8; font-size:11px;">RAL SUPERIOR</label><select id="plano-ral-sup" style="background:#1e293b; color:white; border:1px solid #334155; width:100%; padding:12px; border-radius:6px; margin-top:5px;">${OPCOES_RAL_SUP.map(v=>`<option value="${v}">${v}</option>`).join('')}</select></div>
             <div><label style="color:#94a3b8; font-size:11px;">RAL INFERIOR</label><select id="plano-ral-inf" style="background:#1e293b; color:white; border:1px solid #334155; width:100%; padding:12px; border-radius:6px; margin-top:5px;">${OPCOES_RAL_INF.map(v=>`<option value="${v}">${v}</option>`).join('')}</select></div>
+            <div><label style="color:#94a3b8; font-size:11px;">RAL SUPERIOR</label><select id="plano-ral-sup" style="background:#1e293b; color:white; border:1px solid #334155; width:100%; padding:12px; border-radius:6px; margin-top:5px;">${OPCOES_RAL_SUP.map(v=>`<option value="${v}">${v}</option>`).join('')}</select></div>
         </div>
         ${modo === 'pedido' ? `
         <div style="background:#111827; padding:15px; border-radius:10px; border:1px solid #334155;">
