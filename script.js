@@ -2200,7 +2200,11 @@ gerarPDF_Bobines = function(dadosEncoded) {
                 .unioes th { font-size:18px; }
                 .rodape { display:flex; justify-content:flex-end; margin-top:23mm; }
                 .assinatura { display:inline-block; width:70mm; border-bottom:2px solid #111; height:18px; }
-                .no-print { position:fixed; bottom:10px; left:10px; right:10px; }
+                .no-print { position:fixed; z-index:9999; }
+                .print-topo { top:12px; right:12px; display:flex; gap:8px; }
+                .print-topo button { padding:12px 18px; border:0; border-radius:8px; color:#fff; font-weight:900; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.25); }
+                .btn-imprimir { background:#111827; border:3px solid #e31c24 !important; }
+                .btn-fechar { background:#e31c24; }
                 @media print { .no-print { display:none !important; } .folha { margin:0; } body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
             </style>
         </head>
@@ -2228,7 +2232,10 @@ gerarPDF_Bobines = function(dadosEncoded) {
                     ${linhasVazias(Math.max(0, 5 - totaisSerraPorRal.length))}
                 </table>
                 <div class="rodape"><div>Ass: <span class="assinatura"></span></div></div>
-                <div class="no-print"><button onclick="window.print()" style="padding:20px; background:#111827; color:white; border:3px solid #E31C24; width:100%; font-size:18px; font-weight:bold; border-radius:10px;">CONFIRMAR E GERAR PDF</button></div>
+                <div class="no-print print-topo">
+                    <button class="btn-imprimir" onclick="window.print()">IMPRIMIR / PDF</button>
+                    <button class="btn-fechar" onclick="window.close()">FECHAR</button>
+                </div>
             </div>
         </body>
         </html>
