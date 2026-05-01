@@ -340,9 +340,12 @@ async function fazerLogin() {
         document.getElementById('app-principal').style.display = 'block';
         document.getElementById('user-display').innerText = usuarioEncontrado.id.toUpperCase();
 
-       aplicarPermissoesUsuario();
+aplicarPermissoesUsuario();
 aplicarPreferenciasVisuaisUsuario();
 verificarAniversarioNoLoginAtlas(usuarioEncontrado);
+if (typeof window.atlasMostrarLembretesPrimeiroAcessoDia === 'function') {
+    setTimeout(() => window.atlasMostrarLembretesPrimeiroAcessoDia(), 700);
+}
 
 if (typeof producoesDoDia !== "undefined") {
 
@@ -3775,6 +3778,33 @@ function atlasSalvarListaConfig(chave, lista) {
     return limpa;
 }
 
+function atlasObterConfigMinimoStock() {
+    try {
+        const salvo = JSON.parse(localStorage.getItem('atlas_config_minimo_stock')) || {};
+        return {
+            bobinas: Math.max(1, Number(salvo.bobinas || 10)),
+            filmes: Math.max(1, Number(salvo.filmes || 10))
+        };
+    } catch (erro) {
+        return { bobinas: 10, filmes: 10 };
+    }
+}
+
+function atlasSalvarConfigMinimoStock() {
+    if (!usuarioPodeEditarModulo('config')) return alert('Sem permissao para editar nos Ajustes.');
+    const bobinas = Math.max(1, Number(document.getElementById('min-stock-bobinas')?.value || 10));
+    const filmes = Math.max(1, Number(document.getElementById('min-stock-filmes')?.value || 10));
+    localStorage.setItem('atlas_config_minimo_stock', JSON.stringify({ bobinas, filmes }));
+    if (typeof window.atlasRegistrarAuditoria === 'function') {
+        window.atlasRegistrarAuditoria('Alterou minimo de stock', 'config', `Bobinas: ${bobinas} | Filmes: ${filmes}`);
+    }
+    alert('Minimo de stock salvo.');
+    abrirAjustesSistema();
+}
+
+window.atlasObterConfigMinimoStock = atlasObterConfigMinimoStock;
+window.atlasSalvarConfigMinimoStock = atlasSalvarConfigMinimoStock;
+
 function atlasListaObjetosConfig(chave, padrao) {
     try {
         const lista = JSON.parse(localStorage.getItem(chave));
@@ -5084,7 +5114,31 @@ function abrirAjustesSistema() {
             ${htmlEditorListaSistema('Medidas de chapa - Stock', 'atlas_config_medidas_chapa_stock', OPCOES_MEDIDAS_CHAPA_STOCK, 'OPCOES_MEDIDAS_CHAPA_STOCK')}
             ${htmlEditorListaSistema('Fornecedores - Stock', 'atlas_config_fornecedores_stock', OPCOES_FORNECEDORES_STOCK, 'OPCOES_FORNECEDORES_STOCK')}
             ${htmlEditorListaSistema('Filmes - Stock / Bobines', 'atlas_config_filmes_stock', OPCOES_FILMES_STOCK, 'OPCOES_FILMES_STOCK')}
+            ${htmlEditorMinimoStockSistema()}
             ${htmlEditorPacotesSerraSistema()}
+        </div>
+    `;
+}
+
+function htmlEditorMinimoStockSistema() {
+    const minimo = atlasObterConfigMinimoStock();
+    return `
+        <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:20px;">
+            <h3 style="margin-top:0; margin-bottom:10px;">Minimo para lembrete de stock</h3>
+            <p style="color:#94a3b8; font-size:13px; margin:0 0 12px;">
+                Quando a quantidade ficar abaixo deste numero, o sistema mostra lembrete para ADMIN e SUPERVISOR.
+            </p>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+                <label style="display:flex; flex-direction:column; gap:6px; color:#bfdbfe; font-weight:bold;">
+                    Bobinas
+                    <input id="min-stock-bobinas" type="number" min="1" inputmode="numeric" value="${minimo.bobinas}" style="padding:12px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">
+                </label>
+                <label style="display:flex; flex-direction:column; gap:6px; color:#bfdbfe; font-weight:bold;">
+                    Filmes
+                    <input id="min-stock-filmes" type="number" min="1" inputmode="numeric" value="${minimo.filmes}" style="padding:12px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">
+                </label>
+            </div>
+            <button onclick="atlasSalvarConfigMinimoStock()" style="width:100%; background:#10b981; color:white; border:none; border-radius:8px; padding:12px; font-weight:bold;">SALVAR MINIMO</button>
         </div>
     `;
 }
@@ -8779,13 +8833,16 @@ function gerarPDF_Injecao_Final(dadosEncoded) {
         const bobinas = JSON.parse(localStorage.getItem('atlas_stock_bobinas')) || [];
         const filmes = JSON.parse(localStorage.getItem('atlas_stock_filmes')) || [];
         const conferencias = JSON.parse(localStorage.getItem('atlas_conferencia_serra')) || [];
+        const minimos = typeof window.atlasObterConfigMinimoStock === 'function'
+            ? window.atlasObterConfigMinimoStock()
+            : atlasObterConfigMinimoStock();
 
         Object.entries(atlasContarPor(bobinas.filter(b => b.status !== 'acabada'), 'fornecedor')).forEach(([fornecedor, qtd]) => {
-            if (qtd < 10) lembretes.push({ nivel: 'critico', titulo: `Bobinas baixas - ${fornecedor}`, detalhe: `${qtd} unidade(s) em stock/andamento.` });
+            if (qtd < minimos.bobinas) lembretes.push({ nivel: 'critico', titulo: `Bobinas baixas - ${fornecedor}`, detalhe: `${qtd} unidade(s) em stock/andamento. Minimo: ${minimos.bobinas}.` });
         });
 
         Object.entries(atlasContarPor(filmes, 'tipo')).forEach(([tipo, qtd]) => {
-            if (qtd < 10) lembretes.push({ nivel: 'critico', titulo: `Filme baixo - ${tipo}`, detalhe: `${qtd} unidade(s) disponiveis.` });
+            if (qtd < minimos.filmes) lembretes.push({ nivel: 'critico', titulo: `Filme baixo - ${tipo}`, detalhe: `${qtd} unidade(s) disponiveis. Minimo: ${minimos.filmes}.` });
         });
 
         const conferenciaAbertas = conferencias.filter(p => p.status !== 'finalizado');
@@ -8826,6 +8883,8 @@ function gerarPDF_Injecao_Final(dadosEncoded) {
         return [...lembretes, ...atlasLembretesRelatoriosPendentes()];
     }
 
+    window.atlasLembretesAutomaticos = atlasLembretesAutomaticos;
+
     function renderizarLembretesAtlas() {
         const render = document.getElementById('render-modulo');
         if (!render) return;
@@ -8861,6 +8920,53 @@ function gerarPDF_Injecao_Final(dadosEncoded) {
             </div>
         `;
     }
+
+    window.atlasMostrarLembretesPrimeiroAcessoDia = function() {
+        if (!atlasPodeVerAdminSupervisor() || !usuarioPodeVerModulo('lembretes')) return;
+
+        const lembretes = atlasLembretesAutomaticos();
+        if (!lembretes.length) return;
+
+        const usuario = String(usuarioLogado?.id || 'usuario').toLowerCase();
+        const chave = `atlas_lembretes_primeiro_acesso_${usuario}_${atlasDataISOHoje()}`;
+        if (localStorage.getItem(chave)) return;
+        localStorage.setItem(chave, new Date().toISOString());
+
+        document.getElementById('modal-lembretes-primeiro-acesso')?.remove();
+
+        const criticos = lembretes.filter(l => l.nivel === 'critico').length;
+        const modal = document.createElement('div');
+        modal.id = 'modal-lembretes-primeiro-acesso';
+        modal.style = 'position:fixed; inset:0; z-index:10001; background:rgba(2,6,23,.82); display:flex; align-items:center; justify-content:center; padding:16px;';
+        modal.innerHTML = `
+            <div style="width:100%; max-width:560px; background:#0f172a; border:1px solid #334155; border-radius:14px; color:white; box-shadow:0 20px 70px rgba(0,0,0,.45); overflow:hidden;">
+                <div style="padding:18px; border-bottom:1px solid #334155; background:#1e293b;">
+                    <div style="color:#93c5fd; font-size:13px; font-weight:bold; text-transform:uppercase;">Primeiro acesso do dia</div>
+                    <h2 style="margin:6px 0 0; font-size:22px;">Voce tem ${lembretes.length} lembrete(s)</h2>
+                    <p style="margin:8px 0 0; color:#cbd5e1; font-size:14px;">${criticos ? `${criticos} critico(s) precisam de atencao.` : 'Nada critico, apenas avisos importantes.'}</p>
+                </div>
+                <div style="padding:14px; display:flex; flex-direction:column; gap:8px; max-height:52vh; overflow:auto;">
+                    ${lembretes.slice(0, 6).map(l => `
+                        <div style="border:1px solid #334155; border-left:5px solid ${l.nivel === 'critico' ? '#ef4444' : '#f59e0b'}; border-radius:10px; padding:10px; background:#111827;">
+                            <b>${atlasTextoAuditoria(l.titulo)}</b>
+                            <div style="color:#cbd5e1; font-size:13px; margin-top:4px;">${atlasTextoAuditoria(l.detalhe)}</div>
+                        </div>
+                    `).join('')}
+                    ${lembretes.length > 6 ? `<div style="color:#94a3b8; font-size:13px; text-align:center;">Mais ${lembretes.length - 6} lembrete(s) na tela de Lembretes.</div>` : ''}
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; padding:14px; border-top:1px solid #334155;">
+                    <button id="btn-ver-lembretes-dia" style="background:#3b82f6; color:white; border:none; border-radius:9px; padding:13px; font-weight:bold;">VER LEMBRETES</button>
+                    <button id="btn-fechar-lembretes-dia" style="background:#64748b; color:white; border:none; border-radius:9px; padding:13px; font-weight:bold;">FECHAR</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        document.getElementById('btn-fechar-lembretes-dia')?.addEventListener('click', () => modal.remove());
+        document.getElementById('btn-ver-lembretes-dia')?.addEventListener('click', () => {
+            modal.remove();
+            abrirModulo('lembretes');
+        });
+    };
 
     function atlasDataRegistro(item) {
         const texto = String(item?.dataHora || '');
@@ -9658,8 +9764,10 @@ function renderizarMenuStockAtlas() {
     `;
 }
 
-function corQtdStock(qtd) {
-    return Number(qtd || 0) < 10 ? '#ef4444' : '#10b981';
+function corQtdStock(qtd, tipo = 'bobinas') {
+    const minimos = atlasObterConfigMinimoStock();
+    const minimo = tipo === 'filmes' ? minimos.filmes : minimos.bobinas;
+    return Number(qtd || 0) < minimo ? '#ef4444' : '#10b981';
 }
 
 function registrarHistoricoBobinaStock(item, acao, usuario = atlasUsuarioAtualNome(), dataHora = new Date().toLocaleString('pt-BR')) {
@@ -10015,7 +10123,7 @@ function htmlResumoFilmesStock(lista) {
                 ${Object.keys(dados).sort().map(tipo => `
                     <div style="background:#0f172a; border:1px solid #334155; border-radius:10px; padding:12px;">
                         <b>${textoSeguroConferencia(tipo)}</b>
-                        <div style="font-size:20px; font-weight:bold; color:${corQtdStock(dados[tipo])}; margin-top:8px;">${dados[tipo]} un.</div>
+                        <div style="font-size:20px; font-weight:bold; color:${corQtdStock(dados[tipo], 'filmes')}; margin-top:8px;">${dados[tipo]} un.</div>
                     </div>
                 `).join('') || `<small style="color:#94a3b8;">Sem filmes cadastrados.</small>`}
             </div>
@@ -10091,7 +10199,7 @@ function renderizarStockFilmesAtlas(termoBusca = '') {
                 ${grupos[forn].map(item => `
                     <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; padding:10px; border-top:1px solid #334155; flex-wrap:wrap;">
                         <span><b>${textoSeguroConferencia(item.tipo)}</b><br><small style="color:#94a3b8;">Fornecedor: ${textoSeguroConferencia(item.fornecedor || '-')}</small></span>
-                        <b style="color:${corQtdStock(item.qtd)};">${Number(item.qtd || 0)} un.</b>
+                        <b style="color:${corQtdStock(item.qtd, 'filmes')};">${Number(item.qtd || 0)} un.</b>
                         <div style="display:flex; gap:8px;">
                             <button onclick="baixarFilmeStockAtlas('${item.id}')" style="background:#3b82f6; color:white; border:none; padding:8px 10px; border-radius:6px; font-weight:bold;">BAIXAR</button>
                             <button onclick="editarFilmeStockAtlas('${item.id}')" style="background:#f59e0b; color:white; border:none; padding:8px 10px; border-radius:6px; font-weight:bold;">EDITAR</button>

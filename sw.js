@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v77-pdf-bobines-1folha';
+const CACHE_NAME = 'atlas-v78-lembrete-minimo-stock';
 const assets = [
   '/',
   '/index.html',
