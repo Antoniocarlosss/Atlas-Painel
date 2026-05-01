@@ -7429,60 +7429,69 @@ document.addEventListener('click', function(evento) {
 
         modal.innerHTML = `
             <style>
-                .plano-modal { max-width:1500px; margin:0 auto; background:#020617; min-height:100%; border:1px solid #334155; border-radius:14px; padding:14px; color:white; }
-                .plano-topo { position:sticky; top:0; background:#020617; z-index:3; border-bottom:1px solid #334155; padding-bottom:12px; }
-                .plano-add { display:grid; grid-template-columns:repeat(6, minmax(130px, 1fr)); gap:8px; margin-top:12px; }
+                .plano-modal { max-width:1540px; margin:0 auto; background:#f8fafc; min-height:100%; border:2px solid #0f172a; border-radius:10px; padding:14px; color:#020617; box-shadow:0 18px 60px rgba(0,0,0,.45); }
+                .plano-topo { position:sticky; top:0; background:#f8fafc; z-index:3; border-bottom:2px solid #0f172a; padding-bottom:12px; }
+                .plano-add { display:grid; grid-template-columns:repeat(6, minmax(130px, 1fr)); gap:8px; margin-top:12px; padding:10px; border:1px solid #0f172a; background:#e5e7eb; }
                 .plano-add .linha-cheia { grid-column:span 2; }
-                .plano-input, .plano-select { width:100%; padding:10px; background:#020617; color:white; border:1px solid #334155; border-radius:6px; font-size:14px; }
-                .plano-wrap { overflow:auto; margin-top:14px; border:1px solid #334155; border-radius:10px; max-height:70vh; }
-                .plano-tabela { width:100%; min-width:1180px; border-collapse:collapse; font-size:13px; }
-                .plano-tabela th { position:sticky; top:0; background:#1e293b; z-index:2; padding:9px; border-bottom:1px solid #334155; }
-                .plano-tabela td { padding:6px; border-bottom:1px solid #1e293b; vertical-align:middle; }
-                .plano-grupo td { background:#111827; border-top:2px solid #3b82f6; border-bottom:1px solid #334155; }
-                .plano-total { color:#10b981; font-weight:900; text-align:center; }
+                .plano-input, .plano-select { width:100%; padding:9px; background:#fff; color:#020617; border:1px solid #111827; border-radius:0; font-size:14px; font-weight:700; }
+                .plano-input::placeholder { color:#64748b; font-weight:600; }
+                .plano-wrap { overflow:auto; margin-top:14px; border:2px solid #0f172a; border-radius:0; max-height:70vh; background:white; }
+                .plano-tabela { width:100%; min-width:1280px; border-collapse:collapse; font-size:13px; table-layout:fixed; }
+                .plano-tabela th { position:sticky; top:0; background:#d9d9d9; color:#000; z-index:2; padding:8px; border:1px solid #111827; text-align:center; }
+                .plano-tabela td { padding:5px; border:1px solid #111827; vertical-align:middle; background:#fff; color:#000; }
+                .plano-tabela tr:nth-child(even) td:not(.plano-grupo-celula) { background:#f8fafc; }
+                .plano-grupo td { background:#111827; color:#fff; border:1px solid #111827; }
+                .plano-grupo-celula { background:#111827 !important; color:#fff !important; }
+                .plano-grupo-grid { display:grid; grid-template-columns:150px 1fr 130px 140px; gap:8px; align-items:center; }
+                .plano-total { color:#047857; font-weight:900; text-align:center; }
+                .plano-label-add { font-size:11px; color:#334155; font-weight:900; text-transform:uppercase; margin-bottom:3px; display:block; }
                 .plano-btn { border:none; border-radius:7px; padding:9px 10px; color:white; font-weight:800; cursor:pointer; }
+                .plano-btn-fechar { background:#475569; }
+                .plano-btn-add { background:#10b981; }
+                .plano-urgente-box { display:flex; align-items:center; justify-content:center; gap:8px; background:#fff; color:#b91c1c; border:1px solid #111827; border-radius:0; padding:9px; font-weight:900; }
                 @media (max-width: 760px) {
-                    .plano-modal { padding:10px; border-radius:0; }
-                    .plano-add { grid-template-columns:1fr; }
+                    .plano-modal { padding:8px; border-radius:0; }
+                    .plano-add { grid-template-columns:1fr 1fr; }
                     .plano-add .linha-cheia { grid-column:auto; }
                     .plano-wrap { max-height:none; }
-                    .plano-tabela { min-width:1080px; font-size:12px; }
+                    .plano-tabela { min-width:1180px; font-size:12px; }
                     .plano-input, .plano-select { font-size:13px; padding:9px; }
+                    .plano-grupo-grid { grid-template-columns:1fr 1fr; }
                 }
             </style>
             <div class="plano-modal">
                 <div class="plano-topo">
                     <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
                         <div>
-                            <h2 style="margin:0; font-size:20px;">Gerir Plano</h2>
-                            <div style="color:#94a3b8; font-size:13px; margin-top:4px;">
+                            <h2 style="margin:0; font-size:22px; color:#000;">Gerir Plano</h2>
+                            <div style="color:#334155; font-size:13px; margin-top:4px;">
                                 ${segPlano(rel.data || '')} | Total atual:
-                                <b style="color:#10b981;">${metroPlano(total)} m</b>
+                                <b style="color:#047857;">${metroPlano(total)} m</b>
                             </div>
                         </div>
-                        <button onclick="fecharGestaoPlanoHistorico()" class="plano-btn" style="background:#475569;">FECHAR</button>
+                        <button onclick="fecharGestaoPlanoHistorico()" class="plano-btn plano-btn-fechar">FECHAR</button>
                     </div>
 
                     <div class="plano-add">
-                        <input id="grid-add-pedido" class="plano-input" placeholder="Pedido">
-                        <input id="grid-add-destino" class="plano-input" placeholder="Cliente">
-                        <select id="grid-add-tipo" class="plano-select">${opcoesPlano(OPCOES_TIPO_PLANO, '')}</select>
-                        <select id="grid-add-esp" class="plano-select">${opcoesPlano(OPCOES_ESPESSURA_PLANO, '', ' mm')}</select>
-                        <select id="grid-add-ral-inf" class="plano-select">${opcoesPlano(OPCOES_RAL_INF, '')}</select>
-                        <select id="grid-add-ral-sup" class="plano-select">${opcoesPlano(OPCOES_RAL_SUP, '')}</select>
-                        <input id="grid-add-qtd" type="number" inputmode="numeric" class="plano-input" placeholder="Qtd">
-                        <input id="grid-add-metros" type="number" inputmode="decimal" step="0.01" class="plano-input" placeholder="Metro">
-                        <select id="grid-add-perfil" class="plano-select">
-                            <option value="">Perfil opcional</option>
+                        <div><span class="plano-label-add">Pedido</span><input id="grid-add-pedido" class="plano-input" placeholder="Pedido"></div>
+                        <div><span class="plano-label-add">Cliente</span><input id="grid-add-destino" class="plano-input" placeholder="Cliente"></div>
+                        <div><span class="plano-label-add">Tipo</span><select id="grid-add-tipo" class="plano-select">${opcoesPlano(OPCOES_TIPO_PLANO, '')}</select></div>
+                        <div><span class="plano-label-add">Espessura</span><select id="grid-add-esp" class="plano-select">${opcoesPlano(OPCOES_ESPESSURA_PLANO, '', ' mm')}</select></div>
+                        <div><span class="plano-label-add">RAL inferior</span><select id="grid-add-ral-inf" class="plano-select">${opcoesPlano(OPCOES_RAL_INF, '')}</select></div>
+                        <div><span class="plano-label-add">RAL superior</span><select id="grid-add-ral-sup" class="plano-select">${opcoesPlano(OPCOES_RAL_SUP, '')}</select></div>
+                        <div><span class="plano-label-add">Quantidade</span><input id="grid-add-qtd" type="number" inputmode="numeric" class="plano-input" placeholder="Qtd"></div>
+                        <div><span class="plano-label-add">Metro</span><input id="grid-add-metros" type="number" inputmode="decimal" step="0.01" class="plano-input" placeholder="Metro"></div>
+                        <div><span class="plano-label-add">Perfil</span><select id="grid-add-perfil" class="plano-select">
+                            <option value="">Opcional</option>
                             <option value="Canelada">Canelada</option>
                             <option value="Micronervurada">Micronervurada</option>
                             <option value="Lisa">Lisa</option>
-                        </select>
-                        <input id="grid-add-info" class="plano-input linha-cheia" placeholder="Informacao manual / descricao">
-                        <label style="display:flex; align-items:center; gap:8px; background:#111827; border:1px solid #334155; border-radius:6px; padding:10px;">
-                            <input id="grid-add-urgente" type="checkbox"> Urgente
+                        </select></div>
+                        <div class="linha-cheia"><span class="plano-label-add">Mensagem / descricao</span><input id="grid-add-info" class="plano-input" placeholder="Informacao manual / descricao"></div>
+                        <label class="plano-urgente-box">
+                            <input id="grid-add-urgente" type="checkbox"> URGENTE
                         </label>
-                        <button onclick="adicionarLinhaPlanoExcel(${indexPlano})" class="plano-btn" style="background:#10b981;">ADICIONAR</button>
+                        <button onclick="adicionarLinhaPlanoExcel(${indexPlano})" class="plano-btn plano-btn-add">ADICIONAR</button>
                     </div>
                 </div>
 
@@ -7490,16 +7499,16 @@ document.addEventListener('click', function(evento) {
                     <table class="plano-tabela">
                         <thead>
                             <tr>
-                                <th>Tipo</th>
-                                <th>Esp.</th>
+                                <th style="width:150px;">Tipo</th>
+                                <th style="width:90px;">Esp.</th>
                                 <th>RAL Inf.</th>
                                 <th>RAL Sup.</th>
-                                <th>Descricao</th>
-                                <th>Urg.</th>
-                                <th>Qtd</th>
-                                <th>Metro</th>
-                                <th>Total</th>
-                                <th>Acoes</th>
+                                <th style="width:280px;">Descricao / mensagem</th>
+                                <th style="width:70px;">Urg.</th>
+                                <th style="width:90px;">Qtd</th>
+                                <th style="width:110px;">Metro</th>
+                                <th style="width:110px;">Total</th>
+                                <th style="width:175px;">Acoes</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -7507,8 +7516,8 @@ document.addEventListener('click', function(evento) {
                                 const totalGrupo = grupo.indices.reduce((acc, idx) => acc + numPlano(linhas[idx]?.totalMetros), 0);
                                 return `
                                     <tr class="plano-grupo">
-                                        <td colspan="10">
-                                            <div style="display:grid; grid-template-columns:160px 1fr 130px 140px; gap:8px; align-items:center;">
+                                        <td colspan="10" class="plano-grupo-celula">
+                                            <div class="plano-grupo-grid">
                                                 <input id="grid-grupo-${grupoIndex}-pedido" class="plano-input" value="${segPlano(grupo.pedido)}">
                                                 <input id="grid-grupo-${grupoIndex}-cliente" class="plano-input" value="${segPlano(grupo.cliente)}">
                                                 <b style="color:#10b981; text-align:center;">${metroPlano(totalGrupo)} m</b>

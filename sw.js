@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v62-plano-ral-inf-final';
+const CACHE_NAME = 'atlas-v63-gerir-plano-excel';
 const assets = [
   '/',
   '/index.html',
