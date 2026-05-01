@@ -7210,13 +7210,19 @@ document.addEventListener('click', function(evento) {
     function descricaoPlanoItem(item, tipo, esp) {
         const partes = [];
         const base = item.descricaoManual || item.infoManual || item.observacaoPlano || '';
-        const perfil = tipoPlanoAceitaPerfil(item.tipo || tipo) ? (item.perfilPainel || item.perfilFachada || item.acabamento || '') : '';
+        const aceitaPerfil = tipoPlanoAceitaPerfil(item.tipo || tipo);
+        const perfilInf = aceitaPerfil ? (item.perfilInferior || item.acabamentoInferior || item.perfilPainel || item.perfilFachada || item.acabamento || '') : '';
+        const perfilSup = aceitaPerfil ? (item.perfilSuperior || item.acabamentoSuperior || item.perfilPainel || item.perfilFachada || item.acabamento || '') : '';
         const espInf = item.espChapaInf || item.espessuraChapaInferior || '';
         const espSup = item.espChapaSup || item.espessuraChapaSuperior || '';
 
         if (base) partes.push(base);
 
-        if (perfil) partes.push(perfil);
+        if (perfilInf && perfilSup && perfilInf === perfilSup) partes.push(`Acab. inf/sup ${perfilInf}`);
+        else {
+            if (perfilInf) partes.push(`Acab. inf. ${perfilInf}`);
+            if (perfilSup) partes.push(`Acab. sup. ${perfilSup}`);
+        }
         if (espInf && String(espInf).toLowerCase() !== 'opcional') partes.push(`Chapa inf. ${espInf}`);
         if (espSup && String(espSup).toLowerCase() !== 'opcional') partes.push(`Chapa sup. ${espSup}`);
 
@@ -7489,7 +7495,13 @@ document.addEventListener('click', function(evento) {
                         <div><span class="plano-label-add">RAL superior</span><select id="grid-add-ral-sup" class="plano-select">${opcoesPlano(OPCOES_RAL_SUP, '')}</select></div>
                         <div><span class="plano-label-add">Quantidade</span><input id="grid-add-qtd" type="number" inputmode="numeric" class="plano-input" placeholder="Qtd"></div>
                         <div><span class="plano-label-add">Metro</span><input id="grid-add-metros" type="number" inputmode="decimal" step="0.01" class="plano-input" placeholder="Metro"></div>
-                        <div><span class="plano-label-add">Perfil</span><select id="grid-add-perfil" class="plano-select">
+                        <div><span class="plano-label-add">Acab. inferior</span><select id="grid-add-perfil-inf" class="plano-select">
+                            <option value="">Opcional</option>
+                            <option value="Canelada">Canelada</option>
+                            <option value="Micronervurada">Micronervurada</option>
+                            <option value="Lisa">Lisa</option>
+                        </select></div>
+                        <div><span class="plano-label-add">Acab. superior</span><select id="grid-add-perfil-sup" class="plano-select">
                             <option value="">Opcional</option>
                             <option value="Canelada">Canelada</option>
                             <option value="Micronervurada">Micronervurada</option>
@@ -7543,12 +7555,20 @@ document.addEventListener('click', function(evento) {
                                                 <td><select id="grid-${idx}-ral-sup" class="plano-select">${opcoesPlano(OPCOES_RAL_SUP, item.ralSuperior)}</select></td>
                                                 <td>
                                                     <input id="grid-${idx}-info" class="plano-input" value="${segPlano(item.descricaoManual || item.infoManual || item.observacaoPlano || '')}" placeholder="Info manual">
-                                                    <select id="grid-${idx}-perfil" class="plano-select" style="margin-top:5px;">
-                                                        <option value="">Perfil opcional</option>
-                                                        <option value="Canelada" ${item.perfilPainel === 'Canelada' ? 'selected' : ''}>Canelada</option>
-                                                        <option value="Micronervurada" ${item.perfilPainel === 'Micronervurada' ? 'selected' : ''}>Micronervurada</option>
-                                                        <option value="Lisa" ${item.perfilPainel === 'Lisa' ? 'selected' : ''}>Lisa</option>
-                                                    </select>
+                                                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-top:5px;">
+                                                        <select id="grid-${idx}-perfil-inf" class="plano-select" ${tipoPlanoAceitaPerfil(item.tipo) ? '' : 'disabled'}>
+                                                            <option value="">Acab. inf.</option>
+                                                            <option value="Canelada" ${(item.perfilInferior || item.acabamentoInferior || item.perfilPainel) === 'Canelada' ? 'selected' : ''}>Canelada</option>
+                                                            <option value="Micronervurada" ${(item.perfilInferior || item.acabamentoInferior || item.perfilPainel) === 'Micronervurada' ? 'selected' : ''}>Micronervurada</option>
+                                                            <option value="Lisa" ${(item.perfilInferior || item.acabamentoInferior || item.perfilPainel) === 'Lisa' ? 'selected' : ''}>Lisa</option>
+                                                        </select>
+                                                        <select id="grid-${idx}-perfil-sup" class="plano-select" ${tipoPlanoAceitaPerfil(item.tipo) ? '' : 'disabled'}>
+                                                            <option value="">Acab. sup.</option>
+                                                            <option value="Canelada" ${(item.perfilSuperior || item.acabamentoSuperior || item.perfilPainel) === 'Canelada' ? 'selected' : ''}>Canelada</option>
+                                                            <option value="Micronervurada" ${(item.perfilSuperior || item.acabamentoSuperior || item.perfilPainel) === 'Micronervurada' ? 'selected' : ''}>Micronervurada</option>
+                                                            <option value="Lisa" ${(item.perfilSuperior || item.acabamentoSuperior || item.perfilPainel) === 'Lisa' ? 'selected' : ''}>Lisa</option>
+                                                        </select>
+                                                    </div>
                                                 </td>
                                                 <td style="text-align:center;"><input id="grid-${idx}-urgente" type="checkbox" ${item.urgente ? 'checked' : ''}></td>
                                                 <td><input id="grid-${idx}-qtd" type="number" inputmode="numeric" class="plano-input" value="${segPlano(item.quantidadeChapas || 0)}"></td>
@@ -7609,7 +7629,11 @@ document.addEventListener('click', function(evento) {
         item.ralSuperior = document.getElementById(`grid-${linha}-ral-sup`)?.value || item.ralSuperior;
         item.infoManual = document.getElementById(`grid-${linha}-info`)?.value.trim() || '';
         item.descricaoManual = item.infoManual;
-        item.perfilPainel = tipoPlanoAceitaPerfil(item.tipo) ? (document.getElementById(`grid-${linha}-perfil`)?.value || '') : '';
+        item.perfilInferior = tipoPlanoAceitaPerfil(item.tipo) ? (document.getElementById(`grid-${linha}-perfil-inf`)?.value || '') : '';
+        item.perfilSuperior = tipoPlanoAceitaPerfil(item.tipo) ? (document.getElementById(`grid-${linha}-perfil-sup`)?.value || '') : '';
+        item.acabamentoInferior = item.perfilInferior;
+        item.acabamentoSuperior = item.perfilSuperior;
+        item.perfilPainel = '';
         item.urgente = !!document.getElementById(`grid-${linha}-urgente`)?.checked;
         item.quantidadeChapas = qtd;
         item.metrosUnidade = metros;
@@ -7635,7 +7659,8 @@ document.addEventListener('click', function(evento) {
         const tipo = document.getElementById('grid-add-tipo')?.value || OPCOES_TIPO_PLANO[0] || '';
         const espessura = document.getElementById('grid-add-esp')?.value || OPCOES_ESPESSURA_PLANO[0] || '';
         const infoManual = document.getElementById('grid-add-info')?.value.trim() || '';
-        const perfilPainel = tipoPlanoAceitaPerfil(tipo) ? (document.getElementById('grid-add-perfil')?.value || '') : '';
+        const perfilInferior = tipoPlanoAceitaPerfil(tipo) ? (document.getElementById('grid-add-perfil-inf')?.value || '') : '';
+        const perfilSuperior = tipoPlanoAceitaPerfil(tipo) ? (document.getElementById('grid-add-perfil-sup')?.value || '') : '';
 
         rel.itens ||= [];
         rel.itens.push({
@@ -7653,7 +7678,11 @@ document.addEventListener('click', function(evento) {
             descricao: `${tipo} ${espessura} mm`,
             infoManual,
             descricaoManual: infoManual,
-            perfilPainel,
+            perfilInferior,
+            perfilSuperior,
+            acabamentoInferior: perfilInferior,
+            acabamentoSuperior: perfilSuperior,
+            perfilPainel: '',
             urgente: !!document.getElementById('grid-add-urgente')?.checked
         });
 
@@ -7671,13 +7700,26 @@ document.addEventListener('click', function(evento) {
         blocoRal.insertAdjacentHTML('afterend', `
             <div id="plano-extra-info" style="display:grid; grid-template-columns:1fr 1fr auto; gap:10px; margin-bottom:12px; align-items:end;">
                 <div id="plano-perfil-wrap">
-                    <label style="color:#94a3b8; font-size:11px;">PERFIL / ACABAMENTO OPCIONAL</label>
-                    <select id="plano-perfil-painel" style="background:#1e293b; color:white; border:1px solid #334155; width:100%; padding:12px; border-radius:6px; margin-top:5px;">
-                        <option value="">Opcional</option>
-                        <option value="Canelada">Canelada</option>
-                        <option value="Micronervurada">Micronervurada</option>
-                        <option value="Lisa">Lisa</option>
-                    </select>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                        <div>
+                            <label style="color:#94a3b8; font-size:11px;">ACAB. INFERIOR</label>
+                            <select id="plano-perfil-inf" style="background:#1e293b; color:white; border:1px solid #334155; width:100%; padding:12px; border-radius:6px; margin-top:5px;">
+                                <option value="">Opcional</option>
+                                <option value="Canelada">Canelada</option>
+                                <option value="Micronervurada">Micronervurada</option>
+                                <option value="Lisa">Lisa</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="color:#94a3b8; font-size:11px;">ACAB. SUPERIOR</label>
+                            <select id="plano-perfil-sup" style="background:#1e293b; color:white; border:1px solid #334155; width:100%; padding:12px; border-radius:6px; margin-top:5px;">
+                                <option value="">Opcional</option>
+                                <option value="Canelada">Canelada</option>
+                                <option value="Micronervurada">Micronervurada</option>
+                                <option value="Lisa">Lisa</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
                 <div>
                     <label style="color:#94a3b8; font-size:11px;">INFORMACAO MANUAL / DESCRICAO</label>
@@ -7694,10 +7736,12 @@ document.addEventListener('click', function(evento) {
             const podePerfil = tipoPlanoAceitaPerfil(tipoAtual);
             const extraInfo = document.getElementById('plano-extra-info');
             const wrap = document.getElementById('plano-perfil-wrap');
-            const select = document.getElementById('plano-perfil-painel');
+            const selectInf = document.getElementById('plano-perfil-inf');
+            const selectSup = document.getElementById('plano-perfil-sup');
             if (wrap) wrap.style.display = podePerfil ? 'block' : 'none';
             if (extraInfo) extraInfo.style.gridTemplateColumns = podePerfil ? '1fr 1fr auto' : '1fr auto';
-            if (!podePerfil && select) select.value = '';
+            if (!podePerfil && selectInf) selectInf.value = '';
+            if (!podePerfil && selectSup) selectSup.value = '';
         };
 
         document.getElementById('plano-tipo')?.addEventListener('change', atualizarPerfil);
@@ -7719,7 +7763,8 @@ document.addEventListener('click', function(evento) {
             const tipoAtual = document.getElementById('plano-tipo')?.value || db_plano_live?.pedidoAtual?.tipo || '';
             const extra = {
                 infoManual: document.getElementById('plano-info-manual')?.value.trim() || '',
-                perfilPainel: tipoPlanoAceitaPerfil(tipoAtual) ? (document.getElementById('plano-perfil-painel')?.value || '') : '',
+                perfilInferior: tipoPlanoAceitaPerfil(tipoAtual) ? (document.getElementById('plano-perfil-inf')?.value || '') : '',
+                perfilSuperior: tipoPlanoAceitaPerfil(tipoAtual) ? (document.getElementById('plano-perfil-sup')?.value || '') : '',
                 urgente: !!document.getElementById('plano-urgente')?.checked
             };
             const antes = db_plano_live?.linhasAbertas?.length || 0;
@@ -7731,7 +7776,11 @@ document.addEventListener('click', function(evento) {
                 const item = linhas[linhas.length - 1];
                 item.infoManual = extra.infoManual;
                 item.descricaoManual = extra.infoManual;
-                item.perfilPainel = extra.perfilPainel;
+                item.perfilInferior = extra.perfilInferior;
+                item.perfilSuperior = extra.perfilSuperior;
+                item.acabamentoInferior = extra.perfilInferior;
+                item.acabamentoSuperior = extra.perfilSuperior;
+                item.perfilPainel = '';
                 item.urgente = extra.urgente;
                 if (typeof salvarPlanoLive === 'function') salvarPlanoLive();
                 if (typeof atualizarTelaPlanoAtual === 'function') atualizarTelaPlanoAtual();

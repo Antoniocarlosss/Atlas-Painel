@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v64-perfil-so-fachada';
+const CACHE_NAME = 'atlas-v65-acab-inf-sup';
 const assets = [
   '/',
   '/index.html',
