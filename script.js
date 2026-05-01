@@ -7286,7 +7286,6 @@ document.addEventListener('click', function(evento) {
                                         <b>PEDIDO ${segPlano(pedido)}</b>
                                         <br><span>${segPlano(cliente)}</span>
                                         ${pedidoUrgente ? `<div class="urgente-pdf">URGENTE</div>` : ''}
-                                        <div class="pedido-total">Total: ${metroPlano(totalPedido)} m</div>
                                     </td>
                                 ` : ''}
                                 ${ralUnicoIgual && indice === 0 ? `<td colspan="2" rowspan="${itensPedido.length}" class="ral-mesclado">RAL<br><b>${segPlano(ralSupUnico)}</b></td>` : ''}
