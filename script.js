@@ -7456,20 +7456,22 @@ document.addEventListener('click', function(evento) {
                 .plano-tabela tr:nth-child(even) td:not(.plano-grupo-celula) { background:#f8fafc; }
                 .plano-grupo td { background:#111827; color:#fff; border:1px solid #111827; }
                 .plano-grupo-celula { background:#111827 !important; color:#fff !important; }
-                .plano-grupo-grid { display:grid; grid-template-columns:150px 1fr 130px 130px 140px; gap:8px; align-items:center; }
+                .plano-grupo-grid { display:grid; grid-template-columns:150px 1fr 120px 160px 140px; gap:8px; align-items:center; }
                 .plano-total { color:#047857; font-weight:900; text-align:center; }
                 .plano-label-add { font-size:11px; color:#334155; font-weight:900; text-transform:uppercase; margin-bottom:3px; display:block; }
                 .plano-btn { border:none; border-radius:7px; padding:9px 10px; color:white; font-weight:800; cursor:pointer; }
                 .plano-btn-fechar { background:#475569; }
                 .plano-btn-add { background:#10b981; }
-                .plano-urgente-box { display:flex; align-items:center; justify-content:center; gap:8px; background:#fff; color:#b91c1c; border:1px solid #111827; border-radius:0; padding:9px; font-weight:900; }
+                .plano-urgente-box { display:flex; align-items:center; justify-content:center; gap:10px; background:#fff; color:#b91c1c; border:1px solid #111827; border-radius:0; padding:9px; font-weight:900; text-align:center; min-height:44px; }
+                .plano-urgente-box input { width:18px; height:18px; flex:0 0 auto; }
+                .plano-urgente-pedido { background:#fee2e2 !important; color:#991b1b !important; border:2px solid #ef4444 !important; font-size:16px; letter-spacing:.3px; }
                 .plano-toast { position:fixed; top:18px; left:50%; transform:translateX(-50%); z-index:20000; background:#10b981; color:#fff; border:2px solid #047857; box-shadow:0 12px 35px rgba(0,0,0,.35); padding:14px 22px; border-radius:8px; font-weight:900; font-size:16px; text-align:center; }
                 @media (min-width: 761px) and (max-width: 1180px) {
                     .plano-modal { padding:12px; }
                     .plano-add { grid-template-columns:repeat(3, minmax(160px, 1fr)); }
                     .plano-add .linha-cheia { grid-column:span 2; }
                     .plano-tabela { min-width:1080px; font-size:12px; }
-                    .plano-grupo-grid { grid-template-columns:130px 1fr 120px 125px 130px; }
+                    .plano-grupo-grid { grid-template-columns:130px 1fr 110px 150px 130px; }
                 }
                 @media (max-width: 760px) {
                     .plano-modal { padding:8px; border-radius:0; border-left:0; border-right:0; }
@@ -7491,6 +7493,8 @@ document.addEventListener('click', function(evento) {
                     .plano-grupo { border:0 !important; margin-top:14px !important; margin-bottom:0 !important; }
                     .plano-grupo-celula { padding:8px !important; border:2px solid #0f172a !important; }
                     .plano-grupo-grid { grid-template-columns:1fr; }
+                    .plano-urgente-box { justify-content:center; font-size:16px; padding:12px; }
+                    .plano-urgente-pedido { min-height:52px; font-size:17px; }
                     .plano-total { font-size:18px; text-align:left; }
                     .plano-total::before { color:#047857 !important; }
                     .plano-tabela td[data-label="Acoes"] div { flex-direction:column; }
@@ -7513,7 +7517,7 @@ document.addEventListener('click', function(evento) {
                     <div class="plano-add">
                         <div><span class="plano-label-add">Pedido</span><input id="grid-add-pedido" class="plano-input" placeholder="Pedido"></div>
                         <div><span class="plano-label-add">Cliente</span><input id="grid-add-destino" class="plano-input" placeholder="Cliente"></div>
-                        <label class="plano-urgente-box">
+                        <label class="plano-urgente-box plano-urgente-pedido">
                             <input id="grid-add-urgente" type="checkbox"> URGENTE
                         </label>
                         <div><span class="plano-label-add">Tipo</span><select id="grid-add-tipo" class="plano-select" onchange="atualizarAcabamentoAdicionarPlanoExcel()">${opcoesPlano(OPCOES_TIPO_PLANO, '')}</select></div>
@@ -7565,7 +7569,7 @@ document.addEventListener('click', function(evento) {
                                                 <input id="grid-grupo-${grupoIndex}-pedido" class="plano-input" value="${segPlano(grupo.pedido)}">
                                                 <input id="grid-grupo-${grupoIndex}-cliente" class="plano-input" value="${segPlano(grupo.cliente)}">
                                                 <b style="color:#10b981; text-align:center;">${metroPlano(totalGrupo)} m</b>
-                                                <label class="plano-urgente-box" style="padding:7px; background:#111827; color:#fecaca; border-color:#ef4444;">
+                                                <label class="plano-urgente-box plano-urgente-pedido">
                                                     <input id="grid-grupo-${grupoIndex}-urgente" type="checkbox" ${grupoUrgente ? 'checked' : ''}> URGENTE
                                                 </label>
                                                 <button onclick="salvarGrupoPedidoPlanoExcel(${indexPlano}, ${grupoIndex})" class="plano-btn" style="background:#f59e0b; color:black;">SALVAR PEDIDO</button>
