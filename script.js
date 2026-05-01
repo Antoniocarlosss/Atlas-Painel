@@ -7355,7 +7355,7 @@ document.addEventListener('click', function(evento) {
                     .tabela-plano { width:100%; border-collapse:collapse; table-layout:fixed; font-size:10px; }
                     .tabela-plano th, .tabela-plano td { border:1.5px solid #000; padding:5px 4px; text-align:center; vertical-align:middle; }
                     .tabela-plano th { background:#d9d9d9; font-size:10px; }
-                    .tabela-plano th:nth-child(4), .tabela-plano td.desc { width:30%; text-align:center; }
+                    .tabela-plano th:nth-child(4), .tabela-plano td.desc { width:30%; text-align:center; font-weight:800; }
                     .pedido-mesclado { background:#f8fafc; font-size:11px; font-weight:700; text-align:center; }
                     .pedido-total { margin-top:6px; font-size:10px; font-weight:900; color:#000; }
                     .urgente-pdf { color:#dc2626; font-weight:900; margin-top:6px; font-size:12px; }
