@@ -1543,15 +1543,15 @@ function setLado(lado) {
     const areaDet = document.getElementById('detalhes-especificos');
     
     if(lancamentoAtual.tipo === 'filme') {
-        const filmesConfigurados = OPCOES_FILMES_STOCK || ['5 Ondas - 1265', 'Filme Telha Canudo', 'Filme 1163', 'Filme 1060', 'Filme 1065'];
+        const filmesConfigurados = OPCOES_FILMES_STOCK || ['Telha (1180mm)', 'Ondulado (1055mm)', '5 Ondas (1175mm)', 'Fachada (1010)'];
         const opcoesComuns = filmesConfigurados.filter(v => {
             const normalizado = normalizarStockAtlas(v);
-            return !normalizado.includes('1265') && !normalizado.includes('telha canudo');
+            return !normalizado.includes('5 ondas') && !normalizado.includes('telha');
         });
         const opcoesFilme = lado === 'inferior'
             ? [...filmesConfigurados.filter(v => {
                 const normalizado = normalizarStockAtlas(v);
-                return normalizado.includes('1265') || normalizado.includes('telha canudo');
+                return normalizado.includes('5 ondas') || normalizado.includes('telha');
             }), ...opcoesComuns]
             : opcoesComuns;
         let html = `
@@ -1730,12 +1730,10 @@ function filmeStockCombinaLancamento(itemStock, itemLancamento) {
     const subtipo = normalizarStockAtlas(itemLancamento.subtipo);
     if (!tipoStock || !subtipo) return false;
 
-    if (subtipo.includes('telha canudo')) return tipoStock.includes('telha canudo');
-    if (subtipo.includes('5 ondas')) return tipoStock.includes('5 ondas') || tipoStock.includes('1265');
-    if (subtipo.includes('1163')) return tipoStock.includes('1163');
-    if (subtipo.includes('1060')) return tipoStock.includes('1060') || tipoStock.includes('fachada/chapa superior - 1060');
-    if (subtipo.includes('1065')) return tipoStock.includes('1065') || tipoStock.includes('fachada/chapa superior - 1065');
-    if (subtipo.includes('fachada')) return tipoStock.includes('fachada');
+    if (subtipo.includes('telha')) return tipoStock.includes('telha') || tipoStock.includes('1180');
+    if (subtipo.includes('ondulado')) return tipoStock.includes('ondulado') || tipoStock.includes('1055');
+    if (subtipo.includes('5 ondas')) return tipoStock.includes('5 ondas') || tipoStock.includes('1175') || tipoStock.includes('1265');
+    if (subtipo.includes('fachada')) return tipoStock.includes('fachada') || tipoStock.includes('1010') || tipoStock.includes('1060') || tipoStock.includes('1065') || tipoStock.includes('1163');
     return tipoStock.includes(subtipo);
 }
 
@@ -2124,6 +2122,117 @@ function gerarPDF_Bobines(dadosEncoded) {
     `);
     janela.document.close();
 }
+
+gerarPDF_Bobines = function(dadosEncoded) {
+    const rel = JSON.parse(decodeURIComponent(dadosEncoded));
+    const janela = window.open('', '_blank');
+    const itens = Array.isArray(rel.itens) ? rel.itens : [];
+    const chapas = itens.filter(i => i.tipo === 'chapa');
+    const filmes = itens.filter(i => i.tipo === 'filme');
+    const porLado = lado => chapas.filter(i => normalizarStockAtlas(i.lado) === lado)
+        .sort((a, b) => String(a.ral || '').localeCompare(String(b.ral || '')) || String(a.numBobine || '').localeCompare(String(b.numBobine || '')));
+    const filmesPorLado = lado => filmes.filter(i => normalizarStockAtlas(i.lado) === lado);
+    const totalFilme = (tipo, lado) => filmesPorLado(lado).filter(f => normalizarStockAtlas(f.subtipo) === normalizarStockAtlas(tipo)).reduce((s, f) => s + Number(f.qtd || 0), 0);
+    const linhasVazias = qtd => Array.from({ length: qtd }).map(() => '<tr><td>&nbsp;</td><td></td></tr>').join('');
+    const renderBobine = (titulo, medida, lista) => {
+        const linhas = lista.slice(0, 6).map(i => `<tr><td>${textoSeguroConferencia(i.numBobine || '-')} ${i.ral ? ' / RAL ' + textoSeguroConferencia(i.ral) : ''}${i.espessura ? ' / ' + textoSeguroConferencia(i.espessura) : ''}</td><td>${i.status === 'SIM' ? 'SIM' : (i.status || '-')}</td></tr>`).join('');
+        return `
+            <table class="box-tabela">
+                <tr><th colspan="2">${titulo}</th></tr>
+                <tr><th colspan="2">Registo Bobine ${medida}</th></tr>
+                <tr><th>Lote</th><th>Terminada</th></tr>
+                ${linhas}${linhasVazias(Math.max(0, 6 - lista.slice(0, 6).length))}
+            </table>
+        `;
+    };
+    const tiposFilmePdf = ['Telha (1180mm)', 'Ondulado (1055mm)', '5 Ondas (1175mm)', 'Fachada (1010)'];
+    const renderFilmes = lado => `
+        <table class="filme-tabela">
+            <tr><th>Registo Filme</th><th>Quantidade</th></tr>
+            ${tiposFilmePdf.map(tipo => `<tr><td>${tipo}</td><td>${totalFilme(tipo, lado) || ''}</td></tr>`).join('')}
+        </table>
+    `;
+    const totaisSerraPorRal = (() => {
+        const historicoSerra = JSON.parse(localStorage.getItem('atlas_serra_hist')) || [];
+        const mapa = {};
+        historicoSerra.filter(r => r.data === rel.data).forEach(r => {
+            (r.itens || []).forEach(i => {
+                const total = Number(i.qtd || 0) * Number(i.metros || 0);
+                [i.ralI, i.ralS].filter(Boolean).forEach(ral => {
+                    mapa[ral] = (mapa[ral] || 0) + total;
+                });
+            });
+        });
+        return Object.entries(mapa).sort((a, b) => a[1] - b[1]);
+    })();
+    const linhasUnioes = totaisSerraPorRal.map(([ral, metros]) => `<tr><td>RAL ${textoSeguroConferencia(ral)}</td><td>${Number(metros || 0).toFixed(2)} m</td></tr>`).join('');
+
+    janela.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <title>Gestao de Producao Diaria - Bobines / Filmes</title>
+            <style>
+                @page { size:A4; margin:10mm; }
+                * { box-sizing:border-box; }
+                body { font-family:Arial, sans-serif; color:#111; margin:0; background:#fff; }
+                .folha { width:190mm; min-height:277mm; margin:auto; padding:16mm 18mm 10mm; }
+                .topo { display:flex; align-items:center; gap:34mm; margin-bottom:20mm; }
+                .logo-css { display:flex; align-items:center; gap:8px; }
+                .logo-barras { display:grid; gap:6px; }
+                .logo-barras span { display:block; width:38px; height:10px; background:#e31c24; transform:skew(-18deg); }
+                .logo-texto { font-weight:900; font-size:38px; line-height:.78; letter-spacing:-1px; }
+                .logo-painel { font-size:11px; letter-spacing:12px; margin-left:56px; margin-top:5px; display:block; }
+                h1 { font-size:20px; margin:0; flex:1; text-align:center; }
+                .linha-info { display:grid; grid-template-columns:1fr 1.25fr; gap:28mm; margin-bottom:7mm; font-size:13px; }
+                .campo-linha { border-bottom:2px solid #111; min-height:18px; display:inline-block; min-width:44mm; padding-left:6px; font-weight:bold; }
+                .quadros { display:grid; grid-template-columns:1fr 1fr; gap:14mm; align-items:start; margin-top:6mm; }
+                table { border-collapse:collapse; width:100%; }
+                th, td { border:2px solid #111; padding:4px 6px; text-align:center; font-size:13px; height:24px; }
+                th { font-weight:800; background:#f4f4f4; }
+                .box-tabela th:first-child { font-size:16px; }
+                .filme-tabela { margin-top:8mm; }
+                .unioes { width:64mm; margin:13mm 0 0 5mm; }
+                .unioes th { font-size:18px; }
+                .rodape { display:flex; justify-content:flex-end; margin-top:23mm; }
+                .assinatura { display:inline-block; width:70mm; border-bottom:2px solid #111; height:18px; }
+                .no-print { position:fixed; bottom:10px; left:10px; right:10px; }
+                @media print { .no-print { display:none !important; } .folha { margin:0; } body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+            </style>
+        </head>
+        <body>
+            <div class="folha">
+                <div class="topo">
+                    <div>
+                        <div class="logo-css"><div class="logo-barras"><span></span><span></span></div><div class="logo-texto">ATLAS</div></div>
+                        <span class="logo-painel">PAINEL</span>
+                    </div>
+                    <h1>Gestao de Producao Diaria - Bobines / Filmes</h1>
+                </div>
+                <div class="linha-info">
+                    <div>Data: <span class="campo-linha">${textoSeguroConferencia(rel.data || '')}</span></div>
+                    <div>Nome: <span class="campo-linha">${textoSeguroConferencia(rel.operador || '')}</span></div>
+                </div>
+                <div class="quadros">
+                    <div>${renderBobine('Registo Perfiladora Superior', '1060mm', porLado('superior'))}${renderFilmes('superior')}</div>
+                    <div>${renderBobine('Registo Perfiladora Inferior', '1250mm', porLado('inferior'))}${renderFilmes('inferior')}</div>
+                </div>
+                <table class="unioes">
+                    <tr><th colspan="2">Unioes em Producao</th></tr>
+                    <tr><th>(fim de bobine/cor/espessura)</th><th>Quantidade</th></tr>
+                    ${linhasUnioes || linhasVazias(1)}
+                    ${linhasVazias(Math.max(0, 5 - totaisSerraPorRal.length))}
+                </table>
+                <div class="rodape"><div>Ass: <span class="assinatura"></span></div></div>
+                <div class="no-print"><button onclick="window.print()" style="padding:20px; background:#111827; color:white; border:3px solid #E31C24; width:100%; font-size:18px; font-weight:bold; border-radius:10px;">CONFIRMAR E GERAR PDF</button></div>
+            </div>
+        </body>
+        </html>
+    `);
+    janela.document.close();
+};
+
 function renderizarCalculadoraBobina() {
     const render = document.getElementById('render-modulo');
     
@@ -3662,7 +3771,12 @@ var OPCOES_ESPUMA_INJECAO = atlasListaConfig('atlas_config_espuma_injecao', ["30
 var OPCOES_FITA_INJECAO = atlasListaConfig('atlas_config_fita_injecao', ["30 mm", "35 mm", "40 mm", "50 mm", "65 mm ADH"]);
 var OPCOES_MEDIDAS_CHAPA_STOCK = atlasListaConfig('atlas_config_medidas_chapa_stock', ["1265", "1060", "1163", "1065"]);
 var OPCOES_FORNECEDORES_STOCK = atlasListaConfig('atlas_config_fornecedores_stock', ["Fornecedor X", "Fornecedor Y"]);
-var OPCOES_FILMES_STOCK = atlasListaConfig('atlas_config_filmes_stock', ["5 Ondas - 1265", "Filme Telha Canudo", "Filme 1163", "Filme 1060", "Filme 1065"]);
+var OPCOES_FILMES_STOCK = atlasListaConfig('atlas_config_filmes_stock', ["Telha (1180mm)", "Ondulado (1055mm)", "5 Ondas (1175mm)", "Fachada (1010)"]);
+const FILMES_PADRAO_BOBINES_ATLAS = ["Telha (1180mm)", "Ondulado (1055mm)", "5 Ondas (1175mm)", "Fachada (1010)"];
+if ((OPCOES_FILMES_STOCK || []).some(v => ['filme 1060', 'filme 1065', 'filme 1163', 'filme telha canudo', '5 ondas - 1265'].includes(normalizarStockAtlas(v)))) {
+    OPCOES_FILMES_STOCK = FILMES_PADRAO_BOBINES_ATLAS;
+    atlasSalvarListaConfig('atlas_config_filmes_stock', OPCOES_FILMES_STOCK);
+}
 var OPCOES_PACOTES_SERRA = atlasListaObjetosConfig('atlas_config_pacotes_serra', [
     { tipo: "5 Ondas", espessura: "30", maximo: 16 },
     { tipo: "5 Ondas", espessura: "40", maximo: 12 },
@@ -7456,7 +7570,7 @@ document.addEventListener('click', function(evento) {
                 .plano-tabela tr:nth-child(even) td:not(.plano-grupo-celula) { background:#f8fafc; }
                 .plano-grupo td { background:#111827; color:#fff; border:1px solid #111827; }
                 .plano-grupo-celula { background:#111827 !important; color:#fff !important; }
-                .plano-grupo-grid { display:grid; grid-template-columns:150px 1fr 120px 160px 140px; gap:8px; align-items:center; }
+                .plano-grupo-grid { display:grid; grid-template-columns:150px 1fr 120px 160px 140px 150px; gap:8px; align-items:center; }
                 .plano-total { color:#047857; font-weight:900; text-align:center; }
                 .plano-label-add { font-size:11px; color:#334155; font-weight:900; text-transform:uppercase; margin-bottom:3px; display:block; }
                 .plano-btn { border:none; border-radius:7px; padding:9px 10px; color:white; font-weight:800; cursor:pointer; }
@@ -7471,7 +7585,7 @@ document.addEventListener('click', function(evento) {
                     .plano-add { grid-template-columns:repeat(3, minmax(160px, 1fr)); }
                     .plano-add .linha-cheia { grid-column:span 2; }
                     .plano-tabela { min-width:1080px; font-size:12px; }
-                    .plano-grupo-grid { grid-template-columns:130px 1fr 110px 150px 130px; }
+                    .plano-grupo-grid { grid-template-columns:130px 1fr 110px 150px 130px 140px; }
                 }
                 @media (max-width: 760px) {
                     .plano-modal { padding:8px; border-radius:0; border-left:0; border-right:0; }
@@ -7516,7 +7630,13 @@ document.addEventListener('click', function(evento) {
 
                     <div class="plano-add">
                         <div><span class="plano-label-add">Pedido</span><input id="grid-add-pedido" class="plano-input" placeholder="Pedido"></div>
-                        <div><span class="plano-label-add">Cliente</span><input id="grid-add-destino" class="plano-input" placeholder="Cliente"></div>
+                        <div>
+                            <span class="plano-label-add">Cliente</span>
+                            <input id="grid-add-destino" class="plano-input" list="lista-clientes-plano-excel" placeholder="Digite ou escolha cliente">
+                            <datalist id="lista-clientes-plano-excel">
+                                ${(destinosPlano || []).map(v => `<option value="${segPlano(v)}"></option>`).join('')}
+                            </datalist>
+                        </div>
                         <label class="plano-urgente-box plano-urgente-pedido">
                             <input id="grid-add-urgente" type="checkbox"> URGENTE
                         </label>
@@ -7573,6 +7693,7 @@ document.addEventListener('click', function(evento) {
                                                     <input id="grid-grupo-${grupoIndex}-urgente" type="checkbox" ${grupoUrgente ? 'checked' : ''}> URGENTE
                                                 </label>
                                                 <button onclick="salvarGrupoPedidoPlanoExcel(${indexPlano}, ${grupoIndex})" class="plano-btn" style="background:#f59e0b; color:black;">SALVAR PEDIDO</button>
+                                                <button onclick="prepararNovaLinhaPedidoPlanoExcel(${indexPlano}, ${grupoIndex})" class="plano-btn" style="background:#0f172a; color:white;">+ LINHA</button>
                                             </div>
                                         </td>
                                     </tr>
@@ -7674,6 +7795,47 @@ document.addEventListener('click', function(evento) {
         listarHistoricoPlano();
     };
 
+    window.prepararNovaLinhaPedidoPlanoExcel = function(indexPlano, grupoIndex) {
+        const rel = db_plano_hist[indexPlano];
+        const indices = window.atlasPlanoGrupoGestao?.[indexPlano]?.[grupoIndex] || [];
+        const base = rel?.itens?.[indices[0]];
+        if (!rel || !indices.length || !base) return;
+
+        const pedido = document.getElementById(`grid-grupo-${grupoIndex}-pedido`)?.value.trim() || base.pedidoNumero || 'S/N';
+        const cliente = document.getElementById(`grid-grupo-${grupoIndex}-cliente`)?.value.trim() || base.destino || '';
+        const urgente = !!document.getElementById(`grid-grupo-${grupoIndex}-urgente`)?.checked || !!base.urgente;
+
+        const setCampo = (id, valor) => {
+            const campo = document.getElementById(id);
+            if (campo) campo.value = valor || '';
+        };
+
+        setCampo('grid-add-pedido', pedido);
+        setCampo('grid-add-destino', cliente);
+        setCampo('grid-add-tipo', base.tipo || OPCOES_TIPO_PLANO[0] || '');
+        setCampo('grid-add-esp', base.espessura || OPCOES_ESPESSURA_PLANO[0] || '');
+        setCampo('grid-add-ral-inf', base.ralInferior || OPCOES_RAL_INF[0] || '');
+        setCampo('grid-add-ral-sup', base.ralSuperior || OPCOES_RAL_SUP[0] || '');
+        setCampo('grid-add-info', '');
+        setCampo('grid-add-qtd', '');
+        setCampo('grid-add-metros', '');
+
+        const campoUrgente = document.getElementById('grid-add-urgente');
+        if (campoUrgente) campoUrgente.checked = urgente;
+
+        if (tipoPlanoAceitaPerfil(base.tipo)) {
+            setCampo('grid-add-perfil-inf', base.perfilInferior || base.acabamentoInferior || 'Canelada');
+            setCampo('grid-add-perfil-sup', base.perfilSuperior || base.acabamentoSuperior || 'Canelada');
+        }
+
+        if (typeof atualizarAcabamentoAdicionarPlanoExcel === 'function') atualizarAcabamentoAdicionarPlanoExcel();
+
+        const foco = document.getElementById('grid-add-qtd');
+        foco?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => foco?.focus(), 250);
+        mostrarAvisoPlanoExcel(`Pronto para adicionar linha no pedido ${pedido}`);
+    };
+
     function aplicarCamposLinhaPlanoExcel(item, linha) {
         if (!item) return false;
         const qtd = numPlano(document.getElementById(`grid-${linha}-qtd`)?.value);
@@ -7726,6 +7888,12 @@ document.addEventListener('click', function(evento) {
         const infoManual = document.getElementById('grid-add-info')?.value.trim() || '';
         const perfilInferior = tipoPlanoAceitaPerfil(tipo) ? (document.getElementById('grid-add-perfil-inf')?.value || '') : '';
         const perfilSuperior = tipoPlanoAceitaPerfil(tipo) ? (document.getElementById('grid-add-perfil-sup')?.value || '') : '';
+
+        if (destino && !destinosPlano.includes(destino)) {
+            destinosPlano.push(destino);
+            destinosPlano.sort();
+            salvarDestinosPlano();
+        }
 
         rel.itens ||= [];
         rel.itens.push({
@@ -9615,7 +9783,7 @@ function renderizarStockBobinasAtlas(termoBusca = '') {
     atlasStockBobinas = JSON.parse(localStorage.getItem('atlas_stock_bobinas')) || [];
     let migrouBobinas = false;
     atlasStockBobinas.forEach(b => {
-        if (b.status === 'andamento' && b.origemAndamento !== 'relatorio_bobines') {
+        if (b.status === 'andamento' && !b.origemAndamento) {
             b.status = 'fechada';
             migrouBobinas = true;
         }
@@ -9625,16 +9793,16 @@ function renderizarStockBobinasAtlas(termoBusca = '') {
     if (!c) return;
 
     const listaFiltrada = filtrarListaStock(atlasStockBobinas, termoBusca);
-    const ativas = listaFiltrada.filter(b => b.status === 'andamento' && b.origemAndamento === 'relatorio_bobines');
+    const ativas = listaFiltrada.filter(b => b.status === 'andamento');
     const fechadas = listaFiltrada.filter(b => !b.status || b.status === 'fechada');
     const acabadas = listaFiltrada.filter(b => b.status === 'acabada_mes');
     const disponiveisResumo = listaFiltrada.filter(b => b.status !== 'acabada_mes');
-    const sugestoesBobinas = atlasStockBobinas.flatMap(b => [b.numero, b.ral, b.espessura, b.fornecedor, b.medida]);
+    const sugestoesBobinas = atlasStockBobinas.flatMap(b => [b.numero, b.ral, b.espessura, b.fornecedor, b.medida, b.metros, b.peso]);
 
     c.innerHTML = `
         <div style="background:#111827; border:1px solid #334155; border-radius:12px; padding:15px;">
             <h3 style="margin-top:0;">Bobinas</h3>
-            <div style="display:grid; grid-template-columns:repeat(6, 1fr); gap:8px; margin-bottom:12px;">
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:8px; margin-bottom:12px;">
                 <input id="stock-bob-num" placeholder="Nº bobina" style="padding:12px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">
                 <select id="stock-bob-ral" style="padding:12px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">${OPCOES_RAL_INF.concat(OPCOES_RAL_SUP).filter((v,i,a)=>a.indexOf(v)===i).map(v=>`<option value="${v}">${v}</option>`).join('')}</select>
                 <select id="stock-bob-medida" style="padding:12px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">${(OPCOES_MEDIDAS_CHAPA_STOCK || []).map(v=>`<option value="${v}">${v}</option>`).join('')}</select>
@@ -9643,6 +9811,12 @@ function renderizarStockBobinasAtlas(termoBusca = '') {
                 </select>
                 <select id="stock-bob-forn" style="padding:12px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">${(OPCOES_FORNECEDORES_STOCK || []).map(v=>`<option value="${v}">${v}</option>`).join('')}</select>
                 <input id="stock-bob-qtd" type="number" value="1" min="1" placeholder="Qtd" style="padding:12px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">
+                <select id="stock-bob-status" style="padding:12px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">
+                    <option value="fechada">Fechada</option>
+                    <option value="andamento">Em andamento</option>
+                </select>
+                <input id="stock-bob-peso" type="number" step="0.01" placeholder="Peso opcional" style="padding:12px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">
+                <input id="stock-bob-metros" type="number" step="0.01" placeholder="Metros opcional" style="padding:12px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">
             </div>
             <button onclick="cadastrarBobinaStockAtlas()" style="width:100%; background:#10b981; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold;">CADASTRAR BOBINA</button>
         </div>
@@ -9679,6 +9853,7 @@ function renderizarListaBobinasStock(lista, rotuloVazio) {
     const grupos = grupoFornecedorMedidaRalStock(lista);
     return Object.keys(grupos).sort().map(chave => {
         const grupo = grupos[chave];
+        grupo.itens.sort((a, b) => Number(a.metros || 999999) - Number(b.metros || 999999) || String(a.ral || '').localeCompare(String(b.ral || '')) || String(a.numero || '').localeCompare(String(b.numero || '')));
         return `
         <div style="background:#1e293b; border:1px solid #334155; border-radius:10px; margin-bottom:10px; overflow:hidden;">
             <div style="padding:10px; font-weight:bold; color:white; background:#0f172a;">
@@ -9688,7 +9863,7 @@ function renderizarListaBobinasStock(lista, rotuloVazio) {
                 <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; padding:10px; border-top:1px solid #334155; flex-wrap:wrap;">
                     <span style="flex:1; min-width:240px;">
                         <b>Bobina ${textoSeguroConferencia(item.numero)}</b><br>
-                        <small style="color:#94a3b8;">Medida ${textoSeguroConferencia(item.medida || '-')} | RAL ${textoSeguroConferencia(item.ral)} | Esp. ${textoSeguroConferencia(item.espessura || '-')}</small>
+                        <small style="color:#94a3b8;">Medida ${textoSeguroConferencia(item.medida || '-')} | RAL ${textoSeguroConferencia(item.ral)} | Esp. ${textoSeguroConferencia(item.espessura || '-')}${item.metros ? ' | ' + textoSeguroConferencia(item.metros) + ' m' : ''}${item.peso ? ' | ' + textoSeguroConferencia(item.peso) + ' kg' : ''}</small>
                         <details style="margin-top:6px;">
                             <summary style="cursor:pointer; color:#93c5fd; font-size:12px;">Historico da bobina</summary>
                             <div style="margin-top:6px; color:#cbd5e1; font-size:12px;">
@@ -9722,8 +9897,11 @@ function cadastrarBobinaStockAtlas() {
     const espessura = document.getElementById('stock-bob-esp')?.value.trim();
     const fornecedor = document.getElementById('stock-bob-forn')?.value.trim();
     const qtd = Number(document.getElementById('stock-bob-qtd')?.value || 1);
+    const status = document.getElementById('stock-bob-status')?.value || 'fechada';
+    const peso = document.getElementById('stock-bob-peso')?.value.trim() || '';
+    const metros = document.getElementById('stock-bob-metros')?.value.trim() || '';
     if (!numero || !ral || !medida || !fornecedor) return alert('Informe numero, RAL, medida e fornecedor.');
-    const nova = { id: String(Date.now()), numero, ral, medida, espessura, fornecedor, qtd, status: 'fechada', criadoPor: atlasUsuarioAtualNome(), criadoEm: new Date().toLocaleString('pt-BR') };
+    const nova = { id: String(Date.now()), numero, ral, medida, espessura, fornecedor, qtd, status, peso, metros, origemAndamento: status === 'andamento' ? 'cadastro_stock' : '', criadoPor: atlasUsuarioAtualNome(), criadoEm: new Date().toLocaleString('pt-BR') };
     registrarHistoricoBobinaStock(nova, 'Bobina cadastrada no Stock', nova.criadoPor, nova.criadoEm);
     atlasStockBobinas.unshift(nova);
     salvarStockAtlas();
@@ -9765,6 +9943,12 @@ function editarBobinaStockAtlas(id) {
     if (fornecedor === null) return;
     const qtd = prompt('Quantidade:', item.qtd || 0);
     if (qtd === null) return;
+    const status = prompt('Status (fechada ou andamento):', item.status || 'fechada');
+    if (status === null) return;
+    const peso = prompt('Peso opcional:', item.peso || '');
+    if (peso === null) return;
+    const metros = prompt('Metros opcionais:', item.metros || '');
+    if (metros === null) return;
 
     Object.assign(item, {
         numero: numero.trim(),
@@ -9772,7 +9956,11 @@ function editarBobinaStockAtlas(id) {
         medida: medida.trim(),
         espessura: espessura.trim(),
         fornecedor: fornecedor.trim(),
-        qtd: Math.max(0, Number(qtd) || 0)
+        qtd: Math.max(0, Number(qtd) || 0),
+        status: normalizarStockAtlas(status).includes('and') ? 'andamento' : 'fechada',
+        origemAndamento: normalizarStockAtlas(status).includes('and') ? (item.origemAndamento || 'cadastro_stock') : '',
+        peso: peso.trim(),
+        metros: metros.trim()
     });
     registrarHistoricoBobinaStock(item, 'Bobina editada no Stock');
     salvarStockAtlas();
@@ -9832,11 +10020,10 @@ function normalizarNomeFilmeStock(nome) {
     if (configurado) return configurado;
 
     const texto = normalizarStockAtlas(nome);
-    if (texto.includes('telha canudo')) return 'Filme Telha Canudo';
-    if (texto.includes('5 ondas') || texto.includes('1265')) return '5 Ondas - 1265';
-    if (texto.includes('1163')) return 'Filme 1163';
-    if (texto.includes('1065')) return 'Filme 1065';
-    if (texto.includes('1060') || texto.includes('fachada') || texto.includes('chapa superior')) return 'Filme 1060';
+    if (texto.includes('telha')) return 'Telha (1180mm)';
+    if (texto.includes('ondulado')) return 'Ondulado (1055mm)';
+    if (texto.includes('5 ondas') || texto.includes('1175') || texto.includes('1265')) return '5 Ondas (1175mm)';
+    if (texto.includes('fachada') || texto.includes('1010') || texto.includes('1060') || texto.includes('1065') || texto.includes('1163')) return 'Fachada (1010)';
     return nome || '';
 }
 

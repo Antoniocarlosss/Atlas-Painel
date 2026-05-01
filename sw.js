@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v70-urgente-visivel';
+const CACHE_NAME = 'atlas-v72-bobines-stock-pdf';
 const assets = [
   '/',
   '/index.html',
