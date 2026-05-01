@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v75-pdf-sem-edicao';
+const CACHE_NAME = 'atlas-v76-responsivo-geral';
 const assets = [
   '/',
   '/index.html',

@@ -812,3 +812,350 @@ body.tema-claro #user-display {
         margin-right: auto;
     }
 }
+
+/* --- CAMADA FINAL: VISUALIZACAO BOA EM CELULAR, TABLET E COMPUTADOR --- */
+:root {
+    --atlas-radius: 10px;
+    --atlas-gap: clamp(8px, 1.4vw, 16px);
+    --atlas-page-pad: clamp(10px, 2vw, 28px);
+}
+
+html,
+body {
+    width: 100%;
+    min-height: 100%;
+}
+
+body {
+    font-size: clamp(14px, 1.1vw, 16px);
+}
+
+main,
+#conteudo-modulo,
+#render-modulo,
+.modulo-body {
+    width: 100%;
+    min-width: 0;
+}
+
+#render-modulo,
+.modulo-body {
+    padding: var(--atlas-page-pad);
+}
+
+input,
+select,
+textarea,
+button {
+    max-width: 100%;
+}
+
+textarea {
+    resize: vertical;
+}
+
+table {
+    border-collapse: collapse;
+}
+
+#render-modulo table,
+#conteudo-ajustes table,
+#conteudo-modal table {
+    width: 100%;
+}
+
+/* Faz tabelas grandes rolarem sem quebrar a tela */
+#render-modulo table:not(.tabela-plano),
+#conteudo-ajustes table,
+#conteudo-modal table,
+[style*="overflow-x:auto"],
+[style*="overflow-x: auto"] {
+    max-width: 100%;
+}
+
+.modulo-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 8px 0;
+}
+
+#titulo-modulo {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+}
+
+.card span {
+    overflow-wrap: anywhere;
+}
+
+/* Caixas dinamicas criadas no script */
+#render-modulo > div,
+#conteudo-ajustes > div,
+#stock-conteudo > div,
+#container-acao-serra > div,
+#container-acao-emb > div,
+#container-acao-plano > div {
+    max-width: 100%;
+}
+
+[style*="border-radius:10px"],
+[style*="border-radius: 10px"],
+[style*="border-radius:12px"],
+[style*="border-radius: 12px"],
+[style*="border-radius:15px"],
+[style*="border-radius: 15px"] {
+    border-radius: var(--atlas-radius) !important;
+}
+
+/* Computador grande */
+@media (min-width: 1280px) {
+    .grid-container {
+        grid-template-columns: repeat(4, minmax(230px, 1fr));
+        align-items: stretch;
+    }
+
+    .card {
+        min-height: 158px;
+    }
+}
+
+/* Tablet */
+@media (min-width: 769px) and (max-width: 1279px) {
+    header {
+        padding: 14px 24px;
+    }
+
+    .grid-container {
+        grid-template-columns: repeat(2, minmax(220px, 1fr));
+        padding: 24px;
+        gap: 16px;
+    }
+
+    .card {
+        min-height: 142px;
+    }
+
+    [style*="grid-template-columns:repeat(7"],
+    [style*="grid-template-columns: repeat(7"],
+    [style*="grid-template-columns:repeat(8"],
+    [style*="grid-template-columns: repeat(8"] {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+}
+
+/* Celular */
+@media (max-width: 768px) {
+    body {
+        overflow-x: hidden;
+    }
+
+    header {
+        position: sticky;
+        top: 0;
+        z-index: 80;
+        min-height: 70px;
+    }
+
+    .logo-container-css {
+        gap: 8px;
+    }
+
+    .atlas-text {
+        font-size: 22px;
+    }
+
+    .painel-text {
+        letter-spacing: 3px;
+    }
+
+    .bar-css {
+        width: 26px;
+        height: 7px;
+    }
+
+    .login-box {
+        padding: 28px 18px;
+        border-radius: 14px;
+    }
+
+    .login-box h1 {
+        margin-top: 28px;
+        margin-bottom: 22px;
+        font-size: 18px;
+    }
+
+    .grid-container {
+        grid-template-columns: 1fr;
+        padding: 12px;
+        gap: 10px;
+    }
+
+    .card {
+        min-height: 96px;
+        padding: 18px 12px;
+    }
+
+    .card i {
+        font-size: 30px;
+    }
+
+    .modulo-header {
+        top: 70px;
+        padding: 8px 10px;
+        gap: 8px;
+    }
+
+    #render-modulo,
+    .modulo-body,
+    #conteudo-ajustes,
+    #container-acao-serra,
+    #container-acao-emb,
+    #container-acao-plano {
+        padding: 10px !important;
+    }
+
+    input,
+    select,
+    textarea {
+        min-height: 48px;
+        font-size: 16px !important;
+        border-radius: 9px !important;
+    }
+
+    button {
+        min-height: 46px;
+        border-radius: 9px !important;
+        font-size: 14px !important;
+    }
+
+    /* Qualquer grade inline muito larga vira coluna no celular */
+    [style*="display:grid"],
+    [style*="display: grid"] {
+        gap: 10px !important;
+    }
+
+    [style*="grid-template-columns:1fr 1fr"],
+    [style*="grid-template-columns: 1fr 1fr"],
+    [style*="grid-template-columns:1fr 1fr 1fr"],
+    [style*="grid-template-columns: 1fr 1fr 1fr"],
+    [style*="grid-template-columns:1fr 1fr auto"],
+    [style*="grid-template-columns: 1fr 1fr auto"],
+    [style*="grid-template-columns:1fr auto"],
+    [style*="grid-template-columns: 1fr auto"],
+    [style*="grid-template-columns:2fr 1fr"],
+    [style*="grid-template-columns: 2fr 1fr"],
+    [style*="grid-template-columns:2fr 1fr 1fr"],
+    [style*="grid-template-columns: 2fr 1fr 1fr"],
+    [style*="grid-template-columns:repeat(2"],
+    [style*="grid-template-columns: repeat(2"],
+    [style*="grid-template-columns:repeat(3"],
+    [style*="grid-template-columns: repeat(3"],
+    [style*="grid-template-columns:repeat(4"],
+    [style*="grid-template-columns: repeat(4"],
+    [style*="grid-template-columns:repeat(5"],
+    [style*="grid-template-columns: repeat(5"],
+    [style*="grid-template-columns:repeat(6"],
+    [style*="grid-template-columns: repeat(6"],
+    [style*="grid-template-columns:repeat(7"],
+    [style*="grid-template-columns: repeat(7"],
+    [style*="grid-template-columns:repeat(8"],
+    [style*="grid-template-columns: repeat(8"] {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Modais ocupam a largura do telefone e rolam por dentro */
+    #modal-edicao {
+        padding: 6px !important;
+        align-items: stretch !important;
+    }
+
+    #modal-edicao > div,
+    #modal-plano-historico > div,
+    [id*="modal"] > div {
+        width: 100% !important;
+        max-width: 100% !important;
+        max-height: 96vh !important;
+        overflow: auto !important;
+    }
+
+    #conteudo-modal {
+        gap: 8px !important;
+    }
+
+    /* Tabelas e planilhas ficam rolaveis no celular */
+    #render-modulo table,
+    #conteudo-ajustes table,
+    #conteudo-modal table,
+    .plano-modal table {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        white-space: nowrap;
+    }
+
+    #render-modulo th,
+    #render-modulo td,
+    #conteudo-ajustes th,
+    #conteudo-ajustes td,
+    #conteudo-modal th,
+    #conteudo-modal td {
+        padding: 8px 6px !important;
+    }
+
+    [style*="font-size:32px"],
+    [style*="font-size: 32px"],
+    [style*="font-size:30px"],
+    [style*="font-size: 30px"] {
+        font-size: 24px !important;
+    }
+
+    [style*="font-size:24px"],
+    [style*="font-size: 24px"] {
+        font-size: 20px !important;
+    }
+
+    [style*="padding:40px"],
+    [style*="padding: 40px"],
+    [style*="padding:35px"],
+    [style*="padding: 35px"],
+    [style*="padding:30px"],
+    [style*="padding: 30px"] {
+        padding: 18px 10px !important;
+    }
+}
+
+/* Celular bem estreito */
+@media (max-width: 420px) {
+    .atlas-text {
+        font-size: 19px;
+    }
+
+    .painel-text {
+        font-size: 8px;
+        letter-spacing: 2px;
+    }
+
+    #user-display {
+        max-width: 34vw;
+        font-size: 13px;
+    }
+
+    .btn-logout,
+    .btn-voltar-clean {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    .card {
+        min-height: 88px;
+    }
+}
