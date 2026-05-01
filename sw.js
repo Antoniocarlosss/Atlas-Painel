@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v54-plano-pdf-mesclado';
+const CACHE_NAME = 'atlas-v55-plano-ral-desc-excel';
 const assets = [
   '/',
   '/index.html',
