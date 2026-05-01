@@ -7456,7 +7456,7 @@ document.addEventListener('click', function(evento) {
                 .plano-tabela tr:nth-child(even) td:not(.plano-grupo-celula) { background:#f8fafc; }
                 .plano-grupo td { background:#111827; color:#fff; border:1px solid #111827; }
                 .plano-grupo-celula { background:#111827 !important; color:#fff !important; }
-                .plano-grupo-grid { display:grid; grid-template-columns:150px 1fr 130px 140px; gap:8px; align-items:center; }
+                .plano-grupo-grid { display:grid; grid-template-columns:150px 1fr 130px 130px 140px; gap:8px; align-items:center; }
                 .plano-total { color:#047857; font-weight:900; text-align:center; }
                 .plano-label-add { font-size:11px; color:#334155; font-weight:900; text-transform:uppercase; margin-bottom:3px; display:block; }
                 .plano-btn { border:none; border-radius:7px; padding:9px 10px; color:white; font-weight:800; cursor:pointer; }
@@ -7489,28 +7489,28 @@ document.addEventListener('click', function(evento) {
                     <div class="plano-add">
                         <div><span class="plano-label-add">Pedido</span><input id="grid-add-pedido" class="plano-input" placeholder="Pedido"></div>
                         <div><span class="plano-label-add">Cliente</span><input id="grid-add-destino" class="plano-input" placeholder="Cliente"></div>
-                        <div><span class="plano-label-add">Tipo</span><select id="grid-add-tipo" class="plano-select">${opcoesPlano(OPCOES_TIPO_PLANO, '')}</select></div>
+                        <label class="plano-urgente-box">
+                            <input id="grid-add-urgente" type="checkbox"> URGENTE
+                        </label>
+                        <div><span class="plano-label-add">Tipo</span><select id="grid-add-tipo" class="plano-select" onchange="atualizarAcabamentoAdicionarPlanoExcel()">${opcoesPlano(OPCOES_TIPO_PLANO, '')}</select></div>
                         <div><span class="plano-label-add">Espessura</span><select id="grid-add-esp" class="plano-select">${opcoesPlano(OPCOES_ESPESSURA_PLANO, '', ' mm')}</select></div>
                         <div><span class="plano-label-add">RAL inferior</span><select id="grid-add-ral-inf" class="plano-select">${opcoesPlano(OPCOES_RAL_INF, '')}</select></div>
                         <div><span class="plano-label-add">RAL superior</span><select id="grid-add-ral-sup" class="plano-select">${opcoesPlano(OPCOES_RAL_SUP, '')}</select></div>
-                        <div><span class="plano-label-add">Quantidade</span><input id="grid-add-qtd" type="number" inputmode="numeric" class="plano-input" placeholder="Qtd"></div>
-                        <div><span class="plano-label-add">Metro</span><input id="grid-add-metros" type="number" inputmode="decimal" step="0.01" class="plano-input" placeholder="Metro"></div>
                         <div><span class="plano-label-add">Acab. inferior</span><select id="grid-add-perfil-inf" class="plano-select">
                             <option value="">Opcional</option>
-                            <option value="Canelada">Canelada</option>
+                            <option value="Canelada" selected>Canelada</option>
                             <option value="Micronervurada">Micronervurada</option>
                             <option value="Lisa">Lisa</option>
                         </select></div>
                         <div><span class="plano-label-add">Acab. superior</span><select id="grid-add-perfil-sup" class="plano-select">
                             <option value="">Opcional</option>
-                            <option value="Canelada">Canelada</option>
+                            <option value="Canelada" selected>Canelada</option>
                             <option value="Micronervurada">Micronervurada</option>
                             <option value="Lisa">Lisa</option>
                         </select></div>
+                        <div><span class="plano-label-add">Quantidade</span><input id="grid-add-qtd" type="number" inputmode="numeric" class="plano-input" placeholder="Qtd"></div>
+                        <div><span class="plano-label-add">Metro</span><input id="grid-add-metros" type="number" inputmode="decimal" step="0.01" class="plano-input" placeholder="Metro"></div>
                         <div class="linha-cheia"><span class="plano-label-add">Mensagem / descricao</span><input id="grid-add-info" class="plano-input" placeholder="Informacao manual / descricao"></div>
-                        <label class="plano-urgente-box">
-                            <input id="grid-add-urgente" type="checkbox"> URGENTE
-                        </label>
                         <button onclick="adicionarLinhaPlanoExcel(${indexPlano})" class="plano-btn plano-btn-add">ADICIONAR</button>
                     </div>
                 </div>
@@ -7521,10 +7521,9 @@ document.addEventListener('click', function(evento) {
                             <tr>
                                 <th style="width:150px;">Tipo</th>
                                 <th style="width:90px;">Esp.</th>
-                                <th>RAL Inf.</th>
-                                <th>RAL Sup.</th>
+                                <th>RAL Inf.<br><small>Acab. inf.</small></th>
+                                <th>RAL Sup.<br><small>Acab. sup.</small></th>
                                 <th style="width:280px;">Descricao / mensagem</th>
-                                <th style="width:70px;">Urg.</th>
                                 <th style="width:90px;">Qtd</th>
                                 <th style="width:110px;">Metro</th>
                                 <th style="width:110px;">Total</th>
@@ -7534,13 +7533,17 @@ document.addEventListener('click', function(evento) {
                         <tbody>
                             ${grupos.map((grupo, grupoIndex) => {
                                 const totalGrupo = grupo.indices.reduce((acc, idx) => acc + numPlano(linhas[idx]?.totalMetros), 0);
+                                const grupoUrgente = grupo.indices.some(idx => linhas[idx]?.urgente === true || linhas[idx]?.urgente === 'sim');
                                 return `
                                     <tr class="plano-grupo">
-                                        <td colspan="10" class="plano-grupo-celula">
+                                        <td colspan="9" class="plano-grupo-celula">
                                             <div class="plano-grupo-grid">
                                                 <input id="grid-grupo-${grupoIndex}-pedido" class="plano-input" value="${segPlano(grupo.pedido)}">
                                                 <input id="grid-grupo-${grupoIndex}-cliente" class="plano-input" value="${segPlano(grupo.cliente)}">
                                                 <b style="color:#10b981; text-align:center;">${metroPlano(totalGrupo)} m</b>
+                                                <label class="plano-urgente-box" style="padding:7px; background:#111827; color:#fecaca; border-color:#ef4444;">
+                                                    <input id="grid-grupo-${grupoIndex}-urgente" type="checkbox" ${grupoUrgente ? 'checked' : ''}> URGENTE
+                                                </label>
                                                 <button onclick="salvarGrupoPedidoPlanoExcel(${indexPlano}, ${grupoIndex})" class="plano-btn" style="background:#f59e0b; color:black;">SALVAR PEDIDO</button>
                                             </div>
                                         </td>
@@ -7551,26 +7554,27 @@ document.addEventListener('click', function(evento) {
                                             <tr>
                                                 <td><select id="grid-${idx}-tipo" class="plano-select">${opcoesPlano(OPCOES_TIPO_PLANO, item.tipo)}</select></td>
                                                 <td><select id="grid-${idx}-esp" class="plano-select">${opcoesPlano(OPCOES_ESPESSURA_PLANO, item.espessura, ' mm')}</select></td>
-                                                <td><select id="grid-${idx}-ral-inf" class="plano-select">${opcoesPlano(OPCOES_RAL_INF, item.ralInferior)}</select></td>
-                                                <td><select id="grid-${idx}-ral-sup" class="plano-select">${opcoesPlano(OPCOES_RAL_SUP, item.ralSuperior)}</select></td>
+                                                <td>
+                                                    <select id="grid-${idx}-ral-inf" class="plano-select">${opcoesPlano(OPCOES_RAL_INF, item.ralInferior)}</select>
+                                                    <select id="grid-${idx}-perfil-inf" class="plano-select" style="margin-top:5px;" ${tipoPlanoAceitaPerfil(item.tipo) ? '' : 'disabled'}>
+                                                        <option value="">Acab. inf.</option>
+                                                        <option value="Canelada" ${(item.perfilInferior || item.acabamentoInferior || item.perfilPainel || 'Canelada') === 'Canelada' ? 'selected' : ''}>Canelada</option>
+                                                        <option value="Micronervurada" ${(item.perfilInferior || item.acabamentoInferior || item.perfilPainel) === 'Micronervurada' ? 'selected' : ''}>Micronervurada</option>
+                                                        <option value="Lisa" ${(item.perfilInferior || item.acabamentoInferior || item.perfilPainel) === 'Lisa' ? 'selected' : ''}>Lisa</option>
+                                                    </select>
+                                                </td>
+                                                <td>
+                                                    <select id="grid-${idx}-ral-sup" class="plano-select">${opcoesPlano(OPCOES_RAL_SUP, item.ralSuperior)}</select>
+                                                    <select id="grid-${idx}-perfil-sup" class="plano-select" style="margin-top:5px;" ${tipoPlanoAceitaPerfil(item.tipo) ? '' : 'disabled'}>
+                                                        <option value="">Acab. sup.</option>
+                                                        <option value="Canelada" ${(item.perfilSuperior || item.acabamentoSuperior || item.perfilPainel || 'Canelada') === 'Canelada' ? 'selected' : ''}>Canelada</option>
+                                                        <option value="Micronervurada" ${(item.perfilSuperior || item.acabamentoSuperior || item.perfilPainel) === 'Micronervurada' ? 'selected' : ''}>Micronervurada</option>
+                                                        <option value="Lisa" ${(item.perfilSuperior || item.acabamentoSuperior || item.perfilPainel) === 'Lisa' ? 'selected' : ''}>Lisa</option>
+                                                    </select>
+                                                </td>
                                                 <td>
                                                     <input id="grid-${idx}-info" class="plano-input" value="${segPlano(item.descricaoManual || item.infoManual || item.observacaoPlano || '')}" placeholder="Info manual">
-                                                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-top:5px;">
-                                                        <select id="grid-${idx}-perfil-inf" class="plano-select" ${tipoPlanoAceitaPerfil(item.tipo) ? '' : 'disabled'}>
-                                                            <option value="">Acab. inf.</option>
-                                                            <option value="Canelada" ${(item.perfilInferior || item.acabamentoInferior || item.perfilPainel) === 'Canelada' ? 'selected' : ''}>Canelada</option>
-                                                            <option value="Micronervurada" ${(item.perfilInferior || item.acabamentoInferior || item.perfilPainel) === 'Micronervurada' ? 'selected' : ''}>Micronervurada</option>
-                                                            <option value="Lisa" ${(item.perfilInferior || item.acabamentoInferior || item.perfilPainel) === 'Lisa' ? 'selected' : ''}>Lisa</option>
-                                                        </select>
-                                                        <select id="grid-${idx}-perfil-sup" class="plano-select" ${tipoPlanoAceitaPerfil(item.tipo) ? '' : 'disabled'}>
-                                                            <option value="">Acab. sup.</option>
-                                                            <option value="Canelada" ${(item.perfilSuperior || item.acabamentoSuperior || item.perfilPainel) === 'Canelada' ? 'selected' : ''}>Canelada</option>
-                                                            <option value="Micronervurada" ${(item.perfilSuperior || item.acabamentoSuperior || item.perfilPainel) === 'Micronervurada' ? 'selected' : ''}>Micronervurada</option>
-                                                            <option value="Lisa" ${(item.perfilSuperior || item.acabamentoSuperior || item.perfilPainel) === 'Lisa' ? 'selected' : ''}>Lisa</option>
-                                                        </select>
-                                                    </div>
                                                 </td>
-                                                <td style="text-align:center;"><input id="grid-${idx}-urgente" type="checkbox" ${item.urgente ? 'checked' : ''}></td>
                                                 <td><input id="grid-${idx}-qtd" type="number" inputmode="numeric" class="plano-input" value="${segPlano(item.quantidadeChapas || 0)}"></td>
                                                 <td><input id="grid-${idx}-metros" type="number" inputmode="decimal" step="0.01" class="plano-input" value="${segPlano(item.metrosUnidade || 0)}"></td>
                                                 <td class="plano-total">${metroPlano(item.totalMetros)} m</td>
@@ -7592,6 +7596,19 @@ document.addEventListener('click', function(evento) {
         `;
 
         modal.style.display = 'block';
+        if (typeof atualizarAcabamentoAdicionarPlanoExcel === 'function') atualizarAcabamentoAdicionarPlanoExcel();
+    };
+
+    window.atualizarAcabamentoAdicionarPlanoExcel = function() {
+        const tipo = document.getElementById('grid-add-tipo')?.value || '';
+        const pode = tipoPlanoAceitaPerfil(tipo);
+        ['grid-add-perfil-inf', 'grid-add-perfil-sup'].forEach(id => {
+            const campo = document.getElementById(id);
+            if (!campo) return;
+            campo.disabled = !pode;
+            if (pode && !campo.value) campo.value = 'Canelada';
+            if (!pode) campo.value = '';
+        });
     };
 
     window.salvarGrupoPedidoPlanoExcel = function(indexPlano, grupoIndex) {
@@ -7601,15 +7618,17 @@ document.addEventListener('click', function(evento) {
 
         const pedido = document.getElementById(`grid-grupo-${grupoIndex}-pedido`)?.value.trim() || 'S/N';
         const cliente = document.getElementById(`grid-grupo-${grupoIndex}-cliente`)?.value.trim() || '';
+        const urgente = !!document.getElementById(`grid-grupo-${grupoIndex}-urgente`)?.checked;
 
         indices.forEach(idx => {
             if (rel.itens[idx]) {
                 rel.itens[idx].pedidoNumero = pedido;
                 rel.itens[idx].destino = cliente;
+                rel.itens[idx].urgente = urgente;
             }
         });
 
-        salvarPlanoHistoricoEditado(indexPlano, rel, `Editou pedido ${pedido} - ${cliente}`);
+        salvarPlanoHistoricoEditado(indexPlano, rel, `Editou pedido ${pedido} - ${cliente}${urgente ? ' - URGENTE' : ''}`);
         renderizarGestaoPlanoHistorico(indexPlano);
         listarHistoricoPlano();
     };
@@ -7634,7 +7653,6 @@ document.addEventListener('click', function(evento) {
         item.acabamentoInferior = item.perfilInferior;
         item.acabamentoSuperior = item.perfilSuperior;
         item.perfilPainel = '';
-        item.urgente = !!document.getElementById(`grid-${linha}-urgente`)?.checked;
         item.quantidadeChapas = qtd;
         item.metrosUnidade = metros;
         item.totalMetrosAntesCancelamento = Number((qtd * metros).toFixed(2));
@@ -7705,7 +7723,7 @@ document.addEventListener('click', function(evento) {
                             <label style="color:#94a3b8; font-size:11px;">ACAB. INFERIOR</label>
                             <select id="plano-perfil-inf" style="background:#1e293b; color:white; border:1px solid #334155; width:100%; padding:12px; border-radius:6px; margin-top:5px;">
                                 <option value="">Opcional</option>
-                                <option value="Canelada">Canelada</option>
+                                <option value="Canelada" selected>Canelada</option>
                                 <option value="Micronervurada">Micronervurada</option>
                                 <option value="Lisa">Lisa</option>
                             </select>
@@ -7714,7 +7732,7 @@ document.addEventListener('click', function(evento) {
                             <label style="color:#94a3b8; font-size:11px;">ACAB. SUPERIOR</label>
                             <select id="plano-perfil-sup" style="background:#1e293b; color:white; border:1px solid #334155; width:100%; padding:12px; border-radius:6px; margin-top:5px;">
                                 <option value="">Opcional</option>
-                                <option value="Canelada">Canelada</option>
+                                <option value="Canelada" selected>Canelada</option>
                                 <option value="Micronervurada">Micronervurada</option>
                                 <option value="Lisa">Lisa</option>
                             </select>
@@ -7740,6 +7758,8 @@ document.addEventListener('click', function(evento) {
             const selectSup = document.getElementById('plano-perfil-sup');
             if (wrap) wrap.style.display = podePerfil ? 'block' : 'none';
             if (extraInfo) extraInfo.style.gridTemplateColumns = podePerfil ? '1fr 1fr auto' : '1fr auto';
+            if (podePerfil && selectInf && !selectInf.value) selectInf.value = 'Canelada';
+            if (podePerfil && selectSup && !selectSup.value) selectSup.value = 'Canelada';
             if (!podePerfil && selectInf) selectInf.value = '';
             if (!podePerfil && selectSup) selectSup.value = '';
         };
