@@ -7360,7 +7360,6 @@ document.addEventListener('click', function(evento) {
                     .tabela-plano th { background:#d9d9d9; font-size:10px; }
                     .tabela-plano th:nth-child(4), .tabela-plano td.desc { width:30%; text-align:center; font-weight:800; }
                     .pedido-mesclado { background:#f8fafc; font-size:11px; font-weight:700; text-align:center; }
-                    .pedido-total { margin-top:6px; font-size:10px; font-weight:900; color:#000; }
                     .urgente-pdf { color:#dc2626; font-weight:900; margin-top:6px; font-size:12px; }
                     .pedido-cabecalho td { background:#111827; color:#fff; font-weight:900; text-align:left; font-size:11px; letter-spacing:.2px; }
                     .pedido-cabecalho span { float:right; color:#fff; }
