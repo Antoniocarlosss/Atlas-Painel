@@ -7288,11 +7288,11 @@ document.addEventListener('click', function(evento) {
                                         ${pedidoUrgente ? `<div class="urgente-pdf">URGENTE</div>` : ''}
                                     </td>
                                 ` : ''}
-                                ${ralUnicoIgual && indice === 0 ? `<td colspan="2" rowspan="${itensPedido.length}" class="ral-mesclado">RAL<br><b>${segPlano(ralSupUnico)}</b></td>` : ''}
-                                ${!ralUnicoIgual && ralSupUnico && indice === 0 ? `<td rowspan="${itensPedido.length}" class="ral-mesclado">${segPlano(ralSupUnico)}</td>` : ''}
-                                ${!ralUnicoIgual && !ralSupUnico ? `<td>${segPlano(item.ralSuperior || '-')}</td>` : ''}
+                                ${ralUnicoIgual && indice === 0 ? `<td colspan="2" rowspan="${itensPedido.length}" class="ral-mesclado">RAL<br><b>${segPlano(ralInfUnico)}</b></td>` : ''}
                                 ${!ralUnicoIgual && ralInfUnico && indice === 0 ? `<td rowspan="${itensPedido.length}" class="ral-mesclado">${segPlano(ralInfUnico)}</td>` : ''}
                                 ${!ralUnicoIgual && !ralInfUnico ? `<td>${segPlano(item.ralInferior || '-')}</td>` : ''}
+                                ${!ralUnicoIgual && ralSupUnico && indice === 0 ? `<td rowspan="${itensPedido.length}" class="ral-mesclado">${segPlano(ralSupUnico)}</td>` : ''}
+                                ${!ralUnicoIgual && !ralSupUnico ? `<td>${segPlano(item.ralSuperior || '-')}</td>` : ''}
                                 ${indice === 0 ? `<td rowspan="${itensPedido.length}" class="desc">${segPlano(descPedido)}</td>` : ''}
                                 <td>${segPlano(item.quantidadeChapas || 0)}</td>
                                 <td>${metroPlanoDetalhado(item.metrosUnidade)}</td>
@@ -7309,8 +7309,8 @@ document.addEventListener('click', function(evento) {
                             <thead>
                                 <tr>
                                     <th>Pedido / Cliente</th>
-                                    <th>RAL Sup.</th>
                                     <th>RAL Inf.</th>
+                                    <th>RAL Sup.</th>
                                     <th>Descricao</th>
                                     <th>Qtd</th>
                                     <th>Metro</th>

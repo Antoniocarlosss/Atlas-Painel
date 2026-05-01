@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v60-plano-sem-total-pedido-v2';
+const CACHE_NAME = 'atlas-v61-plano-ral-inf-primeiro';
 const assets = [
   '/',
   '/index.html',
