@@ -7206,14 +7206,13 @@ document.addEventListener('click', function(evento) {
         const espInf = item.espChapaInf || item.espessuraChapaInferior || '';
         const espSup = item.espChapaSup || item.espessuraChapaSuperior || '';
 
-        partes.push(base || `${tipo} ${espTextoPlano(esp)}`);
+        if (base) partes.push(base);
 
         if (perfil) partes.push(perfil);
         if (espInf && String(espInf).toLowerCase() !== 'opcional') partes.push(`Chapa inf. ${espInf}`);
         if (espSup && String(espSup).toLowerCase() !== 'opcional') partes.push(`Chapa sup. ${espSup}`);
-        if (item.urgente === true || item.urgente === 'sim') partes.push('URGENTE');
 
-        return partes.filter(Boolean).join(' | ');
+        return partes.filter(Boolean).join(' | ') || '--';
     }
 
     function agruparPlanoPorPedido(linhas) {
@@ -7268,25 +7267,30 @@ document.addEventListener('click', function(evento) {
                     const itensPedido = pedidos[chave].slice().sort((a, b) => numPlano(b.metrosUnidade) - numPlano(a.metrosUnidade));
                     const [pedido, cliente] = chave.split('|||');
                     const totalPedido = itensPedido.reduce((acc, item) => acc + numPlano(item.totalMetros), 0);
-                    const ralInfUnico = valorUnico(itensPedido.map(item => item.ralInferior));
                     const ralSupUnico = valorUnico(itensPedido.map(item => item.ralSuperior));
+                    const ralInfUnico = valorUnico(itensPedido.map(item => item.ralInferior));
                     const ralUnicoIgual = ralInfUnico && ralSupUnico && ralInfUnico === ralSupUnico;
+                    const descUnica = valorUnico(itensPedido.map(item => descricaoPlanoItem(item, tipo, esp)));
+                    const pedidoUrgente = itensPedido.some(item => item.urgente === true || item.urgente === 'sim');
 
                     return `
-                        <tr class="pedido-cabecalho">
-                            <td colspan="6">
-                                PEDIDO ${segPlano(pedido)}${cliente ? ' - ' + segPlano(cliente) : ''}
-                                <span>Total: ${metroPlano(totalPedido)} m</span>
-                            </td>
-                        </tr>
                         ${itensPedido.map((item, indice) => `
                             <tr>
-                                ${ralUnicoIgual && indice === 0 ? `<td colspan="2" rowspan="${itensPedido.length}" class="ral-mesclado">RAL<br><b>${segPlano(ralInfUnico)}</b></td>` : ''}
-                                ${!ralUnicoIgual && ralInfUnico && indice === 0 ? `<td rowspan="${itensPedido.length}" class="ral-mesclado">${segPlano(ralInfUnico)}</td>` : ''}
-                                ${!ralUnicoIgual && !ralInfUnico ? `<td>${segPlano(item.ralInferior || '-')}</td>` : ''}
+                                ${indice === 0 ? `
+                                    <td rowspan="${itensPedido.length}" class="pedido-mesclado">
+                                        <b>PEDIDO ${segPlano(pedido)}</b>
+                                        <br><span>${segPlano(cliente)}</span>
+                                        ${pedidoUrgente ? `<div class="urgente-pdf">URGENTE</div>` : ''}
+                                        <div class="pedido-total">Total: ${metroPlano(totalPedido)} m</div>
+                                    </td>
+                                ` : ''}
+                                ${ralUnicoIgual && indice === 0 ? `<td colspan="2" rowspan="${itensPedido.length}" class="ral-mesclado">RAL<br><b>${segPlano(ralSupUnico)}</b></td>` : ''}
                                 ${!ralUnicoIgual && ralSupUnico && indice === 0 ? `<td rowspan="${itensPedido.length}" class="ral-mesclado">${segPlano(ralSupUnico)}</td>` : ''}
                                 ${!ralUnicoIgual && !ralSupUnico ? `<td>${segPlano(item.ralSuperior || '-')}</td>` : ''}
-                                <td class="desc">${segPlano(descricaoPlanoItem(item, tipo, esp))}</td>
+                                ${!ralUnicoIgual && ralInfUnico && indice === 0 ? `<td rowspan="${itensPedido.length}" class="ral-mesclado">${segPlano(ralInfUnico)}</td>` : ''}
+                                ${!ralUnicoIgual && !ralInfUnico ? `<td>${segPlano(item.ralInferior || '-')}</td>` : ''}
+                                ${descUnica && indice === 0 ? `<td rowspan="${itensPedido.length}" class="desc">${segPlano(descUnica)}</td>` : ''}
+                                ${!descUnica ? `<td class="desc">${segPlano(descricaoPlanoItem(item, tipo, esp))}</td>` : ''}
                                 <td>${segPlano(item.quantidadeChapas || 0)}</td>
                                 <td>${metroPlanoDetalhado(item.metrosUnidade)}</td>
                                 <td><b>${metroPlano(item.totalMetros)}</b></td>
@@ -7301,8 +7305,9 @@ document.addEventListener('click', function(evento) {
                         <table class="tabela-plano">
                             <thead>
                                 <tr>
-                                    <th>RAL Inf.</th>
+                                    <th>Pedido / Cliente</th>
                                     <th>RAL Sup.</th>
+                                    <th>RAL Inf.</th>
                                     <th>Descricao</th>
                                     <th>Qtd</th>
                                     <th>Metro</th>
@@ -7312,7 +7317,7 @@ document.addEventListener('click', function(evento) {
                             <tbody>
                                 ${htmlLinhas}
                                 <tr class="total-esp">
-                                    <td colspan="5">TOTAL ${segPlano(tipo)} ${segPlano(espTextoPlano(esp))}</td>
+                                    <td colspan="6">TOTAL ${segPlano(tipo)} ${segPlano(espTextoPlano(esp))}</td>
                                     <td>${metroPlano(totalEsp)} m</td>
                                 </tr>
                             </tbody>
@@ -7350,7 +7355,10 @@ document.addEventListener('click', function(evento) {
                     .tabela-plano { width:100%; border-collapse:collapse; table-layout:fixed; font-size:10px; }
                     .tabela-plano th, .tabela-plano td { border:1.5px solid #000; padding:5px 4px; text-align:center; vertical-align:middle; }
                     .tabela-plano th { background:#d9d9d9; font-size:10px; }
-                    .tabela-plano th:nth-child(3), .tabela-plano td.desc { width:34%; text-align:left; }
+                    .tabela-plano th:nth-child(4), .tabela-plano td.desc { width:30%; text-align:center; }
+                    .pedido-mesclado { background:#f8fafc; font-size:11px; font-weight:700; text-align:center; }
+                    .pedido-total { margin-top:6px; font-size:10px; font-weight:900; color:#000; }
+                    .urgente-pdf { color:#dc2626; font-weight:900; margin-top:6px; font-size:12px; }
                     .pedido-cabecalho td { background:#111827; color:#fff; font-weight:900; text-align:left; font-size:11px; letter-spacing:.2px; }
                     .pedido-cabecalho span { float:right; color:#fff; }
                     .ral-mesclado { background:#f8fafc; font-size:11px; font-weight:700; }

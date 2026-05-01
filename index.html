@@ -9,7 +9,7 @@
     <title>Atlas Painel - Gestão</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20260501-plano-ral-desc-excel">
+    <link rel="stylesheet" href="style.css?v=20260501-plano-original-limpo">
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
@@ -93,7 +93,7 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="script.js?v=20260501-plano-ral-desc-excel"></script>
+    <script src="script.js?v=20260501-plano-original-limpo"></script>
     <script src="historicos-admin.js?v=20260427-lembretes-auditoria"></script>
     <script src="atlas-ajustes-fachadas.js?v=20260427-permissao-excluir"></script>
     <script type="module" src="firebase-atlas.js?v=20260429-bloqueio-usuario-fixo"></script>
@@ -107,7 +107,7 @@
             });
 
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=20260501-plano-ral-desc-excel')
+                navigator.serviceWorker.register('sw.js?v=20260501-plano-original-limpo')
                     .then(reg => {
                         console.log('Atlas PWA: Ativo!');
                         reg.update();
