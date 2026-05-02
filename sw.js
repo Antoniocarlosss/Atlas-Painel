@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v86-atualizacao-automatica';
+const CACHE_NAME = 'atlas-v87-gestao-usuarios-update-screen';
 const assets = [
   '/',
   '/index.html',
@@ -35,8 +35,14 @@ self.addEventListener('message', e => {
 
 // Busca de arquivos: tenta pegar a versao nova primeiro e usa cache se estiver offline.
 self.addEventListener('fetch', e => {
+  if (e.request.method !== 'GET') return;
+
+  const url = new URL(e.request.url);
+  const sempreAtualizar = e.request.mode === 'navigate' || /\.(html|js|css)$/i.test(url.pathname);
+  const requestAtualizado = sempreAtualizar ? new Request(e.request, { cache: 'reload' }) : e.request;
+
   e.respondWith(
-    fetch(e.request)
+    fetch(requestAtualizado)
       .then(response => {
         const copia = response.clone();
         caches.open(CACHE_NAME).then(cache => cache.put(e.request, copia));

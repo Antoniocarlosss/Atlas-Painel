@@ -9,7 +9,7 @@
     <title>Atlas Painel - Gestão</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20260502-atualizacao-automatica">
+    <link rel="stylesheet" href="style.css?v=20260502-gestao-usuarios-update-screen">
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
@@ -94,7 +94,69 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script>
-        window.ATLAS_SISTEMA_VERSAO = '20260502-atualizacao-automatica';
+        window.ATLAS_SISTEMA_VERSAO = '20260502-gestao-usuarios-update-screen';
+        window.atlasMostrarTelaAtualizacao = function atlasMostrarTelaAtualizacao(opcoes = {}) {
+            const finalizado = opcoes.finalizado === true;
+            let overlay = document.getElementById('atlas-update-screen');
+            if (!overlay) {
+                overlay = document.createElement('div');
+                overlay.id = 'atlas-update-screen';
+                overlay.style.cssText = 'position:fixed; inset:0; z-index:50000; display:flex; align-items:center; justify-content:center; background:radial-gradient(circle at top,#17233a 0,#08111f 58%,#020617 100%); color:white; font-family:Inter,Arial,sans-serif;';
+                overlay.innerHTML = `
+                    <style>
+                        @keyframes atlasLogoEntrando { from { opacity:0; transform:translateY(12px) scale(.96); } to { opacity:1; transform:translateY(0) scale(1); } }
+                        @keyframes atlasBarraUpdate { from { width:0%; } to { width:var(--atlas-progresso, 100%); } }
+                        .atlas-update-card { width:min(92vw, 430px); border:1px solid #334155; background:rgba(15,23,42,.92); border-radius:18px; padding:28px; box-shadow:0 24px 80px rgba(0,0,0,.45); text-align:center; }
+                        .atlas-update-logo { display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:18px; animation:atlasLogoEntrando .7s ease both; }
+                        .atlas-update-mark { width:42px; height:28px; position:relative; }
+                        .atlas-update-mark::before, .atlas-update-mark::after { content:''; position:absolute; left:0; width:36px; height:9px; background:#ef1b2d; transform:skewX(-18deg); }
+                        .atlas-update-mark::before { top:3px; }
+                        .atlas-update-mark::after { bottom:3px; }
+                        .atlas-update-name { font-size:32px; line-height:1; font-weight:900; letter-spacing:0; color:#fff; }
+                        .atlas-update-name b { color:#ef1b2d; }
+                        .atlas-update-sub { margin-top:3px; font-size:11px; letter-spacing:7px; color:#cbd5e1; font-weight:800; }
+                        .atlas-update-status { font-size:18px; font-weight:900; margin:10px 0 6px; }
+                        .atlas-update-detail { color:#a7bdd8; font-size:14px; margin-bottom:18px; }
+                        .atlas-update-track { height:14px; border-radius:999px; overflow:hidden; background:#020617; border:1px solid #334155; }
+                        .atlas-update-fill { height:100%; width:0%; background:linear-gradient(90deg,#2563eb,#10b981,#ef1b2d); transition:width .25s ease; }
+                        .atlas-update-percent { margin-top:10px; color:#22c55e; font-weight:900; font-size:22px; }
+                    </style>
+                    <div class="atlas-update-card">
+                        <div class="atlas-update-logo">
+                            <div class="atlas-update-mark"></div>
+                            <div>
+                                <div class="atlas-update-name"><b>ATLAS</b> PAINEL</div>
+                                <div class="atlas-update-sub">PAINEL</div>
+                            </div>
+                        </div>
+                        <div class="atlas-update-status">${finalizado ? 'Sistema atualizado' : 'Atualizando sistema'}</div>
+                        <div class="atlas-update-detail">${finalizado ? 'Tudo pronto para usar.' : 'Limpando cache antigo e baixando a nova versao.'}</div>
+                        <div class="atlas-update-track"><div class="atlas-update-fill"></div></div>
+                        <div class="atlas-update-percent">0%</div>
+                    </div>
+                `;
+                document.documentElement.appendChild(overlay);
+            }
+
+            const fill = overlay.querySelector('.atlas-update-fill');
+            const percent = overlay.querySelector('.atlas-update-percent');
+            const status = overlay.querySelector('.atlas-update-status');
+            const detail = overlay.querySelector('.atlas-update-detail');
+            let valor = finalizado ? 82 : 0;
+            const alvo = finalizado ? 100 : 94;
+            if (status) status.textContent = finalizado ? 'Sistema atualizado' : 'Atualizando sistema';
+            if (detail) detail.textContent = finalizado ? 'Tudo pronto para usar.' : 'Limpando cache antigo e baixando a nova versao.';
+
+            const timer = setInterval(() => {
+                valor = Math.min(alvo, valor + (finalizado ? 6 : Math.ceil(Math.random() * 8)));
+                if (fill) fill.style.width = valor + '%';
+                if (percent) percent.textContent = valor + '%';
+                if (valor >= alvo) clearInterval(timer);
+            }, 120);
+
+            return overlay;
+        };
+
         (function prepararAtualizacaoAtlas() {
             const chaveVersao = 'atlas_sistema_versao';
             const chaveAviso = 'atlas_sistema_mostrar_atualizado';
@@ -102,6 +164,7 @@
             const versaoAtual = window.ATLAS_SISTEMA_VERSAO;
             if (versaoSalva === versaoAtual) return;
 
+            if (versaoSalva) window.atlasMostrarTelaAtualizacao();
             localStorage.setItem(chaveVersao, versaoAtual);
             localStorage.setItem(chaveAviso, '1');
 
@@ -109,17 +172,21 @@
                 ? caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('atlas-')).map(key => caches.delete(key))))
                 : Promise.resolve();
 
-            limparCaches.finally(() => {
+            const atualizarWorker = ('serviceWorker' in navigator)
+                ? navigator.serviceWorker.getRegistrations().then(regs => Promise.all(regs.map(reg => reg.update().catch(() => null))))
+                : Promise.resolve();
+
+            Promise.allSettled([limparCaches, atualizarWorker]).finally(() => {
                 if (versaoSalva) {
-                    location.reload();
+                    setTimeout(() => location.reload(), 1200);
                 }
             });
         })();
     </script>
-    <script src="script.js?v=20260502-atualizacao-automatica"></script>
+    <script src="script.js?v=20260502-gestao-usuarios-update-screen"></script>
     <script src="historicos-admin.js?v=20260427-lembretes-auditoria"></script>
     <script src="atlas-ajustes-fachadas.js?v=20260427-permissao-excluir"></script>
-    <script type="module" src="firebase-atlas.js?v=20260429-bloqueio-usuario-fixo"></script>
+    <script type="module" src="firebase-atlas.js?v=20260502-gestao-usuarios-update-screen"></script>
     <script>
         if ('serviceWorker' in navigator) {
             let atlasAtualizandoPWA = false;
@@ -130,7 +197,7 @@
             });
 
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=20260502-atualizacao-automatica')
+                navigator.serviceWorker.register('sw.js?v=20260502-gestao-usuarios-update-screen')
                     .then(reg => {
                         console.log('Atlas PWA: Ativo!');
                         reg.update();
@@ -155,11 +222,8 @@
             if (localStorage.getItem('atlas_sistema_mostrar_atualizado') !== '1') return;
             localStorage.removeItem('atlas_sistema_mostrar_atualizado');
 
-            const aviso = document.createElement('div');
-            aviso.style.cssText = 'position:fixed; left:50%; top:18px; transform:translateX(-50%); z-index:30000; background:#10b981; color:white; border:2px solid #047857; box-shadow:0 12px 35px rgba(0,0,0,.35); padding:14px 20px; border-radius:10px; font-family:Inter,Arial,sans-serif; font-weight:800; text-align:center; max-width:calc(100% - 24px);';
-            aviso.innerHTML = 'Sistema atualizado.<br><span style="font-size:13px; font-weight:600;">Cache antigo limpo automaticamente.</span>';
-            document.body.appendChild(aviso);
-            setTimeout(() => aviso.remove(), 5500);
+            const overlay = window.atlasMostrarTelaAtualizacao({ finalizado: true });
+            setTimeout(() => overlay?.remove(), 2200);
         });
     </script>
 

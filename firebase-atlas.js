@@ -122,6 +122,14 @@ async function atlasLimparColecao(nomeColecao) {
     await Promise.all(snap.docs.map(d => deleteDoc(d.ref)));
 }
 
+async function atlasFirebaseRemoverUsuarioExcluidoDaNuvem(idUsuario) {
+    const id = atlasDocId(idUsuario);
+    if (!id) return;
+    await deleteDoc(doc(atlasFirestore, "usuarios", id)).catch(erro => {
+        console.warn("Nao foi possivel remover usuario excluido da nuvem:", erro);
+    });
+}
+
 async function atlasEnviarUsuarios() {
     const usuarios = atlasParseJSON("atlas_usuarios", []).filter(usuario => !atlasUsuarioFoiExcluidoFirebase(usuario?.id));
     await atlasLimparColecao("usuarios");
@@ -145,8 +153,6 @@ async function atlasFirebaseBaixarUsuariosDireto() {
         .map(d => d.data())
         .filter(usuario => usuario && usuario.id && !excluidos[String(usuario.id).toLowerCase()]);
 
-    if (usuariosNuvem.length === 0) return false;
-
     const usuariosAtuais = atlasParseJSON("atlas_usuarios", []);
     const mapaMesclado = new Map();
 
@@ -161,6 +167,10 @@ async function atlasFirebaseBaixarUsuariosDireto() {
         const chaveUsuario = String(usuario.id).toLowerCase();
         mapaMesclado.set(chaveUsuario, atlasFirebaseMesclarUsuario(mapaMesclado.get(chaveUsuario), usuario));
     });
+
+    if (!mapaMesclado.has("admin")) {
+        mapaMesclado.set("admin", { id: "admin", nome: "ADMIN", senha: "123", cargo: "admin", bloqueado: false });
+    }
 
     const usuariosMesclados = Array.from(mapaMesclado.values());
 
@@ -487,6 +497,14 @@ window.atlasFirebaseForcarAtualizacao = function() {
                 usuariosSistema = atlasParseJSON("atlas_usuarios", usuariosSistema);
             }
             return true;
+        });
+};
+
+window.atlasFirebaseRemoverUsuarioExcluido = function(idUsuario) {
+    return atlasFirebaseRemoverUsuarioExcluidoDaNuvem(idUsuario)
+        .then(() => atlasFirebaseEnviarTudoOrganizadoInterno())
+        .catch(erro => {
+            console.error("Erro ao remover usuario excluido:", erro);
         });
 };
 

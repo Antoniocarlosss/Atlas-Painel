@@ -324,25 +324,36 @@ function verificarAniversarioNoLoginAtlas(usuario) {
 async function fazerLogin() {
     const usuarioInput = document.getElementById('login-email').value.trim();
     const senhaInput = document.getElementById('login-senha').value.trim();
+    const idLogin = String(usuarioInput || '').toLowerCase();
 
-    let usuarioEncontrado = usuariosSistema.find(
-        u => String(u.id).toLowerCase() === usuarioInput.toLowerCase() && String(u.senha) === senhaInput
-    );
+    if (typeof atlasNormalizarUsuariosSistema === 'function') {
+        atlasNormalizarUsuariosSistema();
+    }
 
-    if (!usuarioEncontrado && typeof window.atlasFirebaseForcarAtualizacao === 'function') {
+    if (typeof window.atlasFirebaseForcarAtualizacao === 'function') {
         try {
             await Promise.race([
                 window.atlasFirebaseForcarAtualizacao(),
                 new Promise(resolve => setTimeout(resolve, 2500))
             ]);
             usuariosSistema = JSON.parse(localStorage.getItem('atlas_usuarios')) || usuariosSistema;
-            usuarioEncontrado = usuariosSistema.find(
-                u => String(u.id).toLowerCase() === usuarioInput.toLowerCase() && String(u.senha) === senhaInput
-            );
+            if (typeof atlasNormalizarUsuariosSistema === 'function') {
+                atlasNormalizarUsuariosSistema();
+            }
         } catch (erro) {
             console.warn('Nao foi possivel atualizar usuarios antes do login:', erro);
         }
     }
+
+    const excluidosLogin = typeof atlasUsuariosExcluidosSistema === 'function' ? atlasUsuariosExcluidosSistema() : {};
+    if (excluidosLogin[idLogin]) {
+        alert("Acesso Negado!");
+        return;
+    }
+
+    let usuarioEncontrado = usuariosSistema.find(
+        u => String(u.id).toLowerCase() === idLogin && String(u.senha) === senhaInput
+    );
 
     if (usuarioEncontrado) {
         if (usuarioEncontrado.bloqueado) {
@@ -3642,15 +3653,18 @@ function criarUsuarioSistema() {
         return;
     }
 
-    const jaExiste = usuariosSistema.some(u => String(u.id).toLowerCase() === id.toLowerCase());
+    const idNormalizado = atlasIdUsuarioNormalizado(id);
+    atlasNormalizarUsuariosSistema();
+
+    const excluidos = atlasUsuariosExcluidosSistema();
+    const jaExiste = usuariosSistema.some(u => atlasIdUsuarioNormalizado(u.id) === idNormalizado && !excluidos[idNormalizado]);
     if (jaExiste) {
         alert("Este ID ja existe.");
         return;
     }
 
-    const excluidos = atlasUsuariosExcluidosSistema();
-    delete excluidos[String(id).toLowerCase()];
-    localStorage.setItem('atlas_usuarios_excluidos', JSON.stringify(excluidos));
+    usuariosSistema = usuariosSistema.filter(u => atlasIdUsuarioNormalizado(u.id) !== idNormalizado);
+    atlasLimparUsuarioExcluidoSistema(idNormalizado);
     usuariosSistema.push(marcarUsuarioAlteradoAtlas({ nome, nascimento: aniversario, aniversario, id, senha, cargo, bloqueado: false }));
     salvarUsuariosSistemaAtlas();
     if (typeof window.atlasFirebaseSincronizarAgora === 'function') window.atlasFirebaseSincronizarAgora();
@@ -3669,6 +3683,10 @@ function marcarUsuarioAlteradoAtlas(usuario) {
     return usuario;
 }
 
+function atlasIdUsuarioNormalizado(idUsuario) {
+    return String(idUsuario || '').trim().toLowerCase();
+}
+
 function atlasUsuariosExcluidosSistema() {
     try {
         return JSON.parse(localStorage.getItem('atlas_usuarios_excluidos')) || {};
@@ -3677,8 +3695,20 @@ function atlasUsuariosExcluidosSistema() {
     }
 }
 
+function atlasSalvarUsuariosExcluidosSistema(excluidos) {
+    localStorage.setItem('atlas_usuarios_excluidos', JSON.stringify(excluidos || {}));
+}
+
+function atlasLimparUsuarioExcluidoSistema(idUsuario) {
+    const id = atlasIdUsuarioNormalizado(idUsuario);
+    if (!id) return;
+    const excluidos = atlasUsuariosExcluidosSistema();
+    delete excluidos[id];
+    atlasSalvarUsuariosExcluidosSistema(excluidos);
+}
+
 function atlasRegistrarUsuarioExcluidoSistema(usuario) {
-    const id = String(usuario?.id || '').trim().toLowerCase();
+    const id = atlasIdUsuarioNormalizado(usuario?.id);
     if (!id) return;
     const excluidos = atlasUsuariosExcluidosSistema();
     excluidos[id] = {
@@ -3689,21 +3719,51 @@ function atlasRegistrarUsuarioExcluidoSistema(usuario) {
         excluidoEm: new Date().toLocaleString('pt-BR'),
         atualizadoEm: Date.now()
     };
-    localStorage.setItem('atlas_usuarios_excluidos', JSON.stringify(excluidos));
+    atlasSalvarUsuariosExcluidosSistema(excluidos);
+}
+
+function atlasNormalizarUsuariosSistema() {
+    const excluidos = atlasUsuariosExcluidosSistema();
+    const mapa = new Map();
+
+    (usuariosSistema || []).forEach(usuario => {
+        const id = atlasIdUsuarioNormalizado(usuario?.id);
+        if (!id) return;
+        if (excluidos[id] && !usuarioProtegidoAdminAtlas(usuario)) return;
+
+        const atual = mapa.get(id);
+        const usuarioAtualizado = Number(usuario?._atlasUsuarioAtualizadoEm || 0);
+        const atualAtualizado = Number(atual?._atlasUsuarioAtualizadoEm || 0);
+        if (!atual || usuarioAtualizado >= atualAtualizado) {
+            mapa.set(id, usuario);
+        }
+    });
+
+    if (!mapa.has('admin')) {
+        mapa.set('admin', { id: 'admin', nome: 'ADMIN', senha: '123', cargo: 'admin', bloqueado: false });
+    }
+
+    usuariosSistema = Array.from(mapa.values()).sort((a, b) => {
+        const adminA = atlasIdUsuarioNormalizado(a.id) === 'admin' ? -1 : 0;
+        const adminB = atlasIdUsuarioNormalizado(b.id) === 'admin' ? -1 : 0;
+        if (adminA !== adminB) return adminA - adminB;
+        return String(a.id || '').localeCompare(String(b.id || ''));
+    });
+
+    window.usuariosSistema = usuariosSistema;
+    return usuariosSistema;
 }
 
 function salvarUsuariosSistemaAtlas() {
-    const excluidos = atlasUsuariosExcluidosSistema();
-    usuariosSistema = (usuariosSistema || []).filter(usuario => {
-        const id = String(usuario?.id || '').trim().toLowerCase();
-        return !excluidos[id] || usuarioProtegidoAdminAtlas(usuario);
-    });
-    salvarUsuariosSistemaAtlas();
+    atlasNormalizarUsuariosSistema();
+    localStorage.setItem('atlas_usuarios', JSON.stringify(usuariosSistema));
+    return usuariosSistema;
 }
 
 function listarUsuariosSistema() {
     const container = document.getElementById('gestao-conteudo');
     if (!container) return;
+    atlasNormalizarUsuariosSistema();
 
     container.innerHTML = `
         <div style="display:flex; flex-direction:column; gap:10px;">
@@ -3790,7 +3850,7 @@ function alternarBloqueioUsuario(index) {
 
     marcarUsuarioAlteradoAtlas(usuariosSistema[index]);
     usuariosSistema[index].bloqueado = !usuariosSistema[index].bloqueado;
-    localStorage.setItem('atlas_usuarios', JSON.stringify(usuariosSistema));
+    salvarUsuariosSistemaAtlas();
     if (typeof window.atlasFirebaseSincronizarAgora === 'function') window.atlasFirebaseSincronizarAgora();
 
     alert(usuariosSistema[index].bloqueado ? "Usuário bloqueado." : "Usuário desbloqueado.");
@@ -3807,7 +3867,11 @@ function excluirUsuario(index) {
     const confirmar = confirm(`Deseja excluir o usuário ${usuariosSistema[index].id}?`);
     if (!confirmar) return;
 
-    atlasRegistrarUsuarioExcluidoSistema(usuariosSistema[index]);
+    const usuarioExcluido = usuariosSistema[index];
+    atlasRegistrarUsuarioExcluidoSistema(usuarioExcluido);
+    if (typeof window.atlasFirebaseRemoverUsuarioExcluido === 'function') {
+        window.atlasFirebaseRemoverUsuarioExcluido(usuarioExcluido.id);
+    }
     usuariosSistema.splice(index, 1);
     salvarUsuariosSistemaAtlas();
     if (typeof window.atlasFirebaseSincronizarAgora === 'function') window.atlasFirebaseSincronizarAgora();
