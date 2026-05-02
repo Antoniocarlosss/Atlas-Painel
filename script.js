@@ -7759,7 +7759,7 @@ document.addEventListener('click', function(evento) {
                 .plano-tabela tr:nth-child(even) td:not(.plano-grupo-celula) { background:#f8fafc; }
                 .plano-grupo td { background:#111827; color:#fff; border:1px solid #111827; }
                 .plano-grupo-celula { background:#111827 !important; color:#fff !important; }
-                .plano-grupo-grid { display:grid; grid-template-columns:150px 1fr 120px 160px 140px 150px; gap:8px; align-items:center; }
+                .plano-grupo-grid { display:grid; grid-template-columns:150px 1fr 115px 145px 130px 125px 145px; gap:8px; align-items:center; }
                 .plano-total { color:#047857; font-weight:900; text-align:center; }
                 .plano-label-add { font-size:11px; color:#334155; font-weight:900; text-transform:uppercase; margin-bottom:3px; display:block; }
                 .plano-btn { border:none; border-radius:7px; padding:9px 10px; color:white; font-weight:800; cursor:pointer; }
@@ -7774,7 +7774,7 @@ document.addEventListener('click', function(evento) {
                     .plano-add { grid-template-columns:repeat(3, minmax(160px, 1fr)); }
                     .plano-add .linha-cheia { grid-column:span 2; }
                     .plano-tabela { min-width:1080px; font-size:12px; }
-                    .plano-grupo-grid { grid-template-columns:130px 1fr 110px 150px 130px 140px; }
+                    .plano-grupo-grid { grid-template-columns:130px 1fr 105px 140px 120px 120px 140px; }
                 }
                 @media (max-width: 760px) {
                     .plano-modal { padding:8px; border-radius:0; border-left:0; border-right:0; }
@@ -7883,6 +7883,7 @@ document.addEventListener('click', function(evento) {
                                                 </label>
                                                 <button onclick="salvarGrupoPedidoPlanoExcel(${indexPlano}, ${grupoIndex})" class="plano-btn" style="background:#f59e0b; color:black;">SALVAR PEDIDO</button>
                                                 <button onclick="prepararNovaLinhaPedidoPlanoExcel(${indexPlano}, ${grupoIndex})" class="plano-btn" style="background:#0f172a; color:white;">+ LINHA</button>
+                                                <button onclick="removerPedidoPlanoHistorico(${indexPlano}, '${String(grupo.pedido).replace(/'/g, "\\'")}', '${String(grupo.cliente).replace(/'/g, "\\'")}')" class="plano-btn" style="background:#7f1d1d; color:white;">EXCLUIR PEDIDO</button>
                                             </div>
                                         </td>
                                     </tr>
