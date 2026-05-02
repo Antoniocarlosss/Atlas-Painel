@@ -133,12 +133,40 @@ function atlasNomeAparelhoAtual() {
     return navigator.platform || 'Aparelho';
 }
 
+function atlasRegistrarUltimoAcessoUsuario(agora, versao, aparelho, idDispositivo) {
+    if (!usuarioLogado) return;
+    const idLogado = atlasIdUsuarioNormalizado(usuarioLogado.id);
+    const indice = (usuariosSistema || []).findIndex(usuario => atlasIdUsuarioNormalizado(usuario.id) === idLogado);
+    if (indice < 0) return;
+
+    const ultimoSalvo = Number(usuariosSistema[indice]._atlasUltimoAcessoMs || 0);
+    if (agora - ultimoSalvo < 60000) return;
+
+    usuariosSistema[indice]._atlasUltimoAcessoMs = agora;
+    usuariosSistema[indice]._atlasUltimoAcesso = atlasFormatarDataHoraSistema(agora);
+    usuariosSistema[indice]._atlasUltimoAcessoVersao = versao;
+    usuariosSistema[indice]._atlasUltimoAcessoAparelho = aparelho;
+    usuariosSistema[indice]._atlasUltimoAcessoDispositivoId = idDispositivo;
+    usuarioLogado = usuariosSistema[indice];
+    localStorage.setItem('atlas_usuarios', JSON.stringify(usuariosSistema));
+}
+
 function atlasRegistrarDispositivoAtual() {
     if (!usuarioLogado) return;
     const dispositivos = atlasJSONLocal('atlas_dispositivos_online', {});
     const id = atlasDispositivoIdAtual();
     const agora = Date.now();
     const versao = window.ATLAS_SISTEMA_VERSAO || 'sem-versao';
+    const usuarioCadastro = (usuariosSistema || []).find(usuario => atlasIdUsuarioNormalizado(usuario.id) === atlasIdUsuarioNormalizado(usuarioLogado.id)) || usuarioLogado;
+    const usuarioId = usuarioCadastro.id || usuarioLogado.id;
+    const usuarioNome = usuarioCadastro.nome || usuarioLogado.nome || usuarioId;
+    const aparelho = atlasNomeAparelhoAtual();
+    const usuarioAliases = Array.from(new Set([
+        usuarioId,
+        usuarioNome,
+        usuarioLogado.id,
+        usuarioLogado.nome
+    ].filter(Boolean)));
 
     Object.keys(dispositivos).forEach(chave => {
         if (agora - Number(dispositivos[chave]?.ultimoAcessoMs || 0) > 1000 * 60 * 60 * 24 * 45) {
@@ -148,10 +176,11 @@ function atlasRegistrarDispositivoAtual() {
 
     dispositivos[id] = {
         id,
-        usuario: usuarioLogado.id,
-        nome: usuarioLogado.nome || usuarioLogado.id,
-        cargo: usuarioLogado.cargo || '',
-        aparelho: atlasNomeAparelhoAtual(),
+        usuario: usuarioId,
+        nome: usuarioNome,
+        usuarioAliases,
+        cargo: usuarioCadastro.cargo || usuarioLogado.cargo || '',
+        aparelho,
         versao,
         plataforma: navigator.platform || '',
         userAgent: navigator.userAgent || '',
@@ -165,6 +194,7 @@ function atlasRegistrarDispositivoAtual() {
     if (typeof window.atlasFirebaseRegistrarDispositivo === 'function') {
         window.atlasFirebaseRegistrarDispositivo(dispositivos[id]);
     }
+    atlasRegistrarUltimoAcessoUsuario(agora, versao, aparelho, id);
     const ultimoSync = Number(localStorage.getItem('atlas_dispositivo_ultimo_sync_ms') || 0);
     if (typeof window.atlasFirebaseSincronizarAgora === 'function' && agora - ultimoSync > 300000) {
         localStorage.setItem('atlas_dispositivo_ultimo_sync_ms', String(agora));
@@ -5481,15 +5511,70 @@ function atlasHTMLDispositivoSaude(dispositivo) {
     `;
 }
 
-function atlasHTMLUsuariosSaudeSistema(dispositivos) {
-    const porUsuario = new Map();
-    (dispositivos || []).forEach(dispositivo => {
-        const chave = String(dispositivo.usuario || '').trim().toLowerCase();
-        if (!chave) return;
-        if (!porUsuario.has(chave)) porUsuario.set(chave, []);
-        porUsuario.get(chave).push(dispositivo);
-    });
+function atlasChavePessoaSaude(valor) {
+    return String(valor || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^\w]+/g, '')
+        .toLowerCase();
+}
 
+function atlasDistanciaTextoSaude(a, b) {
+    const textoA = atlasChavePessoaSaude(a);
+    const textoB = atlasChavePessoaSaude(b);
+    if (!textoA || !textoB) return 99;
+    const linhas = Array.from({ length: textoA.length + 1 }, (_, i) => [i]);
+    for (let j = 1; j <= textoB.length; j++) linhas[0][j] = j;
+    for (let i = 1; i <= textoA.length; i++) {
+        for (let j = 1; j <= textoB.length; j++) {
+            const custo = textoA[i - 1] === textoB[j - 1] ? 0 : 1;
+            linhas[i][j] = Math.min(
+                linhas[i - 1][j] + 1,
+                linhas[i][j - 1] + 1,
+                linhas[i - 1][j - 1] + custo
+            );
+        }
+    }
+    return linhas[textoA.length][textoB.length];
+}
+
+function atlasDispositivoPertenceAoUsuario(dispositivo, usuario) {
+    const idsUsuario = [
+        usuario?.id,
+        usuario?.nome
+    ].map(atlasChavePessoaSaude).filter(Boolean);
+
+    const idsDispositivo = [
+        dispositivo?.usuario,
+        dispositivo?.nome,
+        ...(Array.isArray(dispositivo?.usuarioAliases) ? dispositivo.usuarioAliases : [])
+    ].map(atlasChavePessoaSaude).filter(Boolean);
+
+    return idsUsuario.some(idUsuario => idsDispositivo.some(idDispositivo => (
+        idUsuario === idDispositivo
+        || (idUsuario.length >= 4 && idDispositivo.includes(idUsuario))
+        || (idDispositivo.length >= 4 && idUsuario.includes(idDispositivo))
+        || (idUsuario.length >= 5 && idDispositivo.length >= 5 && atlasDistanciaTextoSaude(idUsuario, idDispositivo) <= 2)
+    )));
+}
+
+function atlasDispositivoVirtualUsuarioSaude(usuario) {
+    if (!usuario?._atlasUltimoAcessoMs) return null;
+    return {
+        id: `usuario_${usuario.id}`,
+        usuario: usuario.id,
+        nome: usuario.nome || usuario.id,
+        cargo: usuario.cargo || '',
+        aparelho: usuario._atlasUltimoAcessoAparelho || 'Aparelho',
+        versao: usuario._atlasUltimoAcessoVersao || '-',
+        largura: '-',
+        altura: '-',
+        ultimoAcessoMs: Number(usuario._atlasUltimoAcessoMs || 0),
+        ultimoAcesso: usuario._atlasUltimoAcesso || atlasFormatarDataHoraSistema(Number(usuario._atlasUltimoAcessoMs || 0))
+    };
+}
+
+function atlasHTMLUsuariosSaudeSistema(dispositivos) {
     const usuarios = (usuariosSistema || [])
         .filter(usuario => usuario && usuario.id)
         .slice()
@@ -5500,10 +5585,14 @@ function atlasHTMLUsuariosSaudeSistema(dispositivos) {
             return String(a.id).localeCompare(String(b.id));
         });
 
+    const dispositivosUsados = new Set();
     return usuarios.map(usuario => {
-        const chave = String(usuario.id || '').trim().toLowerCase();
-        const aparelhos = (porUsuario.get(chave) || []).sort((a, b) => Number(b.ultimoAcessoMs || 0) - Number(a.ultimoAcessoMs || 0));
-        const principal = aparelhos[0];
+        const aparelhos = (dispositivos || [])
+            .filter(dispositivo => atlasDispositivoPertenceAoUsuario(dispositivo, usuario))
+            .sort((a, b) => Number(b.ultimoAcessoMs || 0) - Number(a.ultimoAcessoMs || 0));
+        aparelhos.forEach(dispositivo => dispositivosUsados.add(dispositivo.id));
+        const acessoUsuario = atlasDispositivoVirtualUsuarioSaude(usuario);
+        const principal = aparelhos[0] || acessoUsuario;
         const status = principal ? atlasStatusDispositivoSaude(principal) : null;
         const bloqueado = usuario.bloqueado === true;
 
@@ -5538,7 +5627,27 @@ function atlasHTMLUsuariosSaudeSistema(dispositivos) {
                 ` : ''}
             </div>
         `;
-    }).join('');
+    }).join('') + atlasHTMLDispositivosSemUsuarioSaude(dispositivos, dispositivosUsados);
+}
+
+function atlasHTMLDispositivosSemUsuarioSaude(dispositivos, dispositivosUsados) {
+    const semUsuario = (dispositivos || [])
+        .filter(dispositivo => dispositivo && dispositivo.id && !dispositivosUsados.has(dispositivo.id))
+        .sort((a, b) => Number(b.ultimoAcessoMs || 0) - Number(a.ultimoAcessoMs || 0));
+
+    if (!semUsuario.length) return '';
+
+    return `
+        <div style="background:#1f2937; border:1px solid #f59e0b; border-left:5px solid #f59e0b; border-radius:12px; padding:12px;">
+            <b style="color:#fbbf24;">Aparelhos sem usuario encontrado</b>
+            <div style="color:#bfdbfe; font-size:13px; margin:4px 0 10px;">
+                Estes aparelhos estao online, mas vieram com nome diferente do cadastro.
+            </div>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+                ${semUsuario.map(dispositivo => atlasHTMLDispositivoSaude(dispositivo)).join('')}
+            </div>
+        </div>
+    `;
 }
 
 async function atlasAtualizarCacheSaudeSistema() {
