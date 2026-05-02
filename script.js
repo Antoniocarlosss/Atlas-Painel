@@ -5593,6 +5593,7 @@ function atlasHTMLUsuariosSaudeSistema(dispositivos) {
         aparelhos.forEach(dispositivo => dispositivosUsados.add(dispositivo.id));
         const acessoUsuario = atlasDispositivoVirtualUsuarioSaude(usuario);
         const principal = aparelhos[0] || acessoUsuario;
+        const aparelhosVisiveis = aparelhos.length ? aparelhos : (acessoUsuario ? [acessoUsuario] : []);
         const status = principal ? atlasStatusDispositivoSaude(principal) : null;
         const bloqueado = usuario.bloqueado === true;
 
@@ -5617,11 +5618,11 @@ function atlasHTMLUsuariosSaudeSistema(dispositivos) {
                     </div>
                 </div>
 
-                ${aparelhos.length ? `
+                ${aparelhosVisiveis.length ? `
                     <details style="margin-top:10px;">
-                        <summary style="cursor:pointer; color:#93c5fd; font-weight:900;">Ver aparelho(s) deste usuario (${aparelhos.length})</summary>
+                        <summary style="cursor:pointer; color:#93c5fd; font-weight:900;">Ver ultimo aparelho (${aparelhosVisiveis.length})</summary>
                         <div style="display:flex; flex-direction:column; gap:8px; margin-top:10px;">
-                            ${aparelhos.map(dispositivo => atlasHTMLDispositivoSaude(dispositivo)).join('')}
+                            ${aparelhosVisiveis.map(dispositivo => atlasHTMLDispositivoSaude(dispositivo)).join('')}
                         </div>
                     </details>
                 ` : ''}

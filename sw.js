@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v93-match-usuarios-online';
+const CACHE_NAME = 'atlas-v94-ver-ultimo-aparelho';
 const assets = [
   '/',
   '/index.html',
