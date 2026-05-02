@@ -2138,13 +2138,14 @@ gerarPDF_Bobines = function(dadosEncoded) {
     const totalFilme = (tipo, lado) => filmesPorLado(lado).filter(f => normalizarStockAtlas(f.subtipo) === normalizarStockAtlas(tipo)).reduce((s, f) => s + Number(f.qtd || 0), 0);
     const linhasVazias = qtd => Array.from({ length: qtd }).map(() => '<tr><td>&nbsp;</td><td></td></tr>').join('');
     const renderBobine = (titulo, medida, lista) => {
-        const linhas = lista.slice(0, 6).map(i => `<tr><td>${textoSeguroConferencia(i.numBobine || '-')} ${i.ral ? ' / RAL ' + textoSeguroConferencia(i.ral) : ''}${i.espessura ? ' / ' + textoSeguroConferencia(i.espessura) : ''}</td><td>${i.status === 'SIM' ? 'SIM' : (i.status || '-')}</td></tr>`).join('');
+        const maxLinhas = 8;
+        const linhas = lista.slice(0, maxLinhas).map(i => `<tr><td>${textoSeguroConferencia(i.numBobine || '-')} ${i.ral ? ' / RAL ' + textoSeguroConferencia(i.ral) : ''}${i.espessura ? ' / ' + textoSeguroConferencia(i.espessura) : ''}</td><td>${i.status === 'SIM' ? 'SIM' : (i.status || '-')}</td></tr>`).join('');
         return `
             <table class="box-tabela">
                 <tr><th colspan="2">${titulo}</th></tr>
                 <tr><th colspan="2">Registo Bobine ${medida}</th></tr>
                 <tr><th>Lote</th><th>Terminada</th></tr>
-                ${linhas}${linhasVazias(Math.max(0, 6 - lista.slice(0, 6).length))}
+                ${linhas}${linhasVazias(Math.max(0, maxLinhas - lista.slice(0, maxLinhas).length))}
             </table>
         `;
     };
@@ -2185,30 +2186,31 @@ gerarPDF_Bobines = function(dadosEncoded) {
             <meta charset="UTF-8">
             <title>Gestao de Producao Diaria - Bobines / Filmes</title>
             <style>
-                @page { size:A4; margin:7mm; }
+                @page { size:A4; margin:5mm; }
                 * { box-sizing:border-box; }
                 body { font-family:Arial, sans-serif; color:#111; margin:0; background:#fff; }
-                .folha { width:196mm; min-height:auto; margin:auto; padding:8mm 14mm 5mm; page-break-after:avoid; page-break-inside:avoid; }
-                .topo { display:flex; align-items:center; gap:26mm; margin-bottom:11mm; }
-                .logo-css { display:flex; align-items:center; gap:8px; }
-                .logo-barras { display:grid; gap:4px; }
-                .logo-barras span { display:block; width:30px; height:8px; background:#e31c24; transform:skew(-18deg); }
-                .logo-texto { font-weight:900; font-size:31px; line-height:.78; letter-spacing:-1px; }
-                .logo-painel { font-size:9px; letter-spacing:9px; margin-left:45px; margin-top:4px; display:block; }
-                h1 { font-size:17px; margin:0; flex:1; text-align:center; }
-                .linha-info { display:grid; grid-template-columns:1fr 1.25fr; gap:23mm; margin-bottom:5mm; font-size:11px; }
-                .campo-linha { border-bottom:2px solid #111; min-height:15px; display:inline-block; min-width:36mm; padding-left:5px; font-weight:bold; }
-                .quadros { display:grid; grid-template-columns:1fr 1fr; gap:10mm; align-items:start; margin-top:4mm; }
+                .folha { width:200mm; min-height:287mm; margin:auto; padding:11mm 8mm 7mm; page-break-after:avoid; page-break-inside:avoid; display:flex; flex-direction:column; }
+                .topo { display:flex; align-items:center; gap:22mm; margin-bottom:14mm; }
+                .logo-css { display:flex; align-items:center; gap:9px; }
+                .logo-barras { display:grid; gap:5px; }
+                .logo-barras span { display:block; width:38px; height:10px; background:#e31c24; transform:skew(-18deg); }
+                .logo-texto { font-weight:900; font-size:39px; line-height:.78; letter-spacing:-1px; }
+                .logo-painel { font-size:10px; letter-spacing:11px; margin-left:56px; margin-top:5px; display:block; }
+                h1 { font-size:20px; margin:0; flex:1; text-align:center; }
+                .linha-info { display:grid; grid-template-columns:1fr 1.2fr; gap:23mm; margin-bottom:7mm; font-size:12px; }
+                .campo-linha { border-bottom:2px solid #111; min-height:17px; display:inline-block; min-width:42mm; padding-left:5px; font-weight:bold; }
+                .quadros { display:grid; grid-template-columns:1fr 1fr; gap:8mm; align-items:start; margin-top:5mm; }
                 table { border-collapse:collapse; width:100%; }
-                th, td { border:2px solid #111; padding:2px 5px; text-align:center; font-size:11px; height:19px; }
+                th, td { border:2px solid #111; padding:3px 6px; text-align:center; font-size:12px; height:23px; }
                 th { font-weight:800; background:#f4f4f4; }
-                .box-tabela th:first-child { font-size:13px; }
-                .filme-tabela { margin-top:5mm; }
-                .unioes-wrap { display:grid; grid-template-columns:1fr 1fr; gap:10mm; margin:9mm auto 0; width:118mm; }
-                .unioes th { font-size:13px; }
-                .unioes .subtitulo { font-size:10px; line-height:1.15; }
-                .rodape { display:flex; justify-content:flex-end; margin-top:10mm; font-size:12px; }
-                .assinatura { display:inline-block; width:58mm; border-bottom:2px solid #111; height:15px; }
+                .box-tabela th:first-child { font-size:15px; }
+                .box-tabela tr:nth-child(2) th { font-size:14px; }
+                .filme-tabela { margin-top:7mm; }
+                .unioes-wrap { display:grid; grid-template-columns:1fr 1fr; gap:9mm; margin:13mm auto 0; width:145mm; }
+                .unioes th { font-size:15px; }
+                .unioes .subtitulo { font-size:11px; line-height:1.15; }
+                .rodape { display:flex; justify-content:flex-end; margin-top:auto; padding-top:15mm; font-size:13px; }
+                .assinatura { display:inline-block; width:66mm; border-bottom:2px solid #111; height:17px; }
                 .no-print { position:fixed; z-index:9999; }
                 .print-topo { top:12px; right:12px; display:flex; gap:8px; }
                 .print-topo button { padding:12px 18px; border:0; border-radius:8px; color:#fff; font-weight:900; cursor:pointer; box-shadow:0 2px 8px rgba(0,0,0,.25); }

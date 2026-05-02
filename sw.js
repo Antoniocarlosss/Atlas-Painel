@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v79-usuarios-excluir-bloquear';
+const CACHE_NAME = 'atlas-v80-pdf-bobines-a4-aberto';
 const assets = [
   '/',
   '/index.html',
