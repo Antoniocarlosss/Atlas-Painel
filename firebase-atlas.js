@@ -246,6 +246,57 @@ async function atlasFirebaseSincronizarVersaoSistema() {
     return nuvem;
 }
 
+function atlasChavesAtualizacaoAparelho(alvo = {}) {
+    const chaves = [];
+    if (alvo.dispositivoId) chaves.push(`device_${alvo.dispositivoId}`);
+    if (alvo.usuario) chaves.push(`user_${String(alvo.usuario).toLowerCase()}`);
+    return Array.from(new Set(chaves.filter(Boolean)));
+}
+
+async function atlasFirebaseSolicitarAtualizacaoAparelho(alvo = {}) {
+    const chaves = atlasChavesAtualizacaoAparelho(alvo);
+    if (!chaves.length) return null;
+
+    const pedido = {
+        usuario: alvo.usuario || "",
+        dispositivoId: alvo.dispositivoId || "",
+        versao: window.ATLAS_SISTEMA_VERSAO || "sem-versao",
+        build: Number(window.ATLAS_SISTEMA_BUILD || 0),
+        solicitadoPor: atlasFirebaseNomeUsuario(),
+        solicitadoEmMs: Date.now(),
+        solicitadoEm: new Date().toLocaleString("pt-BR"),
+        pendente: true
+    };
+
+    await Promise.all(chaves.map(chave => atlasSetDoc(["atualizacoes_pendentes", atlasDocId(chave)], {
+        ...pedido,
+        chave
+    })));
+
+    return pedido;
+}
+
+async function atlasFirebaseChecarAtualizacaoPendente(dispositivoId, usuarioId) {
+    const chaves = atlasChavesAtualizacaoAparelho({
+        dispositivoId,
+        usuario: usuarioId
+    });
+    if (!chaves.length) return null;
+
+    for (const chave of chaves) {
+        const snap = await getDoc(doc(atlasFirestore, "atualizacoes_pendentes", atlasDocId(chave)));
+        if (!snap.exists()) continue;
+        const pedido = snap.data() || {};
+        if (pedido.pendente === false) continue;
+
+        atlasLocalStorageSetItemOriginal.call(localStorage, "atlas_atualizacao_pendente_info", JSON.stringify(pedido));
+        window.dispatchEvent(new CustomEvent("atlasAtualizacaoSolicitada", { detail: pedido }));
+        return pedido;
+    }
+
+    return null;
+}
+
 async function atlasEnviarUsuarios() {
     const usuarios = atlasParseJSON("atlas_usuarios", []).filter(usuario => !atlasUsuarioFoiExcluidoFirebase(usuario?.id));
     await atlasLimparColecao("usuarios");
@@ -665,3 +716,16 @@ window.atlasFirebaseChecarVersaoSistema = function() {
     });
 };
 
+window.atlasFirebaseSolicitarAtualizacaoAparelho = function(alvo) {
+    return atlasFirebaseSolicitarAtualizacaoAparelho(alvo).catch(erro => {
+        console.error("Erro ao solicitar atualizacao do aparelho:", erro);
+        throw erro;
+    });
+};
+
+window.atlasFirebaseChecarAtualizacaoPendente = function(dispositivoId, usuarioId) {
+    return atlasFirebaseChecarAtualizacaoPendente(dispositivoId, usuarioId).catch(erro => {
+        console.error("Erro ao checar atualizacao pendente:", erro);
+        return null;
+    });
+};

@@ -194,6 +194,9 @@ function atlasRegistrarDispositivoAtual() {
     if (typeof window.atlasFirebaseRegistrarDispositivo === 'function') {
         window.atlasFirebaseRegistrarDispositivo(dispositivos[id]);
     }
+    if (typeof window.atlasFirebaseChecarAtualizacaoPendente === 'function') {
+        window.atlasFirebaseChecarAtualizacaoPendente(id, usuarioId);
+    }
     atlasRegistrarUltimoAcessoUsuario(agora, versao, aparelho, id);
     const ultimoSync = Number(localStorage.getItem('atlas_dispositivo_ultimo_sync_ms') || 0);
     if (typeof window.atlasFirebaseSincronizarAgora === 'function' && agora - ultimoSync > 300000) {
@@ -204,6 +207,15 @@ function atlasRegistrarDispositivoAtual() {
 
 window.addEventListener('atlasFirebasePronto', () => {
     atlasRegistrarDispositivoAtual();
+});
+
+window.addEventListener('atlasAtualizacaoSolicitada', (evento) => {
+    const info = evento?.detail || atlasJSONLocal('atlas_atualizacao_pendente_info', null);
+    if (typeof window.atlasMostrarAvisoAtualizacaoDisponivel === 'function') {
+        window.atlasMostrarAvisoAtualizacaoDisponivel(info || { versao: window.ATLAS_SISTEMA_VERSAO || 'nova versao' });
+        return;
+    }
+    alert('Existe uma atualizacao do sistema. Atualize esta pagina.');
 });
 
 function usuarioPodeVerModulo(chave) {
@@ -5376,6 +5388,13 @@ function atlasTextoSeguroSaude(valor) {
         .replace(/'/g, '&#039;');
 }
 
+function atlasJSStringSaude(valor) {
+    return String(valor ?? '')
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/\r?\n/g, ' ');
+}
+
 function atlasStatusDispositivoSaude(dispositivo) {
     const versaoAtual = window.ATLAS_SISTEMA_VERSAO || '';
     const ultimo = Number(dispositivo?.ultimoAcessoMs || 0);
@@ -5487,8 +5506,25 @@ function atlasCardSaudeSistema(titulo, valor, cor) {
     `;
 }
 
+async function atlasSolicitarAtualizacaoDispositivo(dispositivoId, usuarioId) {
+    if (!usuarioEhAdmin()) return alert('Apenas ADMIN pode pedir atualizacao.');
+    if (typeof window.atlasFirebaseSolicitarAtualizacaoAparelho !== 'function') {
+        return alert('Firebase ainda esta carregando. Clique em sincronizar e tente novamente.');
+    }
+
+    const alvo = {
+        dispositivoId: dispositivoId || '',
+        usuario: usuarioId || ''
+    };
+
+    await window.atlasFirebaseSolicitarAtualizacaoAparelho(alvo);
+    alert('Pedido de atualizacao enviado. Quando esse aparelho sincronizar, o usuario vai receber o aviso para atualizar.');
+}
+
 function atlasHTMLDispositivoSaude(dispositivo) {
     const status = atlasStatusDispositivoSaude(dispositivo);
+    const dispositivoId = atlasJSStringSaude(dispositivo.id || '');
+    const usuarioId = atlasJSStringSaude(dispositivo.usuario || '');
     return `
         <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; align-items:center; background:#0f172a; border:1px solid #334155; border-left:5px solid ${status.corVersao}; border-radius:10px; padding:12px;">
             <div>
@@ -5500,13 +5536,17 @@ function atlasHTMLDispositivoSaude(dispositivo) {
                 <div style="color:#94a3b8; font-size:12px;">${atlasTextoSeguroSaude(dispositivo.largura || 0)}x${atlasTextoSeguroSaude(dispositivo.altura || 0)}</div>
             </div>
             <div>
-                <b style="color:${status.corVersao};">${status.textoVersao}</b>
-                <div style="color:#94a3b8; font-size:12px; overflow-wrap:anywhere;">${atlasTextoSeguroSaude(dispositivo.versao || '-')}</div>
+                <b style="color:${status.corVersao};">Atualizacao: ${status.textoVersao}</b>
+                <div style="color:#94a3b8; font-size:12px; overflow-wrap:anywhere;">Versao: ${atlasTextoSeguroSaude(dispositivo.versao || '-')}</div>
             </div>
             <div>
                 <b style="color:${status.corOnline};">${status.textoOnline}</b>
                 <div style="color:#94a3b8; font-size:12px;">${atlasTextoSeguroSaude(dispositivo.ultimoAcesso || '-')}</div>
             </div>
+            <button onclick="atlasSolicitarAtualizacaoDispositivo('${dispositivoId}', '${usuarioId}')"
+                style="padding:12px; border:none; border-radius:8px; background:#2563eb; color:white; font-weight:900; cursor:pointer;">
+                ATUALIZAR
+            </button>
         </div>
     `;
 }
@@ -5613,7 +5653,7 @@ function atlasHTMLUsuariosSaudeSistema(dispositivos) {
                         <div style="color:#94a3b8; font-size:12px;">${principal ? atlasTextoSeguroSaude(principal.ultimoAcesso || '-') : 'Nenhum aparelho registrado'}</div>
                     </div>
                     <div>
-                        <b style="color:${status?.corVersao || '#94a3b8'};">${status?.textoVersao || '-'}</b>
+                        <b style="color:${status?.corVersao || '#94a3b8'};">Atualizacao: ${status?.textoVersao || '-'}</b>
                         <div style="color:#94a3b8; font-size:12px; overflow-wrap:anywhere;">${principal ? atlasTextoSeguroSaude(principal.versao || '-') : '-'}</div>
                     </div>
                 </div>
