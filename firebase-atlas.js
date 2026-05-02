@@ -54,17 +54,27 @@ function atlasFirebaseMesclarUsuario(local, nuvem) {
     if (!local) return nuvem;
     if (!nuvem) return local;
 
+    if (local.bloqueado === true && nuvem.bloqueado !== true) {
+        return { ...nuvem, bloqueado: true, _atlasUsuarioAtualizadoEm: Date.now() };
+    }
+
     const localAtualizado = Number(local._atlasUsuarioAtualizadoEm || 0);
     const nuvemAtualizado = Number(nuvem._atlasUsuarioAtualizadoEm || 0);
 
     if (localAtualizado > nuvemAtualizado) return local;
     if (nuvemAtualizado > localAtualizado) return nuvem;
 
-    if (local.bloqueado === true && nuvem.bloqueado !== true) {
-        return { ...nuvem, bloqueado: true, _atlasUsuarioAtualizadoEm: Date.now() };
-    }
-
     return nuvem;
+}
+
+function atlasUsuariosExcluidosFirebase() {
+    const excluidos = atlasParseJSON("atlas_usuarios_excluidos", {});
+    return excluidos && typeof excluidos === "object" ? excluidos : {};
+}
+
+function atlasUsuarioFoiExcluidoFirebase(idUsuario) {
+    const id = String(idUsuario || "").trim().toLowerCase();
+    return Boolean(id && atlasUsuariosExcluidosFirebase()[id]);
 }
 
 function atlasFirebaseMarcarAlteracaoLocal() {
@@ -113,7 +123,7 @@ async function atlasLimparColecao(nomeColecao) {
 }
 
 async function atlasEnviarUsuarios() {
-    const usuarios = atlasParseJSON("atlas_usuarios", []);
+    const usuarios = atlasParseJSON("atlas_usuarios", []).filter(usuario => !atlasUsuarioFoiExcluidoFirebase(usuario?.id));
     await atlasLimparColecao("usuarios");
 
     await Promise.all(usuarios.map(usuario => {
@@ -130,9 +140,10 @@ async function atlasEnviarUsuarios() {
 
 async function atlasFirebaseBaixarUsuariosDireto() {
     const snap = await getDocs(collection(atlasFirestore, "usuarios"));
+    const excluidos = atlasUsuariosExcluidosFirebase();
     const usuariosNuvem = snap.docs
         .map(d => d.data())
-        .filter(usuario => usuario && usuario.id);
+        .filter(usuario => usuario && usuario.id && !excluidos[String(usuario.id).toLowerCase()]);
 
     if (usuariosNuvem.length === 0) return false;
 
@@ -141,7 +152,8 @@ async function atlasFirebaseBaixarUsuariosDireto() {
 
     usuariosAtuais.forEach(usuario => {
         if (usuario && usuario.id) {
-            mapaMesclado.set(String(usuario.id).toLowerCase(), usuario);
+            const chaveUsuario = String(usuario.id).toLowerCase();
+            if (!excluidos[chaveUsuario]) mapaMesclado.set(chaveUsuario, usuario);
         }
     });
 

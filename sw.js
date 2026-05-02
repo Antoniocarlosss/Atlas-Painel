@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v78-lembrete-minimo-stock';
+const CACHE_NAME = 'atlas-v79-usuarios-excluir-bloquear';
 const assets = [
   '/',
   '/index.html',
