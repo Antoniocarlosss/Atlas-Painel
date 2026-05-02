@@ -98,6 +98,77 @@ function usuarioEhAdmin() {
     return usuarioLogado && normalizarCargoUsuario(usuarioLogado.cargo) === 'admin';
 }
 
+function atlasJSONLocal(chave, fallback) {
+    try {
+        const valor = JSON.parse(localStorage.getItem(chave));
+        return valor === null || valor === undefined ? fallback : valor;
+    } catch (erro) {
+        return fallback;
+    }
+}
+
+function atlasFormatarDataHoraSistema(valor) {
+    const data = valor ? new Date(valor) : null;
+    if (!data || Number.isNaN(data.getTime())) return '-';
+    return data.toLocaleString('pt-BR');
+}
+
+function atlasDispositivoIdAtual() {
+    let id = localStorage.getItem('atlas_dispositivo_id');
+    if (!id) {
+        id = `disp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`;
+        localStorage.setItem('atlas_dispositivo_id', id);
+    }
+    return id;
+}
+
+function atlasNomeAparelhoAtual() {
+    const ua = navigator.userAgent || '';
+    if (/Samsung|SM-/i.test(ua)) return 'Samsung / Android';
+    if (/Android/i.test(ua)) return 'Android';
+    if (/iPhone/i.test(ua)) return 'iPhone';
+    if (/iPad/i.test(ua)) return 'iPad';
+    if (/Windows/i.test(ua)) return 'Windows';
+    if (/Mac/i.test(ua)) return 'Mac';
+    return navigator.platform || 'Aparelho';
+}
+
+function atlasRegistrarDispositivoAtual() {
+    if (!usuarioLogado) return;
+    const dispositivos = atlasJSONLocal('atlas_dispositivos_online', {});
+    const id = atlasDispositivoIdAtual();
+    const agora = Date.now();
+    const versao = window.ATLAS_SISTEMA_VERSAO || 'sem-versao';
+
+    Object.keys(dispositivos).forEach(chave => {
+        if (agora - Number(dispositivos[chave]?.ultimoAcessoMs || 0) > 1000 * 60 * 60 * 24 * 45) {
+            delete dispositivos[chave];
+        }
+    });
+
+    dispositivos[id] = {
+        id,
+        usuario: usuarioLogado.id,
+        nome: usuarioLogado.nome || usuarioLogado.id,
+        cargo: usuarioLogado.cargo || '',
+        aparelho: atlasNomeAparelhoAtual(),
+        versao,
+        plataforma: navigator.platform || '',
+        userAgent: navigator.userAgent || '',
+        largura: window.innerWidth || 0,
+        altura: window.innerHeight || 0,
+        ultimoAcessoMs: agora,
+        ultimoAcesso: atlasFormatarDataHoraSistema(agora)
+    };
+
+    localStorage.setItem('atlas_dispositivos_online', JSON.stringify(dispositivos));
+    const ultimoSync = Number(localStorage.getItem('atlas_dispositivo_ultimo_sync_ms') || 0);
+    if (typeof window.atlasFirebaseSincronizarAgora === 'function' && agora - ultimoSync > 300000) {
+        localStorage.setItem('atlas_dispositivo_ultimo_sync_ms', String(agora));
+        window.atlasFirebaseSincronizarAgora();
+    }
+}
+
 function usuarioPodeVerModulo(chave) {
     if (!usuarioLogado) return false;
     if (chave === 'permissoes') return usuarioEhAdmin();
@@ -369,6 +440,10 @@ async function fazerLogin() {
 aplicarPermissoesUsuario();
 aplicarPreferenciasVisuaisUsuario();
 verificarAniversarioNoLoginAtlas(usuarioEncontrado);
+atlasRegistrarDispositivoAtual();
+if (!window.atlasTimerDispositivoAtual) {
+    window.atlasTimerDispositivoAtual = setInterval(atlasRegistrarDispositivoAtual, 120000);
+}
 if (typeof window.atlasMostrarLembretesPrimeiroAcessoDia === 'function') {
     setTimeout(() => window.atlasMostrarLembretesPrimeiroAcessoDia(), 700);
 }
@@ -5229,6 +5304,13 @@ function abrirAjustesSistema() {
             </h2>
         </div>
 
+        ${usuarioEhAdmin() ? `
+            <button onclick="abrirSaudeSistemaAtlas()" style="width:100%; display:flex; align-items:center; justify-content:center; gap:12px; margin-bottom:15px; padding:18px; background:#0f172a; color:white; border:1px solid #3b82f6; border-radius:12px; font-weight:900; text-transform:uppercase; cursor:pointer;">
+                <i class="fas fa-heartbeat" style="color:#22c55e; font-size:24px;"></i>
+                Saude do Sistema
+            </button>
+        ` : ''}
+
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px;">
             ${htmlEditorListaSistema('Clientes / destinos', 'atlas_plano_destinos', destinosPlano, 'destinosPlano')}
             ${htmlEditorListaSistema('Tipos de chapa / painel', 'atlas_config_tipos_painel', OPCOES_TIPO_PLANO, 'OPCOES_TIPO_PLANO')}
@@ -5244,6 +5326,175 @@ function abrirAjustesSistema() {
             ${htmlEditorPacotesSerraSistema()}
         </div>
     `;
+}
+
+function atlasTextoSeguroSaude(valor) {
+    return String(valor ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
+function atlasStatusDispositivoSaude(dispositivo) {
+    const versaoAtual = window.ATLAS_SISTEMA_VERSAO || '';
+    const ultimo = Number(dispositivo?.ultimoAcessoMs || 0);
+    const minutos = ultimo ? Math.round((Date.now() - ultimo) / 60000) : 999999;
+    const online = minutos <= 5;
+    const atualizado = String(dispositivo?.versao || '') === String(versaoAtual);
+    return {
+        online,
+        atualizado,
+        textoOnline: online ? 'ONLINE' : 'OFFLINE',
+        textoVersao: atualizado ? 'ATUALIZADO' : 'ANTIGO',
+        corOnline: online ? '#22c55e' : '#94a3b8',
+        corVersao: atualizado ? '#22c55e' : '#ef4444'
+    };
+}
+
+function abrirSaudeSistemaAtlas() {
+    if (!usuarioEhAdmin()) return alert('Apenas ADMIN pode ver a saude do sistema.');
+    if (!alternarAbaAjustes(true)) return;
+
+    atlasRegistrarDispositivoAtual();
+
+    const c = document.getElementById('conteudo-ajustes');
+    if (!c) return;
+
+    const dispositivos = atlasJSONLocal('atlas_dispositivos_online', {});
+    const lista = Object.values(dispositivos).sort((a, b) => Number(b.ultimoAcessoMs || 0) - Number(a.ultimoAcessoMs || 0));
+    const versaoAtual = window.ATLAS_SISTEMA_VERSAO || 'sem-versao';
+    const versaoLocal = localStorage.getItem('atlas_sistema_versao') || '-';
+    const ultimaSync = localStorage.getItem('atlas_sync_local_updated_ms');
+    const usuariosAtivos = (usuariosSistema || []).filter(u => !u.bloqueado).length;
+    const usuariosBloqueados = (usuariosSistema || []).filter(u => u.bloqueado).length;
+    const usuariosExcluidos = Object.keys(atlasJSONLocal('atlas_usuarios_excluidos', {})).length;
+    const antigos = lista.filter(d => String(d.versao || '') !== String(versaoAtual)).length;
+
+    c.innerHTML = `
+        <div style="display:flex; align-items:center; margin-bottom:20px;">
+            <button onclick="abrirAjustesSistema()" style="background:none; border:none; color:#94a3b8; font-size:20px; cursor:pointer; margin-right:15px;">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <h2 style="border-bottom:2px solid #22c55e; padding-bottom:10px; margin:0; flex:1; font-size:18px; text-transform:uppercase;">
+                Saude do Sistema
+            </h2>
+        </div>
+
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-bottom:14px;">
+            ${atlasCardSaudeSistema('Versao atual', versaoAtual, '#22c55e')}
+            ${atlasCardSaudeSistema('Versao neste aparelho', versaoLocal, versaoLocal === versaoAtual ? '#22c55e' : '#ef4444')}
+            ${atlasCardSaudeSistema('Aparelhos registrados', lista.length, '#3b82f6')}
+            ${atlasCardSaudeSistema('Aparelhos antigos', antigos, antigos ? '#ef4444' : '#22c55e')}
+            ${atlasCardSaudeSistema('Usuarios ativos', usuariosAtivos, '#22c55e')}
+            ${atlasCardSaudeSistema('Bloqueados / excluidos', `${usuariosBloqueados} / ${usuariosExcluidos}`, '#f59e0b')}
+        </div>
+
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin-bottom:14px;">
+            <button onclick="atlasForcarAtualizacaoAparelhoAtlas()" style="padding:15px; border:none; border-radius:10px; background:#2563eb; color:white; font-weight:900; cursor:pointer;">FORCAR ATUALIZACAO NESTE APARELHO</button>
+            <button onclick="atlasSincronizarSaudeSistema()" style="padding:15px; border:none; border-radius:10px; background:#10b981; color:white; font-weight:900; cursor:pointer;">SINCRONIZAR AGORA</button>
+            <button onclick="atlasLimparCacheSaudeSistema()" style="padding:15px; border:none; border-radius:10px; background:#991b1b; color:white; font-weight:900; cursor:pointer;">LIMPAR CACHE DESTE APARELHO</button>
+        </div>
+
+        <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:16px; margin-bottom:14px;">
+            <h3 style="margin:0 0 10px;">Status tecnico</h3>
+            <div id="atlas-saude-tecnica" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:10px; color:#bfdbfe;">
+                <div>Ultima alteracao local: <b>${atlasTextoSeguroSaude(atlasFormatarDataHoraSistema(Number(ultimaSync || 0)))}</b></div>
+                <div>Service Worker: <b>${navigator.serviceWorker?.controller ? 'Ativo' : 'Carregando'}</b></div>
+                <div>Firebase: <b>${window.atlasFirebaseStatus?.db ? 'Conectado' : 'Aguardando'}</b></div>
+                <div id="atlas-saude-cache">Caches: <b>calculando...</b></div>
+            </div>
+        </div>
+
+        <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:16px;">
+            <h3 style="margin:0 0 12px;">Aparelhos e versoes</h3>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+                ${lista.map(dispositivo => atlasHTMLDispositivoSaude(dispositivo, versaoAtual)).join('') || '<div style="color:#94a3b8;">Nenhum aparelho registrado ainda.</div>'}
+            </div>
+        </div>
+    `;
+
+    atlasAtualizarCacheSaudeSistema();
+}
+
+function atlasCardSaudeSistema(titulo, valor, cor) {
+    return `
+        <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:14px;">
+            <div style="color:#93c5fd; font-size:13px; margin-bottom:5px;">${atlasTextoSeguroSaude(titulo)}</div>
+            <div style="color:${cor}; font-size:22px; font-weight:900; overflow-wrap:anywhere;">${atlasTextoSeguroSaude(valor)}</div>
+        </div>
+    `;
+}
+
+function atlasHTMLDispositivoSaude(dispositivo) {
+    const status = atlasStatusDispositivoSaude(dispositivo);
+    return `
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; align-items:center; background:#0f172a; border:1px solid #334155; border-left:5px solid ${status.corVersao}; border-radius:10px; padding:12px;">
+            <div>
+                <b>${atlasTextoSeguroSaude(dispositivo.usuario || '-')}</b>
+                <div style="color:#94a3b8; font-size:12px;">${atlasTextoSeguroSaude(dispositivo.nome || '')} - ${atlasTextoSeguroSaude(dispositivo.cargo || '')}</div>
+            </div>
+            <div>
+                <b>${atlasTextoSeguroSaude(dispositivo.aparelho || '-')}</b>
+                <div style="color:#94a3b8; font-size:12px;">${atlasTextoSeguroSaude(dispositivo.largura || 0)}x${atlasTextoSeguroSaude(dispositivo.altura || 0)}</div>
+            </div>
+            <div>
+                <b style="color:${status.corVersao};">${status.textoVersao}</b>
+                <div style="color:#94a3b8; font-size:12px; overflow-wrap:anywhere;">${atlasTextoSeguroSaude(dispositivo.versao || '-')}</div>
+            </div>
+            <div>
+                <b style="color:${status.corOnline};">${status.textoOnline}</b>
+                <div style="color:#94a3b8; font-size:12px;">${atlasTextoSeguroSaude(dispositivo.ultimoAcesso || '-')}</div>
+            </div>
+        </div>
+    `;
+}
+
+async function atlasAtualizarCacheSaudeSistema() {
+    const alvo = document.getElementById('atlas-saude-cache');
+    if (!alvo) return;
+    if (!('caches' in window)) {
+        alvo.innerHTML = 'Caches: <b>indisponivel</b>';
+        return;
+    }
+    const chaves = await caches.keys().catch(() => []);
+    alvo.innerHTML = `Caches: <b>${chaves.filter(chave => chave.startsWith('atlas-')).length}</b>`;
+}
+
+async function atlasForcarAtualizacaoAparelhoAtlas() {
+    if (window.atlasMostrarTelaAtualizacao) window.atlasMostrarTelaAtualizacao();
+    await atlasLimparCachesAtlas();
+    if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations().catch(() => []);
+        await Promise.all(regs.map(reg => reg.update().catch(() => null)));
+    }
+    setTimeout(() => location.reload(), 900);
+}
+
+async function atlasLimparCachesAtlas() {
+    if (!('caches' in window)) return;
+    const chaves = await caches.keys().catch(() => []);
+    await Promise.all(chaves.filter(chave => chave.startsWith('atlas-')).map(chave => caches.delete(chave)));
+}
+
+async function atlasLimparCacheSaudeSistema() {
+    await atlasLimparCachesAtlas();
+    localStorage.removeItem('atlas_sistema_versao');
+    alert('Cache limpo. O sistema vai recarregar atualizado.');
+    location.reload();
+}
+
+async function atlasSincronizarSaudeSistema() {
+    atlasRegistrarDispositivoAtual();
+    if (typeof window.atlasFirebaseSincronizarAgora === 'function') {
+        await window.atlasFirebaseSincronizarAgora();
+    }
+    if (typeof window.atlasFirebaseForcarAtualizacao === 'function') {
+        await window.atlasFirebaseForcarAtualizacao();
+    }
+    alert('Sincronizacao concluida.');
+    abrirSaudeSistemaAtlas();
 }
 
 function htmlEditorMinimoStockSistema() {

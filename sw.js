@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v88-exclusao-usuarios-nuvem';
+const CACHE_NAME = 'atlas-v89-saude-sistema';
 const assets = [
   '/',
   '/index.html',
