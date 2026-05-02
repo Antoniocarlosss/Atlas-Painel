@@ -9670,6 +9670,120 @@ function atlasApagarDefinitivoDaLixeira(id) {
     renderizarLixeiraAtlas();
 }
 
+function atlasValorLixeira(valor) {
+    if (valor === null || valor === undefined || valor === '') return '-';
+    if (typeof valor === 'object') return JSON.stringify(valor);
+    return String(valor);
+}
+
+function atlasResumoLinhaLixeira(item) {
+    const campos = [
+        ['Pedido', item.pedidoNumero || item.pedido || item.numero || item.encomenda],
+        ['Cliente', item.destino || item.cliente || item.comprador],
+        ['Tipo', item.tipo || item.tipoPainel || item.descricao],
+        ['Esp.', item.esp || item.espessura],
+        ['RAL Inf.', item.ralI || item.ralInferior || item.ralInf],
+        ['RAL Sup.', item.ralS || item.ralSuperior || item.ralSup],
+        ['Qtd', item.qtd || item.quantidade],
+        ['Metro', item.metros || item.metro],
+        ['Total', item.total || item.totalMetros]
+    ];
+    return campos
+        .filter(([, valor]) => valor !== undefined && valor !== null && valor !== '')
+        .map(([nome, valor]) => `<b>${nome}:</b> ${textoSeguroConferencia(atlasValorLixeira(valor))}`)
+        .join(' | ');
+}
+
+function atlasTabelaLixeira(titulo, lista) {
+    if (!Array.isArray(lista) || !lista.length) return '';
+    const linhas = lista.slice(0, 120).map((linha, indice) => `
+        <tr>
+            <td style="border:1px solid #334155; padding:8px; color:#cbd5e1;">${indice + 1}</td>
+            <td style="border:1px solid #334155; padding:8px;">${atlasResumoLinhaLixeira(linha) || textoSeguroConferencia(atlasValorLixeira(linha))}</td>
+        </tr>
+    `).join('');
+    const extra = lista.length > 120 ? `<div style="color:#fbbf24; margin-top:8px;">Mostrando 120 de ${lista.length} linhas.</div>` : '';
+    return `
+        <h3 style="margin:18px 0 8px; color:#60a5fa;">${textoSeguroConferencia(titulo)} (${lista.length})</h3>
+        <div style="overflow:auto;">
+            <table style="width:100%; border-collapse:collapse; min-width:520px; font-size:14px;">
+                <tbody>${linhas}</tbody>
+            </table>
+        </div>
+        ${extra}
+    `;
+}
+
+function atlasMontarDetalhesLixeira(item) {
+    const dados = item?.dados || {};
+    const blocos = [];
+
+    blocos.push(`
+        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; margin-bottom:12px;">
+            <div style="background:#111827; border:1px solid #334155; border-radius:8px; padding:10px;"><small style="color:#94a3b8;">Secao</small><br><b>${textoSeguroConferencia(item.secao || 'Sistema')}</b></div>
+            <div style="background:#111827; border:1px solid #334155; border-radius:8px; padding:10px;"><small style="color:#94a3b8;">Titulo</small><br><b>${textoSeguroConferencia(item.titulo || '-')}</b></div>
+            <div style="background:#111827; border:1px solid #334155; border-radius:8px; padding:10px;"><small style="color:#94a3b8;">Apagado por</small><br><b>${textoSeguroConferencia(item.apagadoPor || '-')}</b></div>
+            <div style="background:#111827; border:1px solid #334155; border-radius:8px; padding:10px;"><small style="color:#94a3b8;">Data/hora</small><br><b>${textoSeguroConferencia(item.apagadoEm || '-')}</b></div>
+        </div>
+    `);
+
+    const resumo = [
+        ['Data do relatorio', dados.data],
+        ['Operador', dados.operador],
+        ['Pedido', dados.pedidoNumero || dados.pedido || dados.numero],
+        ['Cliente', dados.destino || dados.cliente || dados.comprador],
+        ['Total', dados.total || dados.totalMetros || dados.totalGeral]
+    ].filter(([, valor]) => valor !== undefined && valor !== null && valor !== '');
+
+    if (resumo.length) {
+        blocos.push(`
+            <div style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:10px; margin-bottom:12px;">
+                ${resumo.map(([nome, valor]) => `<div style="margin:4px 0;"><b style="color:#bfdbfe;">${nome}:</b> ${textoSeguroConferencia(atlasValorLixeira(valor))}</div>`).join('')}
+            </div>
+        `);
+    }
+
+    blocos.push(atlasTabelaLixeira('Itens apagados', dados.itens));
+    blocos.push(atlasTabelaLixeira('Producoes', dados.producoes || dados.producoesDoDia));
+    blocos.push(atlasTabelaLixeira('Linhas', dados.linhas || dados.pedidos));
+
+    if (!blocos.some(bloco => bloco.includes('<table'))) {
+        let bruto = '';
+        try {
+            bruto = JSON.stringify(dados, null, 2);
+        } catch (erro) {
+            bruto = String(dados || '');
+        }
+        if (bruto.length > 9000) bruto = `${bruto.slice(0, 9000)}\n...`;
+        blocos.push(`
+            <h3 style="margin:18px 0 8px; color:#60a5fa;">Dados salvos</h3>
+            <pre style="white-space:pre-wrap; word-break:break-word; background:#020617; border:1px solid #334155; border-radius:8px; padding:12px; color:#cbd5e1; max-height:55vh; overflow:auto;">${textoSeguroConferencia(bruto)}</pre>
+        `);
+    }
+
+    return blocos.join('');
+}
+
+function atlasVisualizarItemLixeira(id) {
+    const item = atlasLixeiraLer().find(x => String(x.id) === String(id));
+    if (!item) return alert('Item nao encontrado na lixeira.');
+
+    document.getElementById('modal-lixeira-preview')?.remove();
+    const modal = document.createElement('div');
+    modal.id = 'modal-lixeira-preview';
+    modal.style.cssText = 'position:fixed; inset:0; z-index:10002; background:rgba(2,6,23,.92); padding:14px; overflow:auto; color:white;';
+    modal.innerHTML = `
+        <div style="max-width:1050px; margin:0 auto; background:#0f172a; border:1px solid #334155; border-radius:12px; padding:14px;">
+            <div style="position:sticky; top:0; z-index:1; background:#0f172a; display:flex; justify-content:space-between; gap:10px; align-items:center; border-bottom:1px solid #334155; padding-bottom:10px; margin-bottom:12px;">
+                <h2 style="margin:0; font-size:22px;">O que foi apagado</h2>
+                <button onclick="document.getElementById('modal-lixeira-preview')?.remove()" style="background:#ef4444; color:white; border:none; border-radius:8px; padding:10px 16px; font-weight:bold;">FECHAR</button>
+            </div>
+            ${atlasMontarDetalhesLixeira(item)}
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
 function renderizarLixeiraAtlas() {
     atlasLixeiraLimparExpirados();
 
@@ -9705,7 +9819,8 @@ function renderizarLixeiraAtlas() {
                     Apagado por: <b style="color:white;">${textoSeguroConferencia(item.apagadoPor)}</b><br>
                     Data/hora: ${textoSeguroConferencia(item.apagadoEm)}
                 </div>
-                ${podeGerirLixeira ? `<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px;">
+                <button onclick="atlasVisualizarItemLixeira('${item.id}')" style="width:100%; background:#3b82f6; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold; margin-top:10px;">CLIQUE AQUI PARA VER</button>
+                ${podeGerirLixeira ? `<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px;">
                     <button onclick="atlasRestaurarDaLixeira('${item.id}')" style="background:#10b981; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold;">RESTAURAR</button>
                     <button onclick="atlasApagarDefinitivoDaLixeira('${item.id}')" style="background:#7f1d1d; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold;">APAGAR</button>
                 </div>` : `<div style="margin-top:10px; color:#94a3b8; font-size:12px;">Somente visualizacao.</div>`}
