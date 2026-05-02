@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v80-pdf-bobines-a4-aberto';
+const CACHE_NAME = 'atlas-v81-permissoes-grupo-individual';
 const assets = [
   '/',
   '/index.html',

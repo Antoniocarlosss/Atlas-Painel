@@ -21,6 +21,10 @@ function obterChavePreferenciasUsuario(idUsuario) {
     return `atlas_pref_${String(idUsuario || '').toLowerCase()}`;
 }
 
+function obterChavePreferenciasGrupo(cargo) {
+    return `atlas_pref_grupo_${normalizarCargoUsuario(cargo)}`;
+}
+
 function normalizarCargoUsuario(cargo) {
     return String(cargo || 'operario').trim().toLowerCase();
 }
@@ -31,8 +35,18 @@ function obterCargoUsuarioPorId(idUsuario) {
     return normalizarCargoUsuario(cargo);
 }
 
-function obterPreferenciasPadraoUsuario(idUsuario) {
-    const cargo = obterCargoUsuarioPorId(idUsuario);
+function obterModulosPermissoesAtlas() {
+    const extras = [
+        { chave: 'conferencia', nome: 'Conferencia' },
+        { chave: 'pesquisa_encomenda', nome: 'Pesquisar' },
+        { chave: 'lembretes', nome: 'Lembretes' },
+        { chave: 'auditoria', nome: 'Registros' }
+    ];
+    return [...MODULOS_SISTEMA, ...extras].filter((mod, index, self) => self.findIndex(item => item.chave === mod.chave) === index);
+}
+
+function obterPreferenciasBaseCargo(cargoInformado) {
+    const cargo = normalizarCargoUsuario(cargoInformado);
     const basicos = ['injecao', 'bobines', 'serra', 'embalagem', 'plano', 'config'];
     const restritos = ['gestao', 'conferencia', 'stock', 'lixeira', 'pesquisa_encomenda', 'lembretes', 'auditoria'];
     const supervisorTotal = [...basicos, ...restritos];
@@ -53,6 +67,28 @@ function obterPreferenciasPadraoUsuario(idUsuario) {
     };
 }
 
+function obterPreferenciasGrupoCargo(cargoInformado) {
+    const cargo = normalizarCargoUsuario(cargoInformado);
+    const base = obterPreferenciasBaseCargo(cargo);
+    if (cargo === 'admin') return base;
+
+    try {
+        const salvas = JSON.parse(localStorage.getItem(obterChavePreferenciasGrupo(cargo))) || {};
+        return {
+            tema: salvas.tema || base.tema,
+            modulosVisiveis: Array.isArray(salvas.modulosVisiveis) ? salvas.modulosVisiveis : base.modulosVisiveis,
+            modulosEditaveis: Array.isArray(salvas.modulosEditaveis) ? salvas.modulosEditaveis : base.modulosEditaveis,
+            modulosExcluiveis: Array.isArray(salvas.modulosExcluiveis) ? salvas.modulosExcluiveis : base.modulosExcluiveis
+        };
+    } catch (erro) {
+        return base;
+    }
+}
+
+function obterPreferenciasPadraoUsuario(idUsuario) {
+    return obterPreferenciasGrupoCargo(obterCargoUsuarioPorId(idUsuario));
+}
+
 function usuarioEhAdminSupervisor() {
     const cargo = normalizarCargoUsuario(usuarioLogado?.cargo);
     return usuarioLogado && (cargo === 'admin' || cargo === 'supervisor');
@@ -64,15 +100,8 @@ function usuarioEhAdmin() {
 
 function usuarioPodeVerModulo(chave) {
     if (!usuarioLogado) return false;
-    if (chave === 'config') return true;
     if (chave === 'permissoes') return usuarioEhAdmin();
-    const cargo = normalizarCargoUsuario(usuarioLogado.cargo);
-    if (cargo === 'operario') {
-        if (['gestao', 'stock', 'conferencia', 'pesquisa_encomenda', 'permissoes', 'lembretes', 'auditoria'].includes(chave)) return false;
-        if (chave === 'lixeira') return true;
-    }
-    if (cargo === 'supervisor') return true;
-    if (usuarioEhAdminSupervisor() && (chave === 'lembretes' || chave === 'auditoria')) return true;
+    if (usuarioEhAdmin()) return true;
     const prefs = obterPreferenciasUsuario(usuarioLogado.id);
     const permitido = prefs.modulosVisiveis.includes(chave);
     const oculto = (prefs.modulosOcultosUsuario || []).includes(chave);
@@ -81,39 +110,36 @@ function usuarioPodeVerModulo(chave) {
 
 function usuarioPodeEditarModulo(chave) {
     if (!usuarioLogado) return false;
+    if (chave === 'permissoes') return usuarioEhAdmin();
     const cargo = normalizarCargoUsuario(usuarioLogado.cargo);
     if (cargo === 'admin') return true;
-    if (cargo === 'operario' && chave === 'plano') return false;
-    if (cargo === 'supervisor' && chave !== 'permissoes' && chave !== 'auditoria') return true;
     return obterPreferenciasUsuario(usuarioLogado.id).modulosEditaveis.includes(chave);
 }
 
 function usuarioPodeExcluirModulo(chave) {
     if (!usuarioLogado) return false;
-    if (chave === 'auditoria') return usuarioEhAdmin();
+    if (chave === 'permissoes' || chave === 'auditoria') return usuarioEhAdmin();
     const cargo = normalizarCargoUsuario(usuarioLogado.cargo);
     if (cargo === 'admin') return true;
-    if (cargo === 'operario' && chave === 'plano') return false;
-    if (cargo === 'supervisor' && chave !== 'permissoes') return true;
     return obterPreferenciasUsuario(usuarioLogado.id).modulosExcluiveis.includes(chave);
 }
 
 function obterPreferenciasUsuario(idUsuario) {
     const chave = obterChavePreferenciasUsuario(idUsuario);
     const salvas = JSON.parse(localStorage.getItem(chave));
+    const cargo = obterCargoUsuarioPorId(idUsuario);
+    const padrao = obterPreferenciasPadraoUsuario(idUsuario);
 
     if (!salvas) {
-        return obterPreferenciasPadraoUsuario(idUsuario);
+        return padrao;
     }
 
-    const padrao = obterPreferenciasPadraoUsuario(idUsuario);
-    const cargo = obterCargoUsuarioPorId(idUsuario);
-    if (cargo === 'operario' && !salvas.permissoesAdminDefinidas) {
-        const ocultosUsuarioOperario = Array.isArray(salvas.modulosOcultosUsuario) ? salvas.modulosOcultosUsuario : [];
+    if (cargo !== 'admin' && !salvas.permissoesAdminDefinidas) {
+        const ocultosUsuario = Array.isArray(salvas.modulosOcultosUsuario) ? salvas.modulosOcultosUsuario : [];
         return {
             ...padrao,
             tema: salvas.tema || padrao.tema,
-            modulosOcultosUsuario: ocultosUsuarioOperario
+            modulosOcultosUsuario: ocultosUsuario
         };
     }
     const modulosSalvos = Array.isArray(salvas.modulosVisiveis) ? salvas.modulosVisiveis : padrao.modulosVisiveis;
@@ -121,29 +147,18 @@ function obterPreferenciasUsuario(idUsuario) {
     const excluiveisSalvos = Array.isArray(salvas.modulosExcluiveis) ? salvas.modulosExcluiveis : (Array.isArray(salvas.modulosEditaveis) ? [] : padrao.modulosExcluiveis);
     const ocultosUsuario = Array.isArray(salvas.modulosOcultosUsuario) ? salvas.modulosOcultosUsuario : [];
 
-    const modulosVisiveisCargo = cargo === 'admin'
-        ? [...modulosSalvos, 'permissoes', 'lembretes', 'auditoria']
-        : (cargo === 'supervisor'
-            ? [...modulosSalvos, 'lembretes', 'auditoria']
-            : modulosSalvos);
-    const modulosSistemaSemPermissoes = [...new Set([
-        ...MODULOS_SISTEMA.map(m => m.chave),
-        'conferencia',
-        'pesquisa_encomenda',
-        'lembretes',
-        'auditoria'
-    ])].filter(chaveModulo => chaveModulo !== 'permissoes');
-    const modulosSupervisorExcluiveis = modulosSistemaSemPermissoes.filter(chaveModulo => chaveModulo !== 'auditoria');
+    const todosModulos = obterModulosPermissoesAtlas().map(m => m.chave);
+    const modulosVisiveisCargo = cargo === 'admin' ? [...modulosSalvos, ...todosModulos] : modulosSalvos;
 
     return {
         tema: salvas.tema || 'escuro',
         modulosVisiveis: [...new Set(modulosVisiveisCargo)],
         modulosEditaveis: [...new Set(cargo === 'admin'
-            ? [...editaveisSalvos, ...MODULOS_SISTEMA.map(m => m.chave)]
-            : (cargo === 'supervisor' ? [...editaveisSalvos, ...modulosSupervisorExcluiveis] : editaveisSalvos))],
+            ? [...editaveisSalvos, ...todosModulos]
+            : editaveisSalvos)],
         modulosExcluiveis: [...new Set(cargo === 'admin'
-            ? [...excluiveisSalvos, ...MODULOS_SISTEMA.map(m => m.chave)]
-            : (cargo === 'supervisor' ? [...excluiveisSalvos, ...modulosSupervisorExcluiveis] : excluiveisSalvos))],
+            ? [...excluiveisSalvos, ...todosModulos]
+            : excluiveisSalvos)],
         modulosOcultosUsuario: ocultosUsuario,
         permissoesAdminDefinidas: salvas.permissoesAdminDefinidas === true
     };
@@ -5511,43 +5526,86 @@ function removerBlocoUsuariosSenhasAntigo() {
     });
 }
 
-function renderizarPermissoesAdmin(idSelecionado = '') {
+function obterAlvoPermissoesAdmin(alvoSelecionado = '') {
+    const valor = String(alvoSelecionado || 'grupo:operario');
+    if (valor === 'grupo:supervisor' || valor === 'grupo:operario') {
+        const cargo = valor.split(':')[1];
+        return {
+            tipo: 'grupo',
+            chave: valor,
+            cargo,
+            titulo: cargo === 'supervisor' ? 'PADRAO DOS SUPERVISORES' : 'PADRAO DOS OPERARIOS',
+            prefs: obterPreferenciasGrupoCargo(cargo)
+        };
+    }
+
+    const idUsuario = valor.startsWith('usuario:') ? valor.slice(8) : valor;
+    const usuario = usuariosSistema.find(u => String(u.id).toLowerCase() === String(idUsuario).toLowerCase())
+        || usuariosSistema.find(u => normalizarCargoUsuario(u.cargo) !== 'admin')
+        || usuariosSistema[0];
+    return {
+        tipo: 'usuario',
+        chave: `usuario:${usuario?.id || ''}`,
+        usuario,
+        titulo: usuario ? `USUARIO ${String(usuario.id).toUpperCase()}` : 'USUARIO',
+        prefs: usuario ? obterPreferenciasUsuario(usuario.id) : obterPreferenciasGrupoCargo('operario')
+    };
+}
+
+function renderizarPermissoesAdmin(alvoSelecionado = 'grupo:operario') {
     if (!usuarioEhAdmin()) return alert('Apenas ADMIN pode acessar permissoes.');
     const render = document.getElementById('render-modulo');
     if (!render) return;
 
-    const usuariosEditaveis = usuariosSistema.filter(u => u.id !== 'admin');
-    const usuarioAlvo = usuariosSistema.find(u => u.id === idSelecionado) || usuariosEditaveis[0] || usuariosSistema[0];
-    if (!usuarioAlvo) {
+    const alvo = obterAlvoPermissoesAdmin(alvoSelecionado);
+    if (!alvo.usuario && alvo.tipo === 'usuario') {
         render.innerHTML = `<div style="padding:20px; color:white;">Nenhum usuario cadastrado.</div>`;
         return;
     }
 
-    const prefs = obterPreferenciasUsuario(usuarioAlvo.id);
-    const modulos = MODULOS_SISTEMA
-        .filter((mod, index, self) => self.findIndex(m => m.chave === mod.chave) === index)
-        .filter(mod => mod.chave !== 'permissoes' || normalizarCargoUsuario(usuarioAlvo.cargo) === 'admin');
+    const prefs = alvo.prefs;
+    const usuarioAlvo = alvo.usuario;
+    const modulos = obterModulosPermissoesAtlas()
+        .filter(mod => mod.chave !== 'permissoes');
+    const opcoesUsuarios = usuariosSistema
+        .filter(u => normalizarCargoUsuario(u.cargo) !== 'admin')
+        .map(u => `<option value="usuario:${textoSeguroPermissoes(u.id)}" ${alvo.chave === `usuario:${u.id}` ? 'selected' : ''}>INDIVIDUAL - ${textoSeguroPermissoes(u.id).toUpperCase()} - ${textoSeguroPermissoes(normalizarCargoUsuario(u.cargo)).toUpperCase()} - Senha: ${textoSeguroPermissoes(u.senha || '')}</option>`)
+        .join('');
+    const detalheAlvo = alvo.tipo === 'grupo'
+        ? `
+            <div style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:10px;">
+                <div style="color:#94a3b8; font-size:12px;">Grupo selecionado</div>
+                <strong>${textoSeguroPermissoes(alvo.titulo)}</strong>
+            </div>
+            <div style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:10px;">
+                <div style="color:#94a3b8; font-size:12px;">Como funciona</div>
+                <strong>Vale para todos deste cargo sem permissao individual.</strong>
+            </div>`
+        : `
+            <div style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:10px;">
+                <div style="color:#94a3b8; font-size:12px;">Usuario selecionado</div>
+                <strong>${textoSeguroPermissoes(usuarioAlvo.id).toUpperCase()}</strong>
+            </div>
+            <div style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:10px;">
+                <div style="color:#94a3b8; font-size:12px;">Cargo</div>
+                <strong>${textoSeguroPermissoes(normalizarCargoUsuario(usuarioAlvo.cargo)).toUpperCase()}</strong>
+            </div>
+            <div style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:10px;">
+                <div style="color:#94a3b8; font-size:12px;">Senha</div>
+                <strong style="color:#fbbf24;">${textoSeguroPermissoes(usuarioAlvo.senha || '')}</strong>
+            </div>`;
 
     render.innerHTML = `
         <div style="padding:15px; color:white;">
             <div style="background:#111827; border:1px solid #334155; border-radius:12px; padding:15px; margin-bottom:15px;">
-                <label style="display:block; color:#94a3b8; font-size:12px; margin-bottom:8px;">USUARIO</label>
+                <label style="display:block; color:#94a3b8; font-size:12px; margin-bottom:8px;">ALVO DA PERMISSAO</label>
                 <select id="perm-usuario" onchange="renderizarPermissoesAdmin(this.value)" style="width:100%; padding:12px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">
-                    ${usuariosSistema.map(u => `<option value="${textoSeguroPermissoes(u.id)}" ${u.id === usuarioAlvo.id ? 'selected' : ''}>${textoSeguroPermissoes(u.id).toUpperCase()} - ${textoSeguroPermissoes(normalizarCargoUsuario(u.cargo)).toUpperCase()} - Senha: ${textoSeguroPermissoes(u.senha || '')}</option>`).join('')}
+                    <option value="grupo:operario" ${alvo.chave === 'grupo:operario' ? 'selected' : ''}>PADRAO - TODOS OPERARIOS</option>
+                    <option value="grupo:supervisor" ${alvo.chave === 'grupo:supervisor' ? 'selected' : ''}>PADRAO - TODOS SUPERVISORES</option>
+                    ${opcoesUsuarios}
                 </select>
                 <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:8px; margin-top:10px;">
-                    <div style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:10px;">
-                        <div style="color:#94a3b8; font-size:12px;">Usuario selecionado</div>
-                        <strong>${textoSeguroPermissoes(usuarioAlvo.id).toUpperCase()}</strong>
-                    </div>
-                    <div style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:10px;">
-                        <div style="color:#94a3b8; font-size:12px;">Cargo</div>
-                        <strong>${textoSeguroPermissoes(normalizarCargoUsuario(usuarioAlvo.cargo)).toUpperCase()}</strong>
-                    </div>
-                    <div style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:10px;">
-                        <div style="color:#94a3b8; font-size:12px;">Senha</div>
-                        <strong style="color:#fbbf24;">${textoSeguroPermissoes(usuarioAlvo.senha || '')}</strong>
-                    </div>
+                    ${detalheAlvo}
                 </div>
             </div>
             <div class="permissoes-lista" style="background:#1e293b; border:1px solid #334155; border-radius:12px; overflow:hidden;">
@@ -5563,31 +5621,55 @@ function renderizarPermissoesAdmin(idSelecionado = '') {
                     </div>
                 `).join('')}
             </div>
-            <button onclick="salvarPermissoesAdmin('${usuarioAlvo.id}')" style="width:100%; margin-top:15px; background:#10b981; color:white; border:none; padding:14px; border-radius:8px; font-weight:bold;">SALVAR PERMISSOES</button>
+            <button onclick="salvarPermissoesAdmin('${textoSeguroPermissoes(alvo.chave)}')" style="width:100%; margin-top:15px; background:#10b981; color:white; border:none; padding:14px; border-radius:8px; font-weight:bold;">${alvo.tipo === 'grupo' ? 'SALVAR PADRAO DO GRUPO' : 'SALVAR PERMISSOES INDIVIDUAIS'}</button>
         </div>
     `;
     removerBlocoUsuariosSenhasAntigo();
 }
 
-function salvarPermissoesAdmin(idUsuario) {
+function salvarPermissoesAdmin(alvoPermissao) {
     if (!usuarioEhAdmin()) return alert('Apenas ADMIN pode salvar permissoes.');
-    const usuarioAlvo = usuariosSistema.find(u => u.id === idUsuario);
-    if (!usuarioAlvo) return alert('Usuario nao encontrado.');
-    if (usuarioAlvo.id === 'admin') return alert('O ADMIN sempre tem acesso total.');
+    const alvo = String(alvoPermissao || 'grupo:operario');
 
     const visiveis = Array.from(document.querySelectorAll('.perm-ver:checked')).map(el => el.value);
     const editaveis = Array.from(document.querySelectorAll('.perm-editar:checked')).map(el => el.value).filter(chave => visiveis.includes(chave));
     const excluiveis = Array.from(document.querySelectorAll('.perm-excluir:checked')).map(el => el.value).filter(chave => visiveis.includes(chave));
     if (!visiveis.includes('config')) visiveis.push('config');
 
-    const prefs = obterPreferenciasUsuario(idUsuario);
-    prefs.modulosVisiveis = [...new Set(visiveis)];
-    prefs.modulosEditaveis = [...new Set(editaveis)];
-    prefs.modulosExcluiveis = [...new Set(excluiveis)];
-    prefs.permissoesAdminDefinidas = true;
-    salvarPreferenciasUsuario(idUsuario, prefs);
-    alert('Permissoes atualizadas com sucesso.');
-    renderizarPermissoesAdmin(idUsuario);
+    if (alvo.startsWith('grupo:')) {
+        const cargo = normalizarCargoUsuario(alvo.slice(6));
+        if (!['operario', 'supervisor'].includes(cargo)) return alert('Grupo nao encontrado.');
+        const prefsGrupo = {
+            ...obterPreferenciasGrupoCargo(cargo),
+            modulosVisiveis: [...new Set(visiveis)],
+            modulosEditaveis: [...new Set(editaveis)],
+            modulosExcluiveis: [...new Set(excluiveis)],
+            permissoesAdminDefinidas: true
+        };
+        localStorage.setItem(obterChavePreferenciasGrupo(cargo), JSON.stringify(prefsGrupo));
+        if (typeof window.atlasFirebaseSincronizarAgora === 'function') window.atlasFirebaseSincronizarAgora();
+        alert(`Padrao dos ${cargo === 'supervisor' ? 'supervisores' : 'operarios'} atualizado com sucesso.`);
+        renderizarPermissoesAdmin(`grupo:${cargo}`);
+        return;
+    }
+
+    const idUsuario = alvo.startsWith('usuario:') ? alvo.slice(8) : alvo;
+    const usuarioAlvo = usuariosSistema.find(u => String(u.id).toLowerCase() === String(idUsuario).toLowerCase());
+    if (!usuarioAlvo) return alert('Usuario nao encontrado.');
+    if (normalizarCargoUsuario(usuarioAlvo.cargo) === 'admin') return alert('O ADMIN sempre tem acesso total.');
+
+    const prefs = obterPreferenciasUsuario(usuarioAlvo.id);
+    const prefsNovas = {
+        ...prefs,
+        modulosVisiveis: [...new Set(visiveis)],
+        modulosEditaveis: [...new Set(editaveis)],
+        modulosExcluiveis: [...new Set(excluiveis)],
+        permissoesAdminDefinidas: true
+    };
+    salvarPreferenciasUsuario(usuarioAlvo.id, prefsNovas);
+    if (typeof window.atlasFirebaseSincronizarAgora === 'function') window.atlasFirebaseSincronizarAgora();
+    alert('Permissoes individuais atualizadas com sucesso.');
+    renderizarPermissoesAdmin(`usuario:${usuarioAlvo.id}`);
 }
 
 function aplicarTemaUsuario(tema) {
