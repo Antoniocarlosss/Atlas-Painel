@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v82-lixeira-somente-visualizar';
+const CACHE_NAME = 'atlas-v83-lixeira-correta';
 const assets = [
   '/',
   '/index.html',
