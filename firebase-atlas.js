@@ -222,6 +222,30 @@ async function atlasFirebaseEnviarDispositivosLocais() {
     await Promise.all(lista.map(item => atlasFirebaseRegistrarDispositivo(item)));
 }
 
+async function atlasFirebaseSincronizarVersaoSistema() {
+    const atual = {
+        versao: window.ATLAS_SISTEMA_VERSAO || "sem-versao",
+        build: Number(window.ATLAS_SISTEMA_BUILD || 0),
+        publicadaEm: new Date().toLocaleString("pt-BR")
+    };
+
+    const ref = doc(atlasFirestore, "sistema", "versao");
+    const snap = await getDoc(ref);
+    const nuvem = snap.exists() ? (snap.data() || {}) : {};
+    const buildNuvem = Number(nuvem.build || 0);
+
+    if (!snap.exists() || atual.build >= buildNuvem) {
+        await atlasSetDoc(["sistema", "versao"], atual);
+        atlasLocalStorageSetItemOriginal.call(localStorage, "atlas_versao_publicada_info", JSON.stringify(atual));
+        window.dispatchEvent(new Event("atlasVersaoPublicadaAtualizada"));
+        return atual;
+    }
+
+    atlasLocalStorageSetItemOriginal.call(localStorage, "atlas_versao_publicada_info", JSON.stringify(nuvem));
+    window.dispatchEvent(new Event("atlasVersaoPublicadaAtualizada"));
+    return nuvem;
+}
+
 async function atlasEnviarUsuarios() {
     const usuarios = atlasParseJSON("atlas_usuarios", []).filter(usuario => !atlasUsuarioFoiExcluidoFirebase(usuario?.id));
     await atlasLimparColecao("usuarios");
@@ -533,7 +557,8 @@ async function atlasFirebaseBaixarBackupInicial() {
 }
 
 setTimeout(() => {
-    atlasFirebaseBaixarUsuariosDireto()
+    atlasFirebaseSincronizarVersaoSistema()
+        .then(() => atlasFirebaseBaixarUsuariosDireto())
         .then(() => atlasFirebaseBaixarBackupInicial())
         .then(() => atlasFirebaseEnviarDispositivosLocais())
         .then(() => atlasFirebaseEnviarTudoOrganizadoInterno())
@@ -625,10 +650,18 @@ window.atlasFirebaseListarDispositivos = function() {
 };
 
 window.atlasFirebaseSincronizarAgora = function() {
-    return atlasFirebaseEnviarDispositivosLocais()
+    return atlasFirebaseSincronizarVersaoSistema()
+        .then(() => atlasFirebaseEnviarDispositivosLocais())
         .then(() => atlasFirebaseEnviarTudoOrganizadoInterno())
         .catch(erro => {
         console.error("Erro ao sincronizar agora:", erro);
+    });
+};
+
+window.atlasFirebaseChecarVersaoSistema = function() {
+    return atlasFirebaseSincronizarVersaoSistema().catch(erro => {
+        console.error("Erro ao checar versao do sistema:", erro);
+        return null;
     });
 };
 

@@ -9,7 +9,7 @@
     <title>Atlas Painel - Gestão</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20260503-ver-ultimo-aparelho">
+    <link rel="stylesheet" href="style.css?v=20260503-aviso-atualizacao">
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
@@ -94,7 +94,8 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script>
-        window.ATLAS_SISTEMA_VERSAO = '20260503-ver-ultimo-aparelho';
+        window.ATLAS_SISTEMA_VERSAO = '20260503-aviso-atualizacao';
+        window.ATLAS_SISTEMA_BUILD = 95;
         window.atlasMostrarTelaAtualizacao = function atlasMostrarTelaAtualizacao(opcoes = {}) {
             const finalizado = opcoes.finalizado === true;
             let overlay = document.getElementById('atlas-update-screen');
@@ -157,6 +158,58 @@
             return overlay;
         };
 
+        window.atlasExecutarAtualizacaoAparelho = function atlasExecutarAtualizacaoAparelho() {
+            window.atlasMostrarTelaAtualizacao();
+            const limparCaches = ('caches' in window)
+                ? caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('atlas-')).map(key => caches.delete(key))))
+                : Promise.resolve();
+            const atualizarWorker = ('serviceWorker' in navigator)
+                ? navigator.serviceWorker.getRegistrations().then(regs => Promise.all(regs.map(reg => {
+                    if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+                    return reg.update().catch(() => null);
+                })))
+                : Promise.resolve();
+
+            Promise.allSettled([limparCaches, atualizarWorker]).finally(() => {
+                setTimeout(() => location.reload(), 900);
+            });
+        };
+
+        window.atlasMostrarAvisoAtualizacaoDisponivel = function atlasMostrarAvisoAtualizacaoDisponivel(info = {}) {
+            if (document.getElementById('atlas-update-notice')) return;
+            const versao = info.versao || 'nova versao';
+            const overlay = document.createElement('div');
+            overlay.id = 'atlas-update-notice';
+            overlay.style.cssText = 'position:fixed; inset:0; z-index:49999; display:flex; align-items:center; justify-content:center; padding:18px; background:rgba(2,6,23,.82); color:white; font-family:Inter,Arial,sans-serif;';
+            overlay.innerHTML = `
+                <div style="width:min(94vw,460px); background:#0f172a; border:1px solid #3b82f6; border-radius:18px; padding:24px; box-shadow:0 22px 70px rgba(0,0,0,.5); text-align:center;">
+                    <div style="font-size:30px; font-weight:900; margin-bottom:6px;"><span style="color:#ef1b2d;">ATLAS</span> PAINEL</div>
+                    <div style="font-size:20px; font-weight:900; margin-bottom:8px;">Atualizacao disponivel</div>
+                    <div style="color:#bfdbfe; font-size:14px; margin-bottom:18px;">Existe uma versao nova do sistema: <b>${versao}</b>. Atualize para evitar erros de usuario, permissao e relatorios.</div>
+                    <button onclick="window.atlasExecutarAtualizacaoAparelho()" style="width:100%; border:none; border-radius:12px; background:#10b981; color:white; padding:15px; font-weight:900; cursor:pointer;">ATUALIZAR AGORA</button>
+                    <button onclick="document.getElementById('atlas-update-notice')?.remove()" style="width:100%; border:1px solid #334155; border-radius:12px; background:#1e293b; color:white; padding:12px; font-weight:900; cursor:pointer; margin-top:10px;">LEMBRAR DEPOIS</button>
+                </div>
+            `;
+            document.documentElement.appendChild(overlay);
+        };
+
+        window.atlasChecarAvisoVersaoPublicada = function atlasChecarAvisoVersaoPublicada() {
+            let info = null;
+            try {
+                info = JSON.parse(localStorage.getItem('atlas_versao_publicada_info') || 'null');
+            } catch (erro) {
+                info = null;
+            }
+            const buildPublicado = Number(info?.build || 0);
+            const buildAtual = Number(window.ATLAS_SISTEMA_BUILD || 0);
+            if (buildPublicado > buildAtual) {
+                window.atlasMostrarAvisoAtualizacaoDisponivel(info);
+            }
+        };
+
+        window.addEventListener('atlasVersaoPublicadaAtualizada', window.atlasChecarAvisoVersaoPublicada);
+        window.addEventListener('load', () => setTimeout(window.atlasChecarAvisoVersaoPublicada, 2500));
+
         (function prepararAtualizacaoAtlas() {
             const chaveVersao = 'atlas_sistema_versao';
             const chaveAviso = 'atlas_sistema_mostrar_atualizado';
@@ -183,10 +236,10 @@
             });
         })();
     </script>
-    <script src="script.js?v=20260503-ver-ultimo-aparelho"></script>
+    <script src="script.js?v=20260503-aviso-atualizacao"></script>
     <script src="historicos-admin.js?v=20260427-lembretes-auditoria"></script>
     <script src="atlas-ajustes-fachadas.js?v=20260427-permissao-excluir"></script>
-    <script type="module" src="firebase-atlas.js?v=20260503-ver-ultimo-aparelho"></script>
+    <script type="module" src="firebase-atlas.js?v=20260503-aviso-atualizacao"></script>
     <script>
         if ('serviceWorker' in navigator) {
             let atlasAtualizandoPWA = false;
@@ -197,7 +250,7 @@
             });
 
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=20260503-ver-ultimo-aparelho')
+                navigator.serviceWorker.register('sw.js?v=20260503-aviso-atualizacao')
                     .then(reg => {
                         console.log('Atlas PWA: Ativo!');
                         reg.update();

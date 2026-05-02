@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v94-ver-ultimo-aparelho';
+const CACHE_NAME = 'atlas-v95-aviso-atualizacao';
 const assets = [
   '/',
   '/index.html',
