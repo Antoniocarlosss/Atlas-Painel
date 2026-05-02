@@ -199,6 +199,23 @@ async function atlasFirebaseLimparUsuarioExcluidoDaNuvem(idUsuario) {
     });
 }
 
+async function atlasFirebaseRegistrarDispositivo(dados) {
+    if (!dados || !dados.id) return;
+    const id = atlasDocId(dados.id);
+    await atlasSetDoc(["dispositivos_online", id], {
+        ...dados,
+        id: dados.id,
+        ultimoAcessoMs: Number(dados.ultimoAcessoMs || Date.now())
+    });
+}
+
+async function atlasFirebaseListarDispositivos() {
+    const snap = await getDocs(collection(atlasFirestore, "dispositivos_online"));
+    return snap.docs
+        .map(d => d.data())
+        .filter(item => item && item.id);
+}
+
 async function atlasEnviarUsuarios() {
     const usuarios = atlasParseJSON("atlas_usuarios", []).filter(usuario => !atlasUsuarioFoiExcluidoFirebase(usuario?.id));
     await atlasLimparColecao("usuarios");
@@ -583,6 +600,19 @@ window.atlasFirebaseLimparUsuarioExcluido = function(idUsuario) {
         .catch(erro => {
             console.error("Erro ao limpar usuario excluido:", erro);
         });
+};
+
+window.atlasFirebaseRegistrarDispositivo = function(dados) {
+    return atlasFirebaseRegistrarDispositivo(dados).catch(erro => {
+        console.error("Erro ao registrar dispositivo:", erro);
+    });
+};
+
+window.atlasFirebaseListarDispositivos = function() {
+    return atlasFirebaseListarDispositivos().catch(erro => {
+        console.error("Erro ao listar dispositivos:", erro);
+        return [];
+    });
 };
 
 window.atlasFirebaseSincronizarAgora = function() {

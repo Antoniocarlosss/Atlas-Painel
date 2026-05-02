@@ -162,6 +162,9 @@ function atlasRegistrarDispositivoAtual() {
     };
 
     localStorage.setItem('atlas_dispositivos_online', JSON.stringify(dispositivos));
+    if (typeof window.atlasFirebaseRegistrarDispositivo === 'function') {
+        window.atlasFirebaseRegistrarDispositivo(dispositivos[id]);
+    }
     const ultimoSync = Number(localStorage.getItem('atlas_dispositivo_ultimo_sync_ms') || 0);
     if (typeof window.atlasFirebaseSincronizarAgora === 'function' && agora - ultimoSync > 300000) {
         localStorage.setItem('atlas_dispositivo_ultimo_sync_ms', String(agora));
@@ -5353,7 +5356,28 @@ function atlasStatusDispositivoSaude(dispositivo) {
     };
 }
 
-function abrirSaudeSistemaAtlas() {
+async function atlasObterDispositivosSaudeSistema() {
+    const locais = atlasJSONLocal('atlas_dispositivos_online', {});
+    const mapa = new Map(Object.values(locais).filter(item => item && item.id).map(item => [item.id, item]));
+
+    if (typeof window.atlasFirebaseListarDispositivos === 'function') {
+        const nuvem = await window.atlasFirebaseListarDispositivos();
+        (nuvem || []).forEach(item => {
+            const atual = mapa.get(item.id);
+            if (!atual || Number(item.ultimoAcessoMs || 0) >= Number(atual.ultimoAcessoMs || 0)) {
+                mapa.set(item.id, item);
+            }
+        });
+    }
+
+    const lista = Array.from(mapa.values()).sort((a, b) => Number(b.ultimoAcessoMs || 0) - Number(a.ultimoAcessoMs || 0));
+    const objeto = {};
+    lista.forEach(item => { if (item.id) objeto[item.id] = item; });
+    localStorage.setItem('atlas_dispositivos_online', JSON.stringify(objeto));
+    return lista;
+}
+
+async function abrirSaudeSistemaAtlas() {
     if (!usuarioEhAdmin()) return alert('Apenas ADMIN pode ver a saude do sistema.');
     if (!alternarAbaAjustes(true)) return;
 
@@ -5362,8 +5386,7 @@ function abrirSaudeSistemaAtlas() {
     const c = document.getElementById('conteudo-ajustes');
     if (!c) return;
 
-    const dispositivos = atlasJSONLocal('atlas_dispositivos_online', {});
-    const lista = Object.values(dispositivos).sort((a, b) => Number(b.ultimoAcessoMs || 0) - Number(a.ultimoAcessoMs || 0));
+    const lista = await atlasObterDispositivosSaudeSistema();
     const versaoAtual = window.ATLAS_SISTEMA_VERSAO || 'sem-versao';
     const versaoLocal = localStorage.getItem('atlas_sistema_versao') || '-';
     const ultimaSync = localStorage.getItem('atlas_sync_local_updated_ms');
