@@ -11061,33 +11061,3 @@ window.addEventListener('load', () => setTimeout(instalarProtecaoExclusaoSeparad
         resultado.innerHTML = html;
     };
 })();
-
-/* ==========================================================
-   LIXEIRA - ULTIMO OVERRIDE DE ABERTURA
-   ========================================================== */
-(function() {
-    if (window.atlasLixeiraAbrirFinalUltimoInstalado) return;
-    window.atlasLixeiraAbrirFinalUltimoInstalado = true;
-
-    const abrirModuloAnteriorLixeiraUltimo = window.abrirModulo || abrirModulo;
-    window.abrirModulo = abrirModulo = function(nome) {
-        if (nome === 'lixeira') {
-            if (!usuarioPodeVerModulo('lixeira')) return alert('Sem permissao para acessar a lixeira.');
-            const grid = document.getElementById('grid-home');
-            const conteudo = document.getElementById('conteudo-modulo');
-            const titulo = document.getElementById('titulo-modulo');
-            const render = document.getElementById('render-modulo');
-
-            if (grid) grid.style.display = 'none';
-            if (conteudo) conteudo.style.display = 'block';
-            if (titulo) titulo.innerText = 'LIXEIRA';
-            if (render) render.innerHTML = '';
-
-            renderizarLixeiraAtlas();
-            return;
-        }
-
-        return abrirModuloAnteriorLixeiraUltimo.apply(this, arguments);
-    };
-})();
-
