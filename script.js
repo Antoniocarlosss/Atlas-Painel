@@ -3665,6 +3665,9 @@ function criarUsuarioSistema() {
 
     usuariosSistema = usuariosSistema.filter(u => atlasIdUsuarioNormalizado(u.id) !== idNormalizado);
     atlasLimparUsuarioExcluidoSistema(idNormalizado);
+    if (typeof window.atlasFirebaseLimparUsuarioExcluido === 'function') {
+        window.atlasFirebaseLimparUsuarioExcluido(idNormalizado);
+    }
     usuariosSistema.push(marcarUsuarioAlteradoAtlas({ nome, nascimento: aniversario, aniversario, id, senha, cargo, bloqueado: false }));
     salvarUsuariosSistemaAtlas();
     if (typeof window.atlasFirebaseSincronizarAgora === 'function') window.atlasFirebaseSincronizarAgora();
@@ -3872,7 +3875,8 @@ function excluirUsuario(index) {
     if (typeof window.atlasFirebaseRemoverUsuarioExcluido === 'function') {
         window.atlasFirebaseRemoverUsuarioExcluido(usuarioExcluido.id);
     }
-    usuariosSistema.splice(index, 1);
+    const idExcluido = atlasIdUsuarioNormalizado(usuarioExcluido.id);
+    usuariosSistema = usuariosSistema.filter(usuario => atlasIdUsuarioNormalizado(usuario.id) !== idExcluido);
     salvarUsuariosSistemaAtlas();
     if (typeof window.atlasFirebaseSincronizarAgora === 'function') window.atlasFirebaseSincronizarAgora();
 

@@ -77,6 +77,52 @@ function atlasUsuarioFoiExcluidoFirebase(idUsuario) {
     return Boolean(id && atlasUsuariosExcluidosFirebase()[id]);
 }
 
+async function atlasFirebaseBaixarUsuariosExcluidosDireto() {
+    const snap = await getDocs(collection(atlasFirestore, "usuarios_excluidos"));
+    const excluidosLocais = atlasUsuariosExcluidosFirebase();
+    let mudou = false;
+
+    snap.docs.forEach(d => {
+        const dados = d.data() || {};
+        const id = String(dados.id || d.id || "").trim().toLowerCase();
+        if (!id) return;
+
+        const localAtualizado = Number(excluidosLocais[id]?.atualizadoEm || 0);
+        const nuvemAtualizado = Number(dados.atualizadoEm || 0);
+        if (!excluidosLocais[id] || nuvemAtualizado >= localAtualizado) {
+            excluidosLocais[id] = {
+                id: dados.id || id,
+                nome: dados.nome || dados.id || id,
+                cargo: dados.cargo || "",
+                excluidoPor: dados.excluidoPor || "SISTEMA",
+                excluidoEm: dados.excluidoEm || "",
+                atualizadoEm: nuvemAtualizado || Date.now()
+            };
+            mudou = true;
+        }
+    });
+
+    if (mudou) {
+        atlasFirebaseBloqueado = true;
+        atlasLocalStorageSetItemOriginal.call(localStorage, "atlas_usuarios_excluidos", JSON.stringify(excluidosLocais));
+        atlasFirebaseBloqueado = false;
+    }
+
+    return excluidosLocais;
+}
+
+async function atlasEnviarUsuariosExcluidos() {
+    const excluidos = atlasUsuariosExcluidosFirebase();
+    await Promise.all(Object.keys(excluidos).map(id => {
+        const dados = excluidos[id] || {};
+        return atlasSetDoc(["usuarios_excluidos", atlasDocId(id)], {
+            ...dados,
+            id: dados.id || id,
+            atualizadoEm: Number(dados.atualizadoEm || Date.now())
+        });
+    }));
+}
+
 function atlasFirebaseMarcarAlteracaoLocal() {
     const agora = Date.now();
     atlasFirebaseUltimaAlteracaoLocal = agora;
@@ -125,8 +171,31 @@ async function atlasLimparColecao(nomeColecao) {
 async function atlasFirebaseRemoverUsuarioExcluidoDaNuvem(idUsuario) {
     const id = atlasDocId(idUsuario);
     if (!id) return;
+    const excluidos = atlasUsuariosExcluidosFirebase();
+    const idNormalizado = String(idUsuario || "").trim().toLowerCase();
+    const dadosExclusao = excluidos[idNormalizado] || {
+        id: idUsuario,
+        nome: idUsuario,
+        cargo: "",
+        excluidoPor: atlasFirebaseNomeUsuario(),
+        excluidoEm: new Date().toLocaleString("pt-BR"),
+        atualizadoEm: Date.now()
+    };
+    await atlasSetDoc(["usuarios_excluidos", id], {
+        ...dadosExclusao,
+        id: dadosExclusao.id || idUsuario,
+        atualizadoEm: Number(dadosExclusao.atualizadoEm || Date.now())
+    });
     await deleteDoc(doc(atlasFirestore, "usuarios", id)).catch(erro => {
         console.warn("Nao foi possivel remover usuario excluido da nuvem:", erro);
+    });
+}
+
+async function atlasFirebaseLimparUsuarioExcluidoDaNuvem(idUsuario) {
+    const id = atlasDocId(idUsuario);
+    if (!id) return;
+    await deleteDoc(doc(atlasFirestore, "usuarios_excluidos", id)).catch(erro => {
+        console.warn("Nao foi possivel limpar usuario excluido da nuvem:", erro);
     });
 }
 
@@ -148,7 +217,7 @@ async function atlasEnviarUsuarios() {
 
 async function atlasFirebaseBaixarUsuariosDireto() {
     const snap = await getDocs(collection(atlasFirestore, "usuarios"));
-    const excluidos = atlasUsuariosExcluidosFirebase();
+    const excluidos = await atlasFirebaseBaixarUsuariosExcluidosDireto();
     const usuariosNuvem = snap.docs
         .map(d => d.data())
         .filter(usuario => usuario && usuario.id && !excluidos[String(usuario.id).toLowerCase()]);
@@ -353,6 +422,7 @@ async function atlasEnviarBackupLocalStorage() {
 async function atlasFirebaseEnviarTudoOrganizadoInterno() {
     if (atlasFirebaseBloqueado) return;
 
+    await atlasEnviarUsuariosExcluidos();
     await atlasEnviarUsuarios();
     await atlasEnviarInjecao();
     await atlasEnviarBobines();
@@ -505,6 +575,13 @@ window.atlasFirebaseRemoverUsuarioExcluido = function(idUsuario) {
         .then(() => atlasFirebaseEnviarTudoOrganizadoInterno())
         .catch(erro => {
             console.error("Erro ao remover usuario excluido:", erro);
+        });
+};
+
+window.atlasFirebaseLimparUsuarioExcluido = function(idUsuario) {
+    return atlasFirebaseLimparUsuarioExcluidoDaNuvem(idUsuario)
+        .catch(erro => {
+            console.error("Erro ao limpar usuario excluido:", erro);
         });
 };
 

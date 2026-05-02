@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v87-gestao-usuarios-update-screen';
+const CACHE_NAME = 'atlas-v88-exclusao-usuarios-nuvem';
 const assets = [
   '/',
   '/index.html',

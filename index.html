@@ -9,7 +9,7 @@
     <title>Atlas Painel - Gestão</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20260502-gestao-usuarios-update-screen">
+    <link rel="stylesheet" href="style.css?v=20260502-exclusao-usuarios-nuvem">
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
@@ -94,7 +94,7 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script>
-        window.ATLAS_SISTEMA_VERSAO = '20260502-gestao-usuarios-update-screen';
+        window.ATLAS_SISTEMA_VERSAO = '20260502-exclusao-usuarios-nuvem';
         window.atlasMostrarTelaAtualizacao = function atlasMostrarTelaAtualizacao(opcoes = {}) {
             const finalizado = opcoes.finalizado === true;
             let overlay = document.getElementById('atlas-update-screen');
@@ -183,10 +183,10 @@
             });
         })();
     </script>
-    <script src="script.js?v=20260502-gestao-usuarios-update-screen"></script>
+    <script src="script.js?v=20260502-exclusao-usuarios-nuvem"></script>
     <script src="historicos-admin.js?v=20260427-lembretes-auditoria"></script>
     <script src="atlas-ajustes-fachadas.js?v=20260427-permissao-excluir"></script>
-    <script type="module" src="firebase-atlas.js?v=20260502-gestao-usuarios-update-screen"></script>
+    <script type="module" src="firebase-atlas.js?v=20260502-exclusao-usuarios-nuvem"></script>
     <script>
         if ('serviceWorker' in navigator) {
             let atlasAtualizandoPWA = false;
@@ -197,7 +197,7 @@
             });
 
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=20260502-gestao-usuarios-update-screen')
+                navigator.serviceWorker.register('sw.js?v=20260502-exclusao-usuarios-nuvem')
                     .then(reg => {
                         console.log('Atlas PWA: Ativo!');
                         reg.update();
