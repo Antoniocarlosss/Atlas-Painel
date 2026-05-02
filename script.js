@@ -405,6 +405,7 @@ function abrirModulo(nome) {
         stock: "STOCK",
         gestao: "GESTÃO",
         config: "AJUSTES",
+        lixeira: "LIXEIRA",
         permissoes: "PERMISSOES"
     };
 
@@ -441,6 +442,9 @@ function abrirModulo(nome) {
     }
    else if (nome === 'config') {
     renderizarMenuAjustes();
+}
+   else if (nome === 'lixeira') {
+    renderizarLixeiraAtlas();
 }
 
 }
@@ -9593,7 +9597,6 @@ function atlasLixeiraEnviar(secao, titulo, chave, dados, extras = {}) {
     };
 
     const lista = atlasLixeiraLer();
-    const podeGerirLixeira = usuarioPodeExcluirModulo('lixeira');
     lista.unshift(item);
     atlasLixeiraSalvar(lista);
     return item;
@@ -9674,17 +9677,13 @@ function renderizarLixeiraAtlas() {
     if (!render) return;
 
     const lista = atlasLixeiraLer();
-    const porSecao = lista.reduce((acc, item) => {
-        acc[item.secao] ||= [];
-        acc[item.secao].push(item);
-        return acc;
-    }, {});
+    const podeGerirLixeira = usuarioPodeExcluirModulo('lixeira');
 
     let html = `
         <div style="padding:15px; color:white;">
             <h2 style="margin-top:0; border-bottom:2px solid #ef4444; padding-bottom:10px;">Lixeira</h2>
             <div style="background:#1e293b; border:1px solid #334155; border-radius:10px; padding:12px; color:#cbd5e1; font-size:13px; margin-bottom:14px;">
-                Itens apagados ficam aqui por ${ATLAS_LIXEIRA_DIAS} dias. Depois sao removidos automaticamente.
+                Itens apagados ficam aqui por ${ATLAS_LIXEIRA_DIAS} dias. Cada PDF ou item apagado aparece separado.
             </div>
     `;
 
@@ -9692,33 +9691,25 @@ function renderizarLixeiraAtlas() {
         html += `<div style="text-align:center; padding:45px; color:#94a3b8;">Lixeira vazia.</div>`;
     }
 
-    Object.keys(porSecao).sort().forEach(secao => {
-        const itensSecao = porSecao[secao];
+    lista.forEach(item => {
         html += `
-            <details style="background:#111827; border:1px solid #334155; border-radius:12px; margin-bottom:12px; overflow:hidden;">
-                <summary style="cursor:pointer; padding:14px; display:flex; justify-content:space-between; align-items:center; gap:10px; background:#1e293b; list-style:none;">
-                    <span style="font-size:14px; color:#fca5a5; text-transform:uppercase; font-weight:bold;">${textoSeguroConferencia(secao)}</span>
-                    <span style="background:#7f1d1d; color:white; border-radius:999px; padding:4px 10px; font-size:12px; font-weight:bold;">${itensSecao.length} item(ns)</span>
-                </summary>
-                <div style="padding:12px;">
-                ${itensSecao.map(item => `
-                    <div style="background:#111827; border:1px solid #334155; border-left:5px solid #ef4444; border-radius:10px; padding:12px; margin-bottom:10px;">
-                        <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap;">
-                            <b>${textoSeguroConferencia(item.titulo)}</b>
-                            <span style="color:#fca5a5; font-size:12px;">Expira: ${textoSeguroConferencia(item.expiraEm)}</span>
-                        </div>
-                        <div style="color:#94a3b8; font-size:12px; margin-top:6px;">
-                            Apagado por: <b style="color:white;">${textoSeguroConferencia(item.apagadoPor)}</b><br>
-                            Data/hora: ${textoSeguroConferencia(item.apagadoEm)}
-                        </div>
-                        ${podeGerirLixeira ? `<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px;">
-                            <button onclick="atlasRestaurarDaLixeira('${item.id}')" style="background:#10b981; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold;">RESTAURAR</button>
-                            <button onclick="atlasApagarDefinitivoDaLixeira('${item.id}')" style="background:#7f1d1d; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold;">APAGAR</button>
-                        </div>` : `<div style="margin-top:10px; color:#94a3b8; font-size:12px;">Somente visualizacao.</div>`}
+            <div style="background:#111827; border:1px solid #334155; border-left:5px solid #ef4444; border-radius:10px; padding:12px; margin-bottom:10px;">
+                <div style="display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:flex-start;">
+                    <div>
+                        <span style="display:inline-block; background:#1e3a8a; color:white; border-radius:999px; padding:4px 9px; font-size:11px; font-weight:bold; margin-bottom:6px;">${textoSeguroConferencia(item.secao || 'Sistema')}</span><br>
+                        <b>${textoSeguroConferencia(item.titulo)}</b>
                     </div>
-                `).join('')}
+                    <span style="color:#fca5a5; font-size:12px;">Expira: ${textoSeguroConferencia(item.expiraEm)}</span>
                 </div>
-            </details>
+                <div style="color:#94a3b8; font-size:12px; margin-top:6px;">
+                    Apagado por: <b style="color:white;">${textoSeguroConferencia(item.apagadoPor)}</b><br>
+                    Data/hora: ${textoSeguroConferencia(item.apagadoEm)}
+                </div>
+                ${podeGerirLixeira ? `<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px;">
+                    <button onclick="atlasRestaurarDaLixeira('${item.id}')" style="background:#10b981; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold;">RESTAURAR</button>
+                    <button onclick="atlasApagarDefinitivoDaLixeira('${item.id}')" style="background:#7f1d1d; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold;">APAGAR</button>
+                </div>` : `<div style="margin-top:10px; color:#94a3b8; font-size:12px;">Somente visualizacao.</div>`}
+            </div>
         `;
     });
 
