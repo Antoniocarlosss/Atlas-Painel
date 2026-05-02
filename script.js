@@ -5400,6 +5400,7 @@ async function abrirSaudeSistemaAtlas() {
     const usuariosBloqueados = (usuariosSistema || []).filter(u => u.bloqueado).length;
     const usuariosExcluidos = Object.keys(atlasJSONLocal('atlas_usuarios_excluidos', {})).length;
     const antigos = lista.filter(d => String(d.versao || '') !== String(versaoAtual)).length;
+    const htmlUsuarios = atlasHTMLUsuariosSaudeSistema(lista);
 
     c.innerHTML = `
         <div style="display:flex; align-items:center; margin-bottom:20px;">
@@ -5437,9 +5438,9 @@ async function abrirSaudeSistemaAtlas() {
         </div>
 
         <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:16px;">
-            <h3 style="margin:0 0 12px;">Aparelhos e versoes</h3>
+            <h3 style="margin:0 0 12px;">Usuarios do sistema</h3>
             <div style="display:flex; flex-direction:column; gap:10px;">
-                ${lista.map(dispositivo => atlasHTMLDispositivoSaude(dispositivo, versaoAtual)).join('') || '<div style="color:#94a3b8;">Nenhum aparelho registrado ainda.</div>'}
+                ${htmlUsuarios || '<div style="color:#94a3b8;">Nenhum usuario cadastrado ainda.</div>'}
             </div>
         </div>
     `;
@@ -5478,6 +5479,66 @@ function atlasHTMLDispositivoSaude(dispositivo) {
             </div>
         </div>
     `;
+}
+
+function atlasHTMLUsuariosSaudeSistema(dispositivos) {
+    const porUsuario = new Map();
+    (dispositivos || []).forEach(dispositivo => {
+        const chave = String(dispositivo.usuario || '').trim().toLowerCase();
+        if (!chave) return;
+        if (!porUsuario.has(chave)) porUsuario.set(chave, []);
+        porUsuario.get(chave).push(dispositivo);
+    });
+
+    const usuarios = (usuariosSistema || [])
+        .filter(usuario => usuario && usuario.id)
+        .slice()
+        .sort((a, b) => {
+            const adminA = String(a.id).toLowerCase() === 'admin' ? -1 : 0;
+            const adminB = String(b.id).toLowerCase() === 'admin' ? -1 : 0;
+            if (adminA !== adminB) return adminA - adminB;
+            return String(a.id).localeCompare(String(b.id));
+        });
+
+    return usuarios.map(usuario => {
+        const chave = String(usuario.id || '').trim().toLowerCase();
+        const aparelhos = (porUsuario.get(chave) || []).sort((a, b) => Number(b.ultimoAcessoMs || 0) - Number(a.ultimoAcessoMs || 0));
+        const principal = aparelhos[0];
+        const status = principal ? atlasStatusDispositivoSaude(principal) : null;
+        const bloqueado = usuario.bloqueado === true;
+
+        return `
+            <div style="background:#0f172a; border:1px solid #334155; border-left:5px solid ${bloqueado ? '#f59e0b' : (status?.corOnline || '#64748b')}; border-radius:12px; padding:12px;">
+                <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; align-items:center;">
+                    <div>
+                        <b style="font-size:18px;">${atlasTextoSeguroSaude(usuario.id || '-')}</b>
+                        <div style="color:#94a3b8; font-size:12px;">${atlasTextoSeguroSaude(usuario.nome || usuario.id || '')}</div>
+                    </div>
+                    <div>
+                        <b>${atlasTextoSeguroSaude(normalizarCargoUsuario(usuario.cargo).toUpperCase())}</b>
+                        <div style="color:${bloqueado ? '#f59e0b' : '#22c55e'}; font-size:12px; font-weight:900;">${bloqueado ? 'BLOQUEADO' : 'ATIVO'}</div>
+                    </div>
+                    <div>
+                        <b style="color:${status?.corOnline || '#94a3b8'};">${status?.textoOnline || 'SEM ACESSO'}</b>
+                        <div style="color:#94a3b8; font-size:12px;">${principal ? atlasTextoSeguroSaude(principal.ultimoAcesso || '-') : 'Nenhum aparelho registrado'}</div>
+                    </div>
+                    <div>
+                        <b style="color:${status?.corVersao || '#94a3b8'};">${status?.textoVersao || '-'}</b>
+                        <div style="color:#94a3b8; font-size:12px; overflow-wrap:anywhere;">${principal ? atlasTextoSeguroSaude(principal.versao || '-') : '-'}</div>
+                    </div>
+                </div>
+
+                ${aparelhos.length ? `
+                    <details style="margin-top:10px;">
+                        <summary style="cursor:pointer; color:#93c5fd; font-weight:900;">Ver aparelho(s) deste usuario (${aparelhos.length})</summary>
+                        <div style="display:flex; flex-direction:column; gap:8px; margin-top:10px;">
+                            ${aparelhos.map(dispositivo => atlasHTMLDispositivoSaude(dispositivo)).join('')}
+                        </div>
+                    </details>
+                ` : ''}
+            </div>
+        `;
+    }).join('');
 }
 
 async function atlasAtualizarCacheSaudeSistema() {
