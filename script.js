@@ -9593,6 +9593,7 @@ function atlasLixeiraEnviar(secao, titulo, chave, dados, extras = {}) {
     };
 
     const lista = atlasLixeiraLer();
+    const podeGerirLixeira = usuarioPodeExcluirModulo('lixeira');
     lista.unshift(item);
     atlasLixeiraSalvar(lista);
     return item;
@@ -9644,6 +9645,7 @@ function atlasLixeiraRestaurarItem(item) {
 }
 
 function atlasRestaurarDaLixeira(id) {
+    if (!usuarioPodeExcluirModulo('lixeira')) return alert('Sem permissao para restaurar itens da lixeira.');
     const item = atlasLixeiraLer().find(x => String(x.id) === String(id));
     if (!item) return alert('Item não encontrado na lixeira.');
     if (!confirm(`Restaurar?\n\n${item.titulo}`)) return;
@@ -9659,6 +9661,7 @@ function atlasRestaurarDaLixeira(id) {
 }
 
 function atlasApagarDefinitivoDaLixeira(id) {
+    if (!usuarioPodeExcluirModulo('lixeira')) return alert('Sem permissao para apagar itens da lixeira.');
     if (!confirm('Apagar definitivamente este item da lixeira?')) return;
     atlasLixeiraRemover(id);
     renderizarLixeiraAtlas();
@@ -9708,10 +9711,10 @@ function renderizarLixeiraAtlas() {
                             Apagado por: <b style="color:white;">${textoSeguroConferencia(item.apagadoPor)}</b><br>
                             Data/hora: ${textoSeguroConferencia(item.apagadoEm)}
                         </div>
-                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px;">
+                        ${podeGerirLixeira ? `<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:10px;">
                             <button onclick="atlasRestaurarDaLixeira('${item.id}')" style="background:#10b981; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold;">RESTAURAR</button>
                             <button onclick="atlasApagarDefinitivoDaLixeira('${item.id}')" style="background:#7f1d1d; color:white; border:none; padding:10px; border-radius:8px; font-weight:bold;">APAGAR</button>
-                        </div>
+                        </div>` : `<div style="margin-top:10px; color:#94a3b8; font-size:12px;">Somente visualizacao.</div>`}
                     </div>
                 `).join('')}
                 </div>

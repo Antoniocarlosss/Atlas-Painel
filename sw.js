@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v81-permissoes-grupo-individual';
+const CACHE_NAME = 'atlas-v82-lixeira-somente-visualizar';
 const assets = [
   '/',
   '/index.html',
