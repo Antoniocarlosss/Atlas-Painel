@@ -172,6 +172,10 @@ function atlasRegistrarDispositivoAtual() {
     }
 }
 
+window.addEventListener('atlasFirebasePronto', () => {
+    atlasRegistrarDispositivoAtual();
+});
+
 function usuarioPodeVerModulo(chave) {
     if (!usuarioLogado) return false;
     if (chave === 'permissoes') return usuarioEhAdmin();
@@ -444,8 +448,10 @@ aplicarPermissoesUsuario();
 aplicarPreferenciasVisuaisUsuario();
 verificarAniversarioNoLoginAtlas(usuarioEncontrado);
 atlasRegistrarDispositivoAtual();
+setTimeout(atlasRegistrarDispositivoAtual, 1500);
+setTimeout(atlasRegistrarDispositivoAtual, 5000);
 if (!window.atlasTimerDispositivoAtual) {
-    window.atlasTimerDispositivoAtual = setInterval(atlasRegistrarDispositivoAtual, 120000);
+    window.atlasTimerDispositivoAtual = setInterval(atlasRegistrarDispositivoAtual, 30000);
 }
 if (typeof window.atlasMostrarLembretesPrimeiroAcessoDia === 'function') {
     setTimeout(() => window.atlasMostrarLembretesPrimeiroAcessoDia(), 700);

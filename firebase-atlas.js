@@ -216,6 +216,12 @@ async function atlasFirebaseListarDispositivos() {
         .filter(item => item && item.id);
 }
 
+async function atlasFirebaseEnviarDispositivosLocais() {
+    const dispositivos = atlasParseJSON("atlas_dispositivos_online", {});
+    const lista = Object.values(dispositivos || {}).filter(item => item && item.id);
+    await Promise.all(lista.map(item => atlasFirebaseRegistrarDispositivo(item)));
+}
+
 async function atlasEnviarUsuarios() {
     const usuarios = atlasParseJSON("atlas_usuarios", []).filter(usuario => !atlasUsuarioFoiExcluidoFirebase(usuario?.id));
     await atlasLimparColecao("usuarios");
@@ -529,11 +535,14 @@ async function atlasFirebaseBaixarBackupInicial() {
 setTimeout(() => {
     atlasFirebaseBaixarUsuariosDireto()
         .then(() => atlasFirebaseBaixarBackupInicial())
+        .then(() => atlasFirebaseEnviarDispositivosLocais())
         .then(() => atlasFirebaseEnviarTudoOrganizadoInterno())
         .catch(erro => {
             console.error("Erro inicial Firebase:", erro);
         });
 }, 1500);
+
+window.dispatchEvent(new Event("atlasFirebasePronto"));
 async function atlasFirebaseAtualizarSemSair() {
     try {
         const atualizouUsuarios = await atlasFirebaseBaixarUsuariosDireto();
@@ -616,7 +625,9 @@ window.atlasFirebaseListarDispositivos = function() {
 };
 
 window.atlasFirebaseSincronizarAgora = function() {
-    return atlasFirebaseEnviarTudoOrganizadoInterno().catch(erro => {
+    return atlasFirebaseEnviarDispositivosLocais()
+        .then(() => atlasFirebaseEnviarTudoOrganizadoInterno())
+        .catch(erro => {
         console.error("Erro ao sincronizar agora:", erro);
     });
 };

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v90-dispositivos-online';
+const CACHE_NAME = 'atlas-v91-presenca-direta';
 const assets = [
   '/',
   '/index.html',
