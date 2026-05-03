@@ -194,6 +194,18 @@ function atlasRegistrarDispositivoAtual() {
     if (typeof window.atlasFirebaseRegistrarDispositivo === 'function') {
         window.atlasFirebaseRegistrarDispositivo(dispositivos[id]);
     }
+    if (typeof window.atlasFirebaseAtualizarUltimoAcessoUsuario === 'function') {
+        window.atlasFirebaseAtualizarUltimoAcessoUsuario({
+            id: usuarioId,
+            nome: usuarioNome,
+            cargo: usuarioCadastro.cargo || usuarioLogado.cargo || '',
+            aparelho,
+            versao,
+            dispositivoId: id,
+            ultimoAcessoMs: agora,
+            ultimoAcesso: atlasFormatarDataHoraSistema(agora)
+        });
+    }
     if (typeof window.atlasFirebaseChecarAtualizacaoPendente === 'function') {
         window.atlasFirebaseChecarAtualizacaoPendente(id, usuarioId);
     }
@@ -5519,6 +5531,9 @@ async function atlasAtualizarSaudeSistemaAberta() {
     if (!resumo || !listaUsuarios || !usuarioEhAdmin()) return;
 
     atlasRegistrarDispositivoAtual();
+    if (typeof window.atlasFirebaseAtualizarUsuariosSistema === 'function') {
+        await window.atlasFirebaseAtualizarUsuariosSistema();
+    }
     const lista = await atlasObterDispositivosSaudeSistema();
     resumo.innerHTML = atlasHTMLResumoSaudeSistema(lista);
     listaUsuarios.innerHTML = atlasHTMLUsuariosSaudeSistema(lista) || '<div style="color:#94a3b8;">Nenhum usuario cadastrado ainda.</div>';

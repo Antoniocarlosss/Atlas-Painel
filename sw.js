@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v98-online-imediato';
+const CACHE_NAME = 'atlas-v99-online-usuario';
 const assets = [
   '/',
   '/index.html',

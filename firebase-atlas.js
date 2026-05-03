@@ -210,6 +210,22 @@ async function atlasFirebaseRegistrarDispositivo(dados) {
     });
 }
 
+async function atlasFirebaseAtualizarUltimoAcessoUsuario(dados) {
+    if (!dados || !dados.id) return;
+    const id = atlasDocId(dados.id);
+    await atlasSetDoc(["usuarios", id], {
+        id: dados.id,
+        nome: dados.nome || dados.id,
+        cargo: dados.cargo || "",
+        _atlasUltimoAcessoMs: Number(dados.ultimoAcessoMs || Date.now()),
+        _atlasUltimoAcesso: dados.ultimoAcesso || new Date().toLocaleString("pt-BR"),
+        _atlasUltimoAcessoVersao: dados.versao || window.ATLAS_SISTEMA_VERSAO || "sem-versao",
+        _atlasUltimoAcessoAparelho: dados.aparelho || "",
+        _atlasUltimoAcessoDispositivoId: dados.dispositivoId || "",
+        _atlasUsuarioAtualizadoEm: Number(dados.ultimoAcessoMs || Date.now())
+    });
+}
+
 async function atlasFirebaseListarDispositivos() {
     const ref = collection(atlasFirestore, "dispositivos_online");
     const snap = await getDocsFromServer(ref).catch(() => getDocs(ref));
@@ -319,7 +335,8 @@ async function atlasEnviarUsuarios() {
 }
 
 async function atlasFirebaseBaixarUsuariosDireto() {
-    const snap = await getDocs(collection(atlasFirestore, "usuarios"));
+    const refUsuarios = collection(atlasFirestore, "usuarios");
+    const snap = await getDocsFromServer(refUsuarios).catch(() => getDocs(refUsuarios));
     const excluidos = await atlasFirebaseBaixarUsuariosExcluidosDireto();
     const usuariosNuvem = snap.docs
         .map(d => d.data())
@@ -677,6 +694,13 @@ window.atlasFirebaseForcarAtualizacao = function() {
         });
 };
 
+window.atlasFirebaseAtualizarUsuariosSistema = function() {
+    return atlasFirebaseBaixarUsuariosDireto().catch(erro => {
+        console.error("Erro ao atualizar usuarios:", erro);
+        return false;
+    });
+};
+
 window.atlasFirebaseRemoverUsuarioExcluido = function(idUsuario) {
     return atlasFirebaseRemoverUsuarioExcluidoDaNuvem(idUsuario)
         .then(() => atlasFirebaseEnviarTudoOrganizadoInterno())
@@ -695,6 +719,12 @@ window.atlasFirebaseLimparUsuarioExcluido = function(idUsuario) {
 window.atlasFirebaseRegistrarDispositivo = function(dados) {
     return atlasFirebaseRegistrarDispositivo(dados).catch(erro => {
         console.error("Erro ao registrar dispositivo:", erro);
+    });
+};
+
+window.atlasFirebaseAtualizarUltimoAcessoUsuario = function(dados) {
+    return atlasFirebaseAtualizarUltimoAcessoUsuario(dados).catch(erro => {
+        console.error("Erro ao atualizar ultimo acesso do usuario:", erro);
     });
 };
 
