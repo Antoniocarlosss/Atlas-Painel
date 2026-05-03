@@ -288,8 +288,11 @@ async function atlasFirebaseChecarAtualizacaoPendente(dispositivoId, usuarioId) 
         if (!snap.exists()) continue;
         const pedido = snap.data() || {};
         if (pedido.pendente === false) continue;
+        const avisoId = `atlas_update_notice_sent_${Number(pedido.build || 0)}_${pedido.versao || "sem-versao"}_${pedido.solicitadoEmMs || chave}`;
+        if (localStorage.getItem(avisoId) === "1") continue;
 
         atlasLocalStorageSetItemOriginal.call(localStorage, "atlas_atualizacao_pendente_info", JSON.stringify(pedido));
+        atlasLocalStorageSetItemOriginal.call(localStorage, avisoId, "1");
         window.dispatchEvent(new CustomEvent("atlasAtualizacaoSolicitada", { detail: pedido }));
         return pedido;
     }
