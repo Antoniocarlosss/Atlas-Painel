@@ -495,6 +495,14 @@ setTimeout(atlasRegistrarDispositivoAtual, 5000);
 if (!window.atlasTimerDispositivoAtual) {
     window.atlasTimerDispositivoAtual = setInterval(atlasRegistrarDispositivoAtual, 30000);
 }
+if (!window.atlasEventosDispositivoOnline) {
+    window.atlasEventosDispositivoOnline = true;
+    window.addEventListener('focus', atlasRegistrarDispositivoAtual);
+    window.addEventListener('online', atlasRegistrarDispositivoAtual);
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) atlasRegistrarDispositivoAtual();
+    });
+}
 if (typeof window.atlasMostrarLembretesPrimeiroAcessoDia === 'function') {
     setTimeout(() => window.atlasMostrarLembretesPrimeiroAcessoDia(), 700);
 }
@@ -5398,8 +5406,8 @@ function atlasJSStringSaude(valor) {
 function atlasStatusDispositivoSaude(dispositivo) {
     const versaoAtual = window.ATLAS_SISTEMA_VERSAO || '';
     const ultimo = Number(dispositivo?.ultimoAcessoMs || 0);
-    const minutos = ultimo ? Math.round((Date.now() - ultimo) / 60000) : 999999;
-    const online = minutos <= 5;
+    const minutos = ultimo ? ((Date.now() - ultimo) / 60000) : 999999;
+    const online = minutos <= 6;
     const atualizado = String(dispositivo?.versao || '') === String(versaoAtual);
     return {
         online,
@@ -5432,6 +5440,24 @@ async function atlasObterDispositivosSaudeSistema() {
     return lista;
 }
 
+function atlasHTMLResumoSaudeSistema(lista) {
+    const versaoAtual = window.ATLAS_SISTEMA_VERSAO || 'sem-versao';
+    const versaoLocal = localStorage.getItem('atlas_sistema_versao') || '-';
+    const usuariosAtivos = (usuariosSistema || []).filter(u => !u.bloqueado).length;
+    const usuariosBloqueados = (usuariosSistema || []).filter(u => u.bloqueado).length;
+    const usuariosExcluidos = Object.keys(atlasJSONLocal('atlas_usuarios_excluidos', {})).length;
+    const antigos = (lista || []).filter(d => String(d.versao || '') !== String(versaoAtual)).length;
+
+    return `
+        ${atlasCardSaudeSistema('Versao atual', versaoAtual, '#22c55e')}
+        ${atlasCardSaudeSistema('Versao neste aparelho', versaoLocal, versaoLocal === versaoAtual ? '#22c55e' : '#ef4444')}
+        ${atlasCardSaudeSistema('Aparelhos registrados', (lista || []).length, '#3b82f6')}
+        ${atlasCardSaudeSistema('Aparelhos antigos', antigos, antigos ? '#ef4444' : '#22c55e')}
+        ${atlasCardSaudeSistema('Usuarios ativos', usuariosAtivos, '#22c55e')}
+        ${atlasCardSaudeSistema('Bloqueados / excluidos', `${usuariosBloqueados} / ${usuariosExcluidos}`, '#f59e0b')}
+    `;
+}
+
 async function abrirSaudeSistemaAtlas() {
     if (!usuarioEhAdmin()) return alert('Apenas ADMIN pode ver a saude do sistema.');
     if (!alternarAbaAjustes(true)) return;
@@ -5442,13 +5468,7 @@ async function abrirSaudeSistemaAtlas() {
     if (!c) return;
 
     const lista = await atlasObterDispositivosSaudeSistema();
-    const versaoAtual = window.ATLAS_SISTEMA_VERSAO || 'sem-versao';
-    const versaoLocal = localStorage.getItem('atlas_sistema_versao') || '-';
     const ultimaSync = localStorage.getItem('atlas_sync_local_updated_ms');
-    const usuariosAtivos = (usuariosSistema || []).filter(u => !u.bloqueado).length;
-    const usuariosBloqueados = (usuariosSistema || []).filter(u => u.bloqueado).length;
-    const usuariosExcluidos = Object.keys(atlasJSONLocal('atlas_usuarios_excluidos', {})).length;
-    const antigos = lista.filter(d => String(d.versao || '') !== String(versaoAtual)).length;
     const htmlUsuarios = atlasHTMLUsuariosSaudeSistema(lista);
 
     c.innerHTML = `
@@ -5461,13 +5481,8 @@ async function abrirSaudeSistemaAtlas() {
             </h2>
         </div>
 
-        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-bottom:14px;">
-            ${atlasCardSaudeSistema('Versao atual', versaoAtual, '#22c55e')}
-            ${atlasCardSaudeSistema('Versao neste aparelho', versaoLocal, versaoLocal === versaoAtual ? '#22c55e' : '#ef4444')}
-            ${atlasCardSaudeSistema('Aparelhos registrados', lista.length, '#3b82f6')}
-            ${atlasCardSaudeSistema('Aparelhos antigos', antigos, antigos ? '#ef4444' : '#22c55e')}
-            ${atlasCardSaudeSistema('Usuarios ativos', usuariosAtivos, '#22c55e')}
-            ${atlasCardSaudeSistema('Bloqueados / excluidos', `${usuariosBloqueados} / ${usuariosExcluidos}`, '#f59e0b')}
+        <div id="atlas-saude-resumo" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; margin-bottom:14px;">
+            ${atlasHTMLResumoSaudeSistema(lista)}
         </div>
 
         <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin-bottom:14px;">
@@ -5488,13 +5503,37 @@ async function abrirSaudeSistemaAtlas() {
 
         <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:16px;">
             <h3 style="margin:0 0 12px;">Usuarios do sistema</h3>
-            <div style="display:flex; flex-direction:column; gap:10px;">
+            <div id="atlas-saude-usuarios-lista" style="display:flex; flex-direction:column; gap:10px;">
                 ${htmlUsuarios || '<div style="color:#94a3b8;">Nenhum usuario cadastrado ainda.</div>'}
             </div>
         </div>
     `;
 
     atlasAtualizarCacheSaudeSistema();
+    atlasIniciarAtualizacaoSaudeSistema();
+}
+
+async function atlasAtualizarSaudeSistemaAberta() {
+    const resumo = document.getElementById('atlas-saude-resumo');
+    const listaUsuarios = document.getElementById('atlas-saude-usuarios-lista');
+    if (!resumo || !listaUsuarios || !usuarioEhAdmin()) return;
+
+    atlasRegistrarDispositivoAtual();
+    const lista = await atlasObterDispositivosSaudeSistema();
+    resumo.innerHTML = atlasHTMLResumoSaudeSistema(lista);
+    listaUsuarios.innerHTML = atlasHTMLUsuariosSaudeSistema(lista) || '<div style="color:#94a3b8;">Nenhum usuario cadastrado ainda.</div>';
+}
+
+function atlasIniciarAtualizacaoSaudeSistema() {
+    if (window.atlasSaudeSistemaTimer) clearInterval(window.atlasSaudeSistemaTimer);
+    window.atlasSaudeSistemaTimer = setInterval(() => {
+        if (!document.getElementById('atlas-saude-usuarios-lista')) {
+            clearInterval(window.atlasSaudeSistemaTimer);
+            window.atlasSaudeSistemaTimer = null;
+            return;
+        }
+        atlasAtualizarSaudeSistemaAberta();
+    }, 7000);
 }
 
 function atlasCardSaudeSistema(titulo, valor, cor) {

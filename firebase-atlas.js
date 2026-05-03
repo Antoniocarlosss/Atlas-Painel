@@ -9,6 +9,7 @@ import {
 doc,
 getDoc,
 getDocs,
+getDocsFromServer,
 collection,
 setDoc,
 deleteDoc,
@@ -210,7 +211,8 @@ async function atlasFirebaseRegistrarDispositivo(dados) {
 }
 
 async function atlasFirebaseListarDispositivos() {
-    const snap = await getDocs(collection(atlasFirestore, "dispositivos_online"));
+    const ref = collection(atlasFirestore, "dispositivos_online");
+    const snap = await getDocsFromServer(ref).catch(() => getDocs(ref));
     return snap.docs
         .map(d => d.data())
         .filter(item => item && item.id);
