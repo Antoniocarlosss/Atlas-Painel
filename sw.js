@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v99-online-usuario';
+const CACHE_NAME = 'atlas-v100-offline-ao-sair';
 const assets = [
   '/',
   '/index.html',

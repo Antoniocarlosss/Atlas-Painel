@@ -186,6 +186,9 @@ function atlasRegistrarDispositivoAtual() {
         userAgent: navigator.userAgent || '',
         largura: window.innerWidth || 0,
         altura: window.innerHeight || 0,
+        online: true,
+        saiuEmMs: 0,
+        saiuEm: '',
         ultimoAcessoMs: agora,
         ultimoAcesso: atlasFormatarDataHoraSistema(agora)
     };
@@ -216,6 +219,62 @@ function atlasRegistrarDispositivoAtual() {
         window.atlasFirebaseSincronizarAgora();
     }
 }
+
+function atlasDadosDispositivoOfflineAtual() {
+    const dispositivos = atlasJSONLocal('atlas_dispositivos_online', {});
+    const id = atlasDispositivoIdAtual();
+    const atual = dispositivos[id] || {};
+    const agora = Date.now();
+    const dados = {
+        ...atual,
+        id,
+        usuario: atual.usuario || usuarioLogado?.id || '',
+        nome: atual.nome || usuarioLogado?.nome || usuarioLogado?.id || '',
+        cargo: atual.cargo || usuarioLogado?.cargo || '',
+        aparelho: atual.aparelho || atlasNomeAparelhoAtual(),
+        versao: atual.versao || window.ATLAS_SISTEMA_VERSAO || 'sem-versao',
+        plataforma: atual.plataforma || navigator.platform || '',
+        userAgent: atual.userAgent || navigator.userAgent || '',
+        largura: window.innerWidth || atual.largura || 0,
+        altura: window.innerHeight || atual.altura || 0,
+        online: false,
+        saiuEmMs: agora,
+        saiuEm: atlasFormatarDataHoraSistema(agora),
+        ultimoAcessoMs: Number(atual.ultimoAcessoMs || agora),
+        ultimoAcesso: atual.ultimoAcesso || atlasFormatarDataHoraSistema(agora)
+    };
+    dispositivos[id] = dados;
+    localStorage.setItem('atlas_dispositivos_online', JSON.stringify(dispositivos));
+    return dados;
+}
+
+function atlasMarcarDispositivoOffline() {
+    if (!usuarioLogado) return Promise.resolve();
+    const dados = atlasDadosDispositivoOfflineAtual();
+    if (typeof window.atlasFirebaseMarcarDispositivoOffline === 'function') {
+        return window.atlasFirebaseMarcarDispositivoOffline(dados);
+    }
+    if (typeof window.atlasFirebaseRegistrarDispositivo === 'function') {
+        return window.atlasFirebaseRegistrarDispositivo(dados);
+    }
+    return Promise.resolve();
+}
+
+async function atlasSairSistema() {
+    if (window.atlasTimerDispositivoAtual) {
+        clearInterval(window.atlasTimerDispositivoAtual);
+        window.atlasTimerDispositivoAtual = null;
+    }
+    await Promise.race([
+        atlasMarcarDispositivoOffline(),
+        new Promise(resolve => setTimeout(resolve, 1200))
+    ]);
+    location.reload();
+}
+
+window.addEventListener('pagehide', () => {
+    atlasMarcarDispositivoOffline();
+});
 
 window.addEventListener('atlasFirebasePronto', () => {
     atlasRegistrarDispositivoAtual();
@@ -5419,7 +5478,7 @@ function atlasStatusDispositivoSaude(dispositivo) {
     const versaoAtual = window.ATLAS_SISTEMA_VERSAO || '';
     const ultimo = Number(dispositivo?.ultimoAcessoMs || 0);
     const minutos = ultimo ? ((Date.now() - ultimo) / 60000) : 999999;
-    const online = minutos <= 6;
+    const online = dispositivo?.online !== false && minutos <= 6;
     const atualizado = String(dispositivo?.versao || '') === String(versaoAtual);
     return {
         online,

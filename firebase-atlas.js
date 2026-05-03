@@ -206,7 +206,24 @@ async function atlasFirebaseRegistrarDispositivo(dados) {
     await atlasSetDoc(["dispositivos_online", id], {
         ...dados,
         id: dados.id,
+        online: dados.online !== false,
+        saiuEmMs: Number(dados.saiuEmMs || 0),
+        saiuEm: dados.saiuEm || "",
         ultimoAcessoMs: Number(dados.ultimoAcessoMs || Date.now())
+    });
+}
+
+async function atlasFirebaseMarcarDispositivoOffline(dados) {
+    if (!dados || !dados.id) return;
+    const id = atlasDocId(dados.id);
+    const agora = Number(dados.saiuEmMs || Date.now());
+    await atlasSetDoc(["dispositivos_online", id], {
+        ...dados,
+        id: dados.id,
+        online: false,
+        saiuEmMs: agora,
+        saiuEm: dados.saiuEm || new Date(agora).toLocaleString("pt-BR"),
+        ultimoAcessoMs: Number(dados.ultimoAcessoMs || agora)
     });
 }
 
@@ -719,6 +736,12 @@ window.atlasFirebaseLimparUsuarioExcluido = function(idUsuario) {
 window.atlasFirebaseRegistrarDispositivo = function(dados) {
     return atlasFirebaseRegistrarDispositivo(dados).catch(erro => {
         console.error("Erro ao registrar dispositivo:", erro);
+    });
+};
+
+window.atlasFirebaseMarcarDispositivoOffline = function(dados) {
+    return atlasFirebaseMarcarDispositivoOffline(dados).catch(erro => {
+        console.error("Erro ao marcar dispositivo offline:", erro);
     });
 };
 
