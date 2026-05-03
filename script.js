@@ -122,12 +122,26 @@ function atlasDispositivoIdAtual() {
     return id;
 }
 
+function atlasTelaAtual() {
+    const largura = window.screen?.width || window.innerWidth || 0;
+    const altura = window.screen?.height || window.innerHeight || 0;
+    return largura && altura ? ` ${largura}x${altura}` : '';
+}
+
+function atlasVersaoIOS(ua) {
+    const match = String(ua || '').match(/OS ([\d_]+)/i);
+    return match ? ` iOS ${match[1].replace(/_/g, '.')}` : '';
+}
+
 function atlasNomeAparelhoAtual() {
     const ua = navigator.userAgent || '';
-    if (/Samsung|SM-/i.test(ua)) return 'Samsung / Android';
-    if (/Android/i.test(ua)) return 'Android';
-    if (/iPhone/i.test(ua)) return 'iPhone';
-    if (/iPad/i.test(ua)) return 'iPad';
+    if (/Samsung|SM-/i.test(ua)) {
+        const modelo = (ua.match(/\bSM-[A-Z0-9]+/i) || [])[0];
+        return modelo ? `Samsung ${modelo}` : `Samsung / Android${atlasTelaAtual()}`;
+    }
+    if (/Android/i.test(ua)) return `Android${atlasTelaAtual()}`;
+    if (/iPhone/i.test(ua)) return `iPhone${atlasVersaoIOS(ua)}${atlasTelaAtual()}`;
+    if (/iPad/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1)) return `iPad${atlasVersaoIOS(ua)}${atlasTelaAtual()}`;
     if (/Windows/i.test(ua)) return 'Windows';
     if (/Mac/i.test(ua)) return 'Mac';
     return navigator.platform || 'Aparelho';
@@ -184,8 +198,8 @@ function atlasRegistrarDispositivoAtual() {
         versao,
         plataforma: navigator.platform || '',
         userAgent: navigator.userAgent || '',
-        largura: window.innerWidth || 0,
-        altura: window.innerHeight || 0,
+        largura: window.screen?.width || window.innerWidth || 0,
+        altura: window.screen?.height || window.innerHeight || 0,
         online: true,
         saiuEmMs: 0,
         saiuEm: '',
@@ -235,8 +249,8 @@ function atlasDadosDispositivoOfflineAtual() {
         versao: atual.versao || window.ATLAS_SISTEMA_VERSAO || 'sem-versao',
         plataforma: atual.plataforma || navigator.platform || '',
         userAgent: atual.userAgent || navigator.userAgent || '',
-        largura: window.innerWidth || atual.largura || 0,
-        altura: window.innerHeight || atual.altura || 0,
+        largura: window.screen?.width || window.innerWidth || atual.largura || 0,
+        altura: window.screen?.height || window.innerHeight || atual.altura || 0,
         online: false,
         saiuEmMs: agora,
         saiuEm: atlasFormatarDataHoraSistema(agora),
@@ -5638,6 +5652,9 @@ function atlasHTMLDispositivoSaude(dispositivo) {
     const status = atlasStatusDispositivoSaude(dispositivo);
     const dispositivoId = atlasJSStringSaude(dispositivo.id || '');
     const usuarioId = atlasJSStringSaude(dispositivo.usuario || '');
+    const textoAcesso = status.online
+        ? (dispositivo.ultimoAcesso || '-')
+        : `Saiu: ${dispositivo.saiuEm || dispositivo.ultimoAcesso || '-'}`;
     return `
         <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; align-items:center; background:#0f172a; border:1px solid #334155; border-left:5px solid ${status.corVersao}; border-radius:10px; padding:12px;">
             <div>
@@ -5654,7 +5671,7 @@ function atlasHTMLDispositivoSaude(dispositivo) {
             </div>
             <div>
                 <b style="color:${status.corOnline};">${status.textoOnline}</b>
-                <div style="color:#94a3b8; font-size:12px;">${atlasTextoSeguroSaude(dispositivo.ultimoAcesso || '-')}</div>
+                <div style="color:#94a3b8; font-size:12px;">${atlasTextoSeguroSaude(textoAcesso)}</div>
             </div>
             <button onclick="atlasSolicitarAtualizacaoDispositivo('${dispositivoId}', '${usuarioId}')"
                 style="padding:12px; border:none; border-radius:8px; background:#2563eb; color:white; font-weight:900; cursor:pointer;">

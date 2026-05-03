@@ -253,8 +253,11 @@ async function atlasFirebaseListarDispositivos() {
 
 async function atlasFirebaseEnviarDispositivosLocais() {
     const dispositivos = atlasParseJSON("atlas_dispositivos_online", {});
-    const lista = Object.values(dispositivos || {}).filter(item => item && item.id);
-    await Promise.all(lista.map(item => atlasFirebaseRegistrarDispositivo(item)));
+    const idAtual = localStorage.getItem("atlas_dispositivo_id");
+    const atual = idAtual ? dispositivos[idAtual] : null;
+    if (atual && atual.id) {
+        await atlasFirebaseRegistrarDispositivo(atual);
+    }
 }
 
 async function atlasFirebaseSincronizarVersaoSistema() {
