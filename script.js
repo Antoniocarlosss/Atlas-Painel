@@ -133,6 +133,27 @@ function atlasVersaoIOS(ua) {
     return match ? ` iOS ${match[1].replace(/_/g, '.')}` : '';
 }
 
+function atlasModeloProvavelApple() {
+    const largura = window.screen?.width || window.innerWidth || 0;
+    const altura = window.screen?.height || window.innerHeight || 0;
+    const menor = Math.min(largura, altura);
+    const maior = Math.max(largura, altura);
+    const pontos = `${menor}x${maior}`;
+    const modelos = {
+        '320x568': 'iPhone SE/5/5s provavel',
+        '375x667': 'iPhone SE 2/3 ou 6/7/8 provavel',
+        '375x812': 'iPhone X/XS/11 Pro/12 mini/13 mini provavel',
+        '390x844': 'iPhone 12/13/14/15/16 provavel',
+        '393x852': 'iPhone 14/15/16 Pro provavel',
+        '414x736': 'iPhone Plus antigo provavel',
+        '414x896': 'iPhone XR/11/XS Max/11 Pro Max provavel',
+        '428x926': 'iPhone 12/13/14 Plus ou Pro Max provavel',
+        '430x932': 'iPhone 14/15/16 Plus ou Pro Max provavel',
+        '440x956': 'iPhone 16 Pro Max provavel'
+    };
+    return modelos[pontos] || `iPhone modelo nao identificado ${pontos}`;
+}
+
 function atlasNomeAparelhoAtual() {
     const ua = navigator.userAgent || '';
     if (/Samsung|SM-/i.test(ua)) {
@@ -140,7 +161,7 @@ function atlasNomeAparelhoAtual() {
         return modelo ? `Samsung ${modelo}` : `Samsung / Android${atlasTelaAtual()}`;
     }
     if (/Android/i.test(ua)) return `Android${atlasTelaAtual()}`;
-    if (/iPhone/i.test(ua)) return `iPhone${atlasVersaoIOS(ua)}${atlasTelaAtual()}`;
+    if (/iPhone/i.test(ua)) return `${atlasModeloProvavelApple()}${atlasVersaoIOS(ua)}`;
     if (/iPad/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1)) return `iPad${atlasVersaoIOS(ua)}${atlasTelaAtual()}`;
     if (/Windows/i.test(ua)) return 'Windows';
     if (/Mac/i.test(ua)) return 'Mac';
@@ -281,12 +302,16 @@ async function atlasSairSistema() {
     }
     await Promise.race([
         atlasMarcarDispositivoOffline(),
-        new Promise(resolve => setTimeout(resolve, 1200))
+        new Promise(resolve => setTimeout(resolve, 3000))
     ]);
     location.reload();
 }
 
 window.addEventListener('pagehide', () => {
+    atlasMarcarDispositivoOffline();
+});
+
+window.addEventListener('beforeunload', () => {
     atlasMarcarDispositivoOffline();
 });
 
@@ -5491,8 +5516,8 @@ function atlasJSStringSaude(valor) {
 function atlasStatusDispositivoSaude(dispositivo) {
     const versaoAtual = window.ATLAS_SISTEMA_VERSAO || '';
     const ultimo = Number(dispositivo?.ultimoAcessoMs || 0);
-    const minutos = ultimo ? ((Date.now() - ultimo) / 60000) : 999999;
-    const online = dispositivo?.online !== false && minutos <= 6;
+    const segundos = ultimo ? ((Date.now() - ultimo) / 1000) : 999999;
+    const online = dispositivo?.online !== false && segundos <= 50;
     const atualizado = String(dispositivo?.versao || '') === String(versaoAtual);
     return {
         online,
