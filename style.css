@@ -1499,6 +1499,10 @@ table {
     font-size: 16px !important;
 }
 
+.atlas-plano-geral-barra.persistente {
+    margin: 8px 0 14px;
+}
+
 .atlas-plano-geral-tabela {
     min-width: 1500px;
 }

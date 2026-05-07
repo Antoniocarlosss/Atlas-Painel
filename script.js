@@ -8188,6 +8188,80 @@ document.addEventListener('click', function(evento) {
 })();
 
 /* ==========================================================
+   PLANO - GARANTIR BOTAO PLANILHA GERAL APOS FINALIZAR PEDIDO
+   ========================================================== */
+
+(function() {
+    if (window.atlasPlanoBotaoGeralPersistenteAtivo) return;
+    window.atlasPlanoBotaoGeralPersistenteAtivo = true;
+
+    function atlasTemPedidosNoPlanoLive() {
+        return (db_plano_live?.linhasAbertas || []).some(item => item.modo === 'pedido');
+    }
+
+    function atlasGarantirBotaoGeralPlano() {
+        if (!atlasTemPedidosNoPlanoLive()) return;
+
+        document.querySelectorAll('#atlas-plano-geral-persistente').forEach((el, index) => {
+            if (index > 0) el.remove();
+        });
+        if (document.getElementById('atlas-plano-geral-persistente')) return;
+
+        const container = document.getElementById('container-acao-plano') || document.getElementById('render-modulo');
+        if (!container) return;
+
+        const titulos = Array.from(container.querySelectorAll('h1,h2,h3,h4,div,span'))
+            .filter(el => String(el.textContent || '').trim().toLowerCase() === 'pedidos inseridos');
+        const titulo = titulos[titulos.length - 1];
+        const listaAberta = document.getElementById('plano-lista-aberta');
+        const referencia = titulo || listaAberta || container.lastElementChild;
+        if (!referencia) return;
+
+        const barra = document.createElement('div');
+        barra.id = 'atlas-plano-geral-persistente';
+        barra.className = 'atlas-plano-geral-barra destaque persistente';
+        barra.innerHTML = `
+            <button onclick="atlasAbrirPlanilhaGeralLive()">VER TODOS OS PEDIDOS / PLANILHA GERAL</button>
+            <button onclick="atlasGerarPDFGeralLive()" class="pdf">PDF GERAL</button>
+        `;
+
+        referencia.insertAdjacentElement(titulo ? 'afterend' : 'afterend', barra);
+    }
+
+    function atlasAgendarBotaoGeralPlano() {
+        setTimeout(atlasGarantirBotaoGeralPlano, 0);
+        setTimeout(atlasGarantirBotaoGeralPlano, 120);
+        setTimeout(atlasGarantirBotaoGeralPlano, 450);
+    }
+
+    const atualizarTelaPlanoPersistenteOriginal = window.atualizarTelaPlanoAtual || atualizarTelaPlanoAtual;
+    window.atualizarTelaPlanoAtual = function() {
+        atualizarTelaPlanoPersistenteOriginal();
+        atlasAgendarBotaoGeralPlano();
+    };
+    atualizarTelaPlanoAtual = window.atualizarTelaPlanoAtual;
+
+    const abrirFormularioPlanoPersistenteOriginal = window.abrirFormularioPlano || abrirFormularioPlano;
+    window.abrirFormularioPlano = function(modo) {
+        abrirFormularioPlanoPersistenteOriginal(modo);
+        atlasAgendarBotaoGeralPlano();
+    };
+    abrirFormularioPlano = window.abrirFormularioPlano;
+
+    const finalizarPedidoPlanoPersistenteOriginal = window.finalizarPedidoPlano || finalizarPedidoPlano;
+    window.finalizarPedidoPlano = function() {
+        finalizarPedidoPlanoPersistenteOriginal();
+        atlasAgendarBotaoGeralPlano();
+    };
+    finalizarPedidoPlano = window.finalizarPedidoPlano;
+
+    document.addEventListener('click', function(evento) {
+        const texto = String(evento.target?.textContent || '').toLowerCase();
+        if (texto.includes('finalizar pedido') || texto.includes('adicionar pedido')) atlasAgendarBotaoGeralPlano();
+    });
+})();
+
+/* ==========================================================
    PLANO - PLANILHA GERAL MESCLADA POR PEDIDO
    ========================================================== */
 
