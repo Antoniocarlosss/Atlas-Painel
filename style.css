@@ -1544,6 +1544,43 @@ table {
     color: #fff;
 }
 
+/* Oculta tentativas antigas duplicadas; apenas o botao canonico fica visivel. */
+.atlas-plano-geral-barra,
+.atlas-plano-geral-barra-unica {
+    display: none !important;
+}
+
+#atlas-plano-botao-canonico {
+    width: min(680px, 100%);
+    margin: 14px auto 16px;
+    display: flex !important;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    background: #111827;
+    border: 2px solid #f59e0b;
+    border-radius: 10px;
+    padding: 12px;
+}
+
+#atlas-plano-botao-canonico button {
+    flex: 1 1 260px;
+    min-height: 54px;
+    border: none;
+    border-radius: 8px;
+    background: #f59e0b;
+    color: #111827;
+    padding: 12px 16px;
+    font-weight: 900;
+    cursor: pointer;
+    font-size: 15px !important;
+}
+
+#atlas-plano-botao-canonico button.pdf {
+    background: #10b981;
+    color: #fff;
+}
+
 .atlas-plano-geral-tabela {
     min-width: 1500px;
 }

@@ -14139,3 +14139,81 @@ window.addEventListener('load', () => setTimeout(instalarProtecaoExclusaoSeparad
 
     observer.observe(document.body, { childList: true, subtree: true });
 })();
+
+/* ==========================================================
+   PLANO - BOTAO CANONICO UNICO, SEM DUPLICATAS VISUAIS
+   ========================================================== */
+
+(function() {
+    if (window.atlasPlanoBotaoCanonicoUnicoAtivo) return;
+    window.atlasPlanoBotaoCanonicoUnicoAtivo = true;
+
+    function temPedido() {
+        return (db_plano_live?.linhasAbertas || []).some(item => item.modo === 'pedido');
+    }
+
+    function limparCanonicoDuplicado() {
+        const canonicos = Array.from(document.querySelectorAll('#atlas-plano-botao-canonico'));
+        canonicos.slice(1).forEach(el => el.remove());
+    }
+
+    function inserirCanonico() {
+        limparCanonicoDuplicado();
+
+        const existente = document.getElementById('atlas-plano-botao-canonico');
+        if (!temPedido()) {
+            existente?.remove();
+            return;
+        }
+        if (existente) return;
+
+        const area = document.getElementById('container-acao-plano') || document.getElementById('render-modulo');
+        if (!area) return;
+
+        const titulos = Array.from(area.querySelectorAll('h1,h2,h3,h4,div,span'))
+            .filter(el => String(el.textContent || '').trim().toLowerCase() === 'pedidos inseridos');
+        const referencia = titulos[titulos.length - 1] || document.getElementById('plano-lista-aberta');
+        if (!referencia) return;
+
+        const barra = document.createElement('div');
+        barra.id = 'atlas-plano-botao-canonico';
+        barra.innerHTML = `
+            <button onclick="atlasAbrirPlanilhaGeralLive()">VER TODOS OS PEDIDOS / PLANILHA GERAL</button>
+            <button onclick="atlasGerarPDFGeralLive()" class="pdf">PDF GERAL</button>
+        `;
+        referencia.insertAdjacentElement('afterend', barra);
+    }
+
+    function agendarCanonico() {
+        setTimeout(inserirCanonico, 0);
+        setTimeout(inserirCanonico, 150);
+        setTimeout(inserirCanonico, 500);
+        setTimeout(inserirCanonico, 1200);
+    }
+
+    const atualizarOriginal = window.atualizarTelaPlanoAtual || atualizarTelaPlanoAtual;
+    window.atualizarTelaPlanoAtual = function() {
+        atualizarOriginal();
+        agendarCanonico();
+    };
+    atualizarTelaPlanoAtual = window.atualizarTelaPlanoAtual;
+
+    const abrirOriginal = window.abrirFormularioPlano || abrirFormularioPlano;
+    window.abrirFormularioPlano = function(modo) {
+        abrirOriginal(modo);
+        agendarCanonico();
+    };
+    abrirFormularioPlano = window.abrirFormularioPlano;
+
+    const finalizarOriginal = window.finalizarPedidoPlano || finalizarPedidoPlano;
+    window.finalizarPedidoPlano = function() {
+        finalizarOriginal();
+        agendarCanonico();
+    };
+    finalizarPedidoPlano = window.finalizarPedidoPlano;
+
+    new MutationObserver(() => {
+        clearTimeout(window.atlasPlanoBotaoCanonicoTimer);
+        window.atlasPlanoBotaoCanonicoTimer = setTimeout(inserirCanonico, 120);
+    }).observe(document.body, { childList: true, subtree: true });
+})();
