@@ -14048,3 +14048,94 @@ window.addEventListener('load', () => setTimeout(instalarProtecaoExclusaoSeparad
     };
     finalizarPedidoPlano = window.finalizarPedidoPlano;
 })();
+
+/* ==========================================================
+   PLANO - BOTAO GERAL UNICO DEFINITIVO
+   ========================================================== */
+
+(function() {
+    if (window.atlasPlanoBotaoUnicoDefinitivoAtivo) return;
+    window.atlasPlanoBotaoUnicoDefinitivoAtivo = true;
+
+    function temPedidoPlano() {
+        return (db_plano_live?.linhasAbertas || []).some(item => item.modo === 'pedido');
+    }
+
+    function areaPlanoVisivel() {
+        return document.getElementById('container-acao-plano') || document.getElementById('render-modulo');
+    }
+
+    function removerTodosBotoesGerais() {
+        document.querySelectorAll([
+            '#atlas-plano-geral-persistente',
+            '#atlas-plano-geral-fallback',
+            '#atlas-plano-geral-persistente-final',
+            '#atlas-plano-geral-final-absoluto',
+            '#atlas-plano-geral-persistente-final',
+            '#atlas-plano-geral-unico',
+            '#atlas-plano-geral-final-absoluto',
+            '.atlas-plano-geral-barra'
+        ].join(',')).forEach(el => el.remove());
+    }
+
+    function inserirBotaoUnicoDefinitivo() {
+        const area = areaPlanoVisivel();
+        if (!area) return;
+
+        removerTodosBotoesGerais();
+        if (!temPedidoPlano()) return;
+
+        const titulos = Array.from(area.querySelectorAll('h1,h2,h3,h4,div,span'))
+            .filter(el => String(el.textContent || '').trim().toLowerCase() === 'pedidos inseridos');
+        const referencia = titulos[titulos.length - 1] || document.getElementById('plano-lista-aberta');
+        if (!referencia) return;
+
+        const barra = document.createElement('div');
+        barra.id = 'atlas-plano-geral-unico-definitivo';
+        barra.className = 'atlas-plano-geral-barra-unica';
+        barra.innerHTML = `
+            <button onclick="atlasAbrirPlanilhaGeralLive()">VER TODOS OS PEDIDOS / PLANILHA GERAL</button>
+            <button onclick="atlasGerarPDFGeralLive()" class="pdf">PDF GERAL</button>
+        `;
+        referencia.insertAdjacentElement('afterend', barra);
+    }
+
+    function agendarBotaoUnicoDefinitivo() {
+        setTimeout(inserirBotaoUnicoDefinitivo, 0);
+        setTimeout(inserirBotaoUnicoDefinitivo, 250);
+        setTimeout(inserirBotaoUnicoDefinitivo, 900);
+        setTimeout(inserirBotaoUnicoDefinitivo, 1600);
+    }
+
+    const atualizarOriginal = window.atualizarTelaPlanoAtual || atualizarTelaPlanoAtual;
+    window.atualizarTelaPlanoAtual = function() {
+        atualizarOriginal();
+        agendarBotaoUnicoDefinitivo();
+    };
+    atualizarTelaPlanoAtual = window.atualizarTelaPlanoAtual;
+
+    const abrirOriginal = window.abrirFormularioPlano || abrirFormularioPlano;
+    window.abrirFormularioPlano = function(modo) {
+        abrirOriginal(modo);
+        agendarBotaoUnicoDefinitivo();
+    };
+    abrirFormularioPlano = window.abrirFormularioPlano;
+
+    const finalizarOriginal = window.finalizarPedidoPlano || finalizarPedidoPlano;
+    window.finalizarPedidoPlano = function() {
+        finalizarOriginal();
+        agendarBotaoUnicoDefinitivo();
+    };
+    finalizarPedidoPlano = window.finalizarPedidoPlano;
+
+    const observer = new MutationObserver(() => {
+        if (!temPedidoPlano()) return;
+        const botoes = document.querySelectorAll('.atlas-plano-geral-barra, .atlas-plano-geral-barra-unica');
+        if (botoes.length !== 1 || !document.getElementById('atlas-plano-geral-unico-definitivo')) {
+            clearTimeout(window.atlasPlanoBotaoUnicoTimer);
+            window.atlasPlanoBotaoUnicoTimer = setTimeout(inserirBotaoUnicoDefinitivo, 80);
+        }
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+})();
