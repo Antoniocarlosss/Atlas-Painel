@@ -8188,6 +8188,71 @@ document.addEventListener('click', function(evento) {
 })();
 
 /* ==========================================================
+   PLANO - LIMPAR BOTOES DUPLICADOS E CENTRALIZAR BOTAO GERAL
+   ========================================================== */
+
+(function() {
+    if (window.atlasPlanoBotaoGeralUnicoAtivo) return;
+    window.atlasPlanoBotaoGeralUnicoAtivo = true;
+
+    function temPedidos() {
+        return (db_plano_live?.linhasAbertas || []).some(item => item.modo === 'pedido');
+    }
+
+    function limparBotoesGerais() {
+        document.querySelectorAll(
+            '#atlas-plano-geral-persistente, #atlas-plano-geral-fallback, #atlas-plano-geral-persistente-final, #atlas-plano-geral-final-absoluto, .atlas-plano-geral-barra'
+        ).forEach(el => el.remove());
+    }
+
+    function inserirBotaoUnico() {
+        limparBotoesGerais();
+        if (!temPedidos()) return;
+        const container = document.getElementById('container-acao-plano') || document.getElementById('render-modulo');
+        if (!container) return;
+        const titulos = Array.from(container.querySelectorAll('h1,h2,h3,h4,div,span'))
+            .filter(el => String(el.textContent || '').trim().toLowerCase() === 'pedidos inseridos');
+        const ref = titulos[titulos.length - 1] || document.getElementById('plano-lista-aberta');
+        if (!ref) return;
+        const barra = document.createElement('div');
+        barra.id = 'atlas-plano-geral-unico';
+        barra.className = 'atlas-plano-geral-barra destaque unico';
+        barra.innerHTML = `
+            <button onclick="atlasAbrirPlanilhaGeralLive()">VER TODOS OS PEDIDOS / PLANILHA GERAL</button>
+            <button onclick="atlasGerarPDFGeralLive()" class="pdf">PDF GERAL</button>
+        `;
+        ref.insertAdjacentElement('afterend', barra);
+    }
+
+    function agendar() {
+        setTimeout(inserirBotaoUnico, 0);
+        setTimeout(inserirBotaoUnico, 200);
+        setTimeout(inserirBotaoUnico, 700);
+    }
+
+    const atualizar = window.atualizarTelaPlanoAtual || atualizarTelaPlanoAtual;
+    window.atualizarTelaPlanoAtual = function() {
+        atualizar();
+        agendar();
+    };
+    atualizarTelaPlanoAtual = window.atualizarTelaPlanoAtual;
+
+    const abrir = window.abrirFormularioPlano || abrirFormularioPlano;
+    window.abrirFormularioPlano = function(modo) {
+        abrir(modo);
+        agendar();
+    };
+    abrirFormularioPlano = window.abrirFormularioPlano;
+
+    const finalizar = window.finalizarPedidoPlano || finalizarPedidoPlano;
+    window.finalizarPedidoPlano = function() {
+        finalizar();
+        agendar();
+    };
+    finalizarPedidoPlano = window.finalizarPedidoPlano;
+})();
+
+/* ==========================================================
    PLANO - CORRECAO FINAL: PLANILHA GERAL MESCLADA E BOTAO FIXO
    ========================================================== */
 

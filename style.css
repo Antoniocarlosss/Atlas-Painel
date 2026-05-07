@@ -1503,6 +1503,16 @@ table {
     margin: 8px 0 14px;
 }
 
+.atlas-plano-geral-barra.unico {
+    width: min(720px, 100%);
+    margin: 12px auto 16px;
+    justify-content: center;
+}
+
+.atlas-plano-geral-barra.unico button {
+    flex: 1 1 260px;
+}
+
 .atlas-plano-geral-tabela {
     min-width: 1500px;
 }
@@ -1533,7 +1543,8 @@ table {
 
 .atlas-planilha-mesclada .atlas-mescla-celula {
     background: #eef2ff !important;
-    vertical-align: top;
+    vertical-align: middle !important;
+    text-align: center !important;
     border-right-width: 2px;
 }
 
@@ -1541,6 +1552,12 @@ table {
 .atlas-planilha-mesclada .atlas-mescla-celula select {
     font-weight: 900;
     background: #fff !important;
+    text-align: center;
+}
+
+.atlas-planilha-mesclada .atlas-mescla-celula select,
+.atlas-planilha-mesclada .atlas-mescla-celula input {
+    margin: 0 auto;
 }
 
 .atlas-plano-live-add input,
