@@ -12950,6 +12950,26 @@ window.addEventListener('load', () => setTimeout(instalarProtecaoExclusaoSeparad
         `);
     }
 
+    function renderBotaoGeralLiveFallback() {
+        if (!db_plano_live || document.getElementById('atlas-plano-geral-fallback')) return;
+        const totalLinhas = (db_plano_live.linhasAbertas || []).filter(item => item.modo === 'pedido').length;
+        if (!totalLinhas) return;
+
+        const titulos = Array.from(document.querySelectorAll('#container-acao-plano h1, #container-acao-plano h2, #container-acao-plano h3, #container-acao-plano h4, #container-acao-plano div, #container-acao-plano span'))
+            .filter(el => String(el.textContent || '').trim().toLowerCase() === 'pedidos inseridos');
+        const alvo = titulos[titulos.length - 1] || document.getElementById('plano-lista-aberta');
+        if (!alvo) return;
+
+        const barra = document.createElement('div');
+        barra.id = 'atlas-plano-geral-fallback';
+        barra.className = 'atlas-plano-geral-barra destaque';
+        barra.innerHTML = `
+            <button onclick="atlasAbrirPlanilhaGeralLive()">VER TODOS OS PEDIDOS / PLANILHA GERAL</button>
+            <button onclick="atlasGerarPDFGeralLive()" class="pdf">PDF GERAL</button>
+        `;
+        alvo.insertAdjacentElement('afterend', barra);
+    }
+
     function linhasLive() {
         return (db_plano_live?.linhasAbertas || []).filter(item => item.modo === 'pedido');
     }
@@ -13212,6 +13232,7 @@ window.addEventListener('load', () => setTimeout(instalarProtecaoExclusaoSeparad
     window.atualizarTelaPlanoAtual = function() {
         atualizarTelaGeralOriginal();
         renderBotaoGeralLive();
+        renderBotaoGeralLiveFallback();
     };
     atualizarTelaPlanoAtual = window.atualizarTelaPlanoAtual;
 
