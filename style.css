@@ -1527,6 +1527,18 @@ table {
     border: 1px solid #111827;
 }
 
+.atlas-planilha-mesclada .atlas-mescla-celula {
+    background: #eef2ff !important;
+    vertical-align: top;
+    border-right-width: 2px;
+}
+
+.atlas-planilha-mesclada .atlas-mescla-celula input,
+.atlas-planilha-mesclada .atlas-mescla-celula select {
+    font-weight: 900;
+    background: #fff !important;
+}
+
 .atlas-plano-live-add input,
 .atlas-plano-live-add select,
 .atlas-plano-live-tabela input,

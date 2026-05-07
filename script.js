@@ -8188,6 +8188,266 @@ document.addEventListener('click', function(evento) {
 })();
 
 /* ==========================================================
+   PLANO - PLANILHA GERAL MESCLADA POR PEDIDO
+   ========================================================== */
+
+(function() {
+    if (window.atlasPlanoPlanilhaGeralMescladaAtivo) return;
+    window.atlasPlanoPlanilhaGeralMescladaAtivo = true;
+
+    function segMescla(valor) {
+        return String(valor ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function numMescla(valor) {
+        const numero = Number(String(valor ?? '').replace(',', '.'));
+        return Number.isFinite(numero) ? numero : 0;
+    }
+
+    function jsMescla(valor) {
+        return String(valor ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    }
+
+    function opcoesMescla(lista, selecionado, sufixo = '') {
+        return (lista || []).map(valor => {
+            const limpo = String(valor ?? '');
+            const texto = sufixo && !limpo.toLowerCase().includes(String(sufixo).toLowerCase()) ? `${limpo}${sufixo}` : limpo;
+            return `<option value="${segMescla(limpo)}" ${String(selecionado) === limpo ? 'selected' : ''}>${segMescla(texto)}</option>`;
+        }).join('');
+    }
+
+    function gruposMescla(linhas) {
+        const mapa = {};
+        const ordem = [];
+        linhas.forEach((item, idx) => {
+            const pedido = item.pedidoNumero || 'S/N';
+            const destino = item.destino || '';
+            const chave = `${pedido}|||${destino}`;
+            if (!mapa[chave]) {
+                mapa[chave] = { chave, pedido, destino, linhas: [] };
+                ordem.push(mapa[chave]);
+            }
+            mapa[chave].linhas.push({ item, idx });
+        });
+        return ordem;
+    }
+
+    function modalMescla() {
+        let modal = document.getElementById('atlas-plano-geral-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'atlas-plano-geral-modal';
+            modal.className = 'atlas-plano-live-modal';
+            document.body.appendChild(modal);
+        }
+        return modal;
+    }
+
+    function renderCelulasGrupoLive(grupo) {
+        const base = grupo.linhas[0]?.item || {};
+        const gid = `mescla-live-${String(grupo.chave).replace(/[^a-z0-9]/gi, '_')}`;
+        const span = grupo.linhas.length;
+        return `
+            <td rowspan="${span}" class="atlas-mescla-celula"><input id="${gid}-pedido" value="${segMescla(grupo.pedido)}"></td>
+            <td rowspan="${span}" class="atlas-mescla-celula"><input id="${gid}-destino" value="${segMescla(grupo.destino)}"></td>
+            <td rowspan="${span}" class="atlas-mescla-celula"><select id="${gid}-tipo">${opcoesMescla(OPCOES_TIPO_PLANO, base.tipo)}</select></td>
+            <td rowspan="${span}" class="atlas-mescla-celula"><select id="${gid}-esp">${opcoesMescla(OPCOES_ESPESSURA_PLANO, base.espessura, ' mm')}</select></td>
+            <td rowspan="${span}" class="atlas-mescla-celula"><select id="${gid}-ral-inf">${opcoesMescla(OPCOES_RAL_INF, base.ralInferior)}</select></td>
+            <td rowspan="${span}" class="atlas-mescla-celula"><select id="${gid}-ral-sup">${opcoesMescla(OPCOES_RAL_SUP, base.ralSuperior)}</select></td>
+        `;
+    }
+
+    function aplicarGrupoLive(chave, item) {
+        const gid = `mescla-live-${String(chave).replace(/[^a-z0-9]/gi, '_')}`;
+        item.pedidoNumero = document.getElementById(`${gid}-pedido`)?.value.trim() || item.pedidoNumero || 'S/N';
+        item.destino = document.getElementById(`${gid}-destino`)?.value.trim() || item.destino || '';
+        item.tipo = document.getElementById(`${gid}-tipo`)?.value || item.tipo;
+        item.espessura = document.getElementById(`${gid}-esp`)?.value || item.espessura;
+        item.ralInferior = document.getElementById(`${gid}-ral-inf`)?.value || item.ralInferior;
+        item.ralSuperior = document.getElementById(`${gid}-ral-sup`)?.value || item.ralSuperior;
+    }
+
+    window.atlasAbrirPlanilhaGeralLive = function() {
+        const linhas = (db_plano_live?.linhasAbertas || []).filter(item => item.modo === 'pedido');
+        if (!linhas.length) return alert('Nao existem pedidos inseridos no plano.');
+        const grupos = gruposMescla(linhas);
+        const modal = modalMescla();
+        const total = linhas.reduce((acc, item) => acc + Number(item.totalMetros || 0), 0);
+        modal.innerHTML = `
+            <div class="atlas-plano-live-janela">
+                <div class="atlas-plano-live-topo">
+                    <div>
+                        <h2>Planilha geral dos pedidos</h2>
+                        <small>${linhas.length} linha(s) | Total: <b>${total.toFixed(2)} m</b></small>
+                    </div>
+                    <div class="atlas-plano-live-topo-acoes">
+                        <button onclick="atlasGerarPDFGeralLive()" class="pdf">PDF GERAL</button>
+                        <button onclick="atlasFecharPlanilhaGeral()">FECHAR</button>
+                    </div>
+                </div>
+                <div class="atlas-plano-live-add">
+                    <input id="geral-add-pedido" placeholder="Pedido">
+                    <input id="geral-add-destino" placeholder="Cliente">
+                    <input id="geral-add-qtd" type="number" placeholder="Qtd">
+                    <input id="geral-add-metros" type="number" step="0.01" placeholder="Metros">
+                    <select id="geral-add-tipo">${opcoesMescla(OPCOES_TIPO_PLANO, linhas[0]?.tipo)}</select>
+                    <select id="geral-add-esp">${opcoesMescla(OPCOES_ESPESSURA_PLANO, linhas[0]?.espessura, ' mm')}</select>
+                    <select id="geral-add-ral-inf">${opcoesMescla(OPCOES_RAL_INF, linhas[0]?.ralInferior)}</select>
+                    <select id="geral-add-ral-sup">${opcoesMescla(OPCOES_RAL_SUP, linhas[0]?.ralSuperior)}</select>
+                    <button onclick="atlasAdicionarLinhaGeralLive()">INSERIR</button>
+                </div>
+                <div class="atlas-plano-live-wrap">
+                    <table class="atlas-plano-live-tabela atlas-plano-geral-tabela atlas-planilha-mesclada">
+                        <thead><tr><th>Pedido</th><th>Cliente</th><th>Tipo</th><th>Esp.</th><th>RAL Inf.</th><th>RAL Sup.</th><th>Qtd</th><th>Metros</th><th>Obs.</th><th>Urg.</th><th>Total</th><th>Acoes</th></tr></thead>
+                        <tbody>
+                            ${grupos.map(grupo => grupo.linhas.map((reg, indice) => `
+                                <tr>
+                                    ${indice === 0 ? renderCelulasGrupoLive(grupo) : ''}
+                                    <td><input id="geral-${reg.item.id}-qtd" type="number" value="${segMescla(reg.item.quantidadeChapas || 0)}"></td>
+                                    <td><input id="geral-${reg.item.id}-metros" type="number" step="0.01" value="${segMescla(reg.item.metrosUnidade || 0)}"></td>
+                                    <td><input id="geral-${reg.item.id}-info" value="${segMescla(reg.item.infoManual || reg.item.descricaoManual || '')}"></td>
+                                    <td><input id="geral-${reg.item.id}-urgente" type="checkbox" ${reg.item.urgente ? 'checked' : ''}></td>
+                                    <td><b>${Number(reg.item.totalMetros || 0).toFixed(2)} m</b></td>
+                                    <td>
+                                        <button onclick="atlasSalvarLinhaGeralLiveMesclada('${reg.item.id}', '${jsMescla(grupo.chave)}')">SALVAR</button>
+                                        <button onclick="atlasExcluirLinhaGeralLive('${reg.item.id}')" class="perigo">EXCLUIR</button>
+                                    </td>
+                                </tr>
+                            `).join('')).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+        modal.style.display = 'flex';
+    };
+
+    window.atlasSalvarLinhaGeralLiveMesclada = function(id, chave) {
+        const item = (db_plano_live?.linhasAbertas || []).find(linha => String(linha.id) === String(id));
+        if (!item) return;
+        const qtd = numMescla(document.getElementById(`geral-${id}-qtd`)?.value);
+        const metros = numMescla(document.getElementById(`geral-${id}-metros`)?.value);
+        if (qtd <= 0 || metros <= 0) return alert('Informe quantidade e metros validos.');
+        aplicarGrupoLive(chave, item);
+        item.quantidadeChapas = qtd;
+        item.metrosUnidade = metros;
+        item.totalMetros = Number((qtd * metros).toFixed(2));
+        item.infoManual = document.getElementById(`geral-${id}-info`)?.value.trim() || '';
+        item.descricaoManual = item.infoManual;
+        item.urgente = !!document.getElementById(`geral-${id}-urgente`)?.checked;
+        item.descricao = `PEDIDO ${item.pedidoNumero}`;
+        if (item.destino && !destinosPlano.includes(item.destino)) {
+            destinosPlano.push(item.destino);
+            destinosPlano.sort();
+            salvarDestinosPlano();
+        }
+        salvarPlanoLive();
+        atualizarTelaPlanoAtual();
+        atlasAbrirPlanilhaGeralLive();
+    };
+
+    function renderCelulasGrupoHist(indexPlano, grupo) {
+        const base = grupo.linhas[0]?.item || {};
+        const gid = `mescla-hist-${indexPlano}-${String(groupKeySafe(grupo.chave))}`;
+        const span = grupo.linhas.length;
+        return `
+            <td rowspan="${span}" class="atlas-mescla-celula"><input id="${gid}-pedido" value="${segMescla(grupo.pedido)}"></td>
+            <td rowspan="${span}" class="atlas-mescla-celula"><input id="${gid}-destino" value="${segMescla(grupo.destino)}"></td>
+            <td rowspan="${span}" class="atlas-mescla-celula"><select id="${gid}-tipo">${opcoesMescla(OPCOES_TIPO_PLANO, base.tipo)}</select></td>
+            <td rowspan="${span}" class="atlas-mescla-celula"><select id="${gid}-esp">${opcoesMescla(OPCOES_ESPESSURA_PLANO, base.espessura, ' mm')}</select></td>
+            <td rowspan="${span}" class="atlas-mescla-celula"><select id="${gid}-ral-inf">${opcoesMescla(OPCOES_RAL_INF, base.ralInferior)}</select></td>
+            <td rowspan="${span}" class="atlas-mescla-celula"><select id="${gid}-ral-sup">${opcoesMescla(OPCOES_RAL_SUP, base.ralSuperior)}</select></td>
+        `;
+    }
+
+    function groupKeySafe(chave) {
+        return String(chave).replace(/[^a-z0-9]/gi, '_');
+    }
+
+    function aplicarGrupoHist(indexPlano, chave, item) {
+        const gid = `mescla-hist-${indexPlano}-${groupKeySafe(chave)}`;
+        item.pedidoNumero = document.getElementById(`${gid}-pedido`)?.value.trim() || item.pedidoNumero || 'S/N';
+        item.destino = document.getElementById(`${gid}-destino`)?.value.trim() || item.destino || '';
+        item.tipo = document.getElementById(`${gid}-tipo`)?.value || item.tipo;
+        item.espessura = document.getElementById(`${gid}-esp`)?.value || item.espessura;
+        item.ralInferior = document.getElementById(`${gid}-ral-inf`)?.value || item.ralInferior;
+        item.ralSuperior = document.getElementById(`${gid}-ral-sup`)?.value || item.ralSuperior;
+    }
+
+    window.atlasAbrirPlanilhaGeralHistorico = function(indexPlano) {
+        const rel = db_plano_hist[indexPlano];
+        const linhas = (rel?.itens || []).map((item, idx) => ({ item, idx })).filter(reg => reg.item.modo === 'pedido');
+        if (!rel || !linhas.length) return alert('Nao existem pedidos neste historico.');
+        const grupos = gruposMescla(linhas.map(reg => ({ ...reg.item, __idx: reg.idx }))).map(grupo => ({
+            ...grupo,
+            linhas: grupo.linhas.map(reg => ({ item: reg.item, idx: reg.item.__idx }))
+        }));
+        const modal = modalMescla();
+        const total = linhas.reduce((acc, reg) => acc + Number(reg.item.totalMetros || 0), 0);
+        modal.innerHTML = `
+            <div class="atlas-plano-live-janela">
+                <div class="atlas-plano-live-topo">
+                    <div><h2>Historico - planilha geral</h2><small>${linhas.length} linha(s) | Total: <b>${total.toFixed(2)} m</b></small></div>
+                    <div class="atlas-plano-live-topo-acoes">
+                        <button onclick="atlasGerarPDFGeralHistorico(${indexPlano})" class="pdf">PDF GERAL</button>
+                        <button onclick="atlasFecharPlanilhaGeral()">FECHAR</button>
+                    </div>
+                </div>
+                <div class="atlas-plano-live-wrap">
+                    <table class="atlas-plano-live-tabela atlas-plano-geral-tabela atlas-planilha-mesclada">
+                        <thead><tr><th>Pedido</th><th>Cliente</th><th>Tipo</th><th>Esp.</th><th>RAL Inf.</th><th>RAL Sup.</th><th>Qtd</th><th>Metros</th><th>Obs.</th><th>Urg.</th><th>Total</th><th>Acoes</th></tr></thead>
+                        <tbody>
+                            ${grupos.map(grupo => grupo.linhas.map((reg, indice) => `
+                                <tr>
+                                    ${indice === 0 ? renderCelulasGrupoHist(indexPlano, grupo) : ''}
+                                    <td><input id="histgeral-${reg.idx}-qtd" type="number" value="${segMescla(reg.item.quantidadeChapas || 0)}"></td>
+                                    <td><input id="histgeral-${reg.idx}-metros" type="number" step="0.01" value="${segMescla(reg.item.metrosUnidade || 0)}"></td>
+                                    <td><input id="histgeral-${reg.idx}-info" value="${segMescla(reg.item.infoManual || reg.item.descricaoManual || '')}"></td>
+                                    <td><input id="histgeral-${reg.idx}-urgente" type="checkbox" ${reg.item.urgente ? 'checked' : ''}></td>
+                                    <td><b>${Number(reg.item.totalMetros || 0).toFixed(2)} m</b></td>
+                                    <td>
+                                        <button onclick="atlasSalvarLinhaGeralHistoricoMesclada(${indexPlano}, ${reg.idx}, '${jsMescla(grupo.chave)}')">SALVAR</button>
+                                        <button onclick="atlasExcluirLinhaGeralHistorico(${indexPlano}, ${reg.idx})" class="perigo">EXCLUIR</button>
+                                    </td>
+                                </tr>
+                            `).join('')).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+        modal.style.display = 'flex';
+    };
+
+    window.atlasSalvarLinhaGeralHistoricoMesclada = function(indexPlano, idx, chave) {
+        const rel = db_plano_hist[indexPlano];
+        const item = rel?.itens?.[idx];
+        if (!item) return;
+        const qtd = numMescla(document.getElementById(`histgeral-${idx}-qtd`)?.value);
+        const metros = numMescla(document.getElementById(`histgeral-${idx}-metros`)?.value);
+        if (qtd <= 0 || metros <= 0) return alert('Informe quantidade e metros validos.');
+        aplicarGrupoHist(indexPlano, chave, item);
+        item.quantidadeChapas = qtd;
+        item.metrosUnidade = metros;
+        item.totalMetros = Number((qtd * metros).toFixed(2));
+        item.infoManual = document.getElementById(`histgeral-${idx}-info`)?.value.trim() || '';
+        item.descricaoManual = item.infoManual;
+        item.urgente = !!document.getElementById(`histgeral-${idx}-urgente`)?.checked;
+        item.descricao = `PEDIDO ${item.pedidoNumero}`;
+        rel.totalGeral = Number((rel.itens || []).reduce((acc, linha) => acc + Number(linha.totalMetros || 0), 0).toFixed(2));
+        if (typeof gerarResumoPlano === 'function') rel.resumo = gerarResumoPlano(rel.itens || []);
+        salvarPlanoHistoricoEditado(indexPlano, rel, `Editou linha ${item.pedidoNumero} na planilha geral mesclada`);
+        renderizarGestaoPlanoHistorico(indexPlano);
+        atlasAbrirPlanilhaGeralHistorico(indexPlano);
+    };
+})();
+
+/* ==========================================================
    PLANO - REAPLICAR DESTAQUE URGENTE FINAL
    ========================================================== */
 
