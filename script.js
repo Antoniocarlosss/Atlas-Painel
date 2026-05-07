@@ -12897,6 +12897,333 @@ window.addEventListener('load', () => setTimeout(instalarProtecaoExclusaoSeparad
 })();
 
 /* ==========================================================
+   PLANO - PLANILHA GERAL COM TODOS OS PEDIDOS
+   ========================================================== */
+
+(function() {
+    if (window.atlasPlanoPlanilhaGeralAtivo) return;
+    window.atlasPlanoPlanilhaGeralAtivo = true;
+
+    function segGeral(valor) {
+        return String(valor ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function numGeral(valor) {
+        const numero = Number(String(valor ?? '').replace(',', '.'));
+        return Number.isFinite(numero) ? numero : 0;
+    }
+
+    function opcoesGeral(lista, selecionado, sufixo = '') {
+        return (lista || []).map(valor => {
+            const limpo = String(valor ?? '');
+            const texto = sufixo && !limpo.toLowerCase().includes(String(sufixo).toLowerCase()) ? `${limpo}${sufixo}` : limpo;
+            return `<option value="${segGeral(limpo)}" ${String(selecionado) === limpo ? 'selected' : ''}>${segGeral(texto)}</option>`;
+        }).join('');
+    }
+
+    function modalGeral() {
+        let modal = document.getElementById('atlas-plano-geral-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'atlas-plano-geral-modal';
+            modal.className = 'atlas-plano-live-modal';
+            document.body.appendChild(modal);
+        }
+        return modal;
+    }
+
+    function renderBotaoGeralLive() {
+        const area = document.getElementById('atlas-plano-live-pedidos');
+        if (!area || area.querySelector('.atlas-plano-geral-barra')) return;
+        const totalLinhas = (db_plano_live?.linhasAbertas || []).filter(item => item.modo === 'pedido').length;
+        if (!totalLinhas) return;
+        area.insertAdjacentHTML('afterbegin', `
+            <div class="atlas-plano-geral-barra">
+                <button onclick="atlasAbrirPlanilhaGeralLive()">VER TUDO / PLANILHA GERAL</button>
+                <button onclick="atlasGerarPDFGeralLive()" class="pdf">PDF GERAL</button>
+            </div>
+        `);
+    }
+
+    function linhasLive() {
+        return (db_plano_live?.linhasAbertas || []).filter(item => item.modo === 'pedido');
+    }
+
+    window.atlasAbrirPlanilhaGeralLive = function() {
+        const linhas = linhasLive();
+        if (!linhas.length) return alert('Nao existem pedidos inseridos no plano.');
+        const modal = modalGeral();
+        const total = linhas.reduce((acc, item) => acc + Number(item.totalMetros || 0), 0);
+        modal.innerHTML = `
+            <div class="atlas-plano-live-janela">
+                <div class="atlas-plano-live-topo">
+                    <div>
+                        <h2>Planilha geral dos pedidos</h2>
+                        <small>${linhas.length} linha(s) | Total: <b>${total.toFixed(2)} m</b></small>
+                    </div>
+                    <div class="atlas-plano-live-topo-acoes">
+                        <button onclick="atlasGerarPDFGeralLive()" class="pdf">PDF GERAL</button>
+                        <button onclick="atlasFecharPlanilhaGeral()">FECHAR</button>
+                    </div>
+                </div>
+                <div class="atlas-plano-live-add">
+                    <input id="geral-add-pedido" placeholder="Pedido">
+                    <input id="geral-add-destino" placeholder="Cliente">
+                    <input id="geral-add-qtd" type="number" placeholder="Qtd">
+                    <input id="geral-add-metros" type="number" step="0.01" placeholder="Metros">
+                    <select id="geral-add-tipo">${opcoesGeral(OPCOES_TIPO_PLANO, linhas[0]?.tipo)}</select>
+                    <select id="geral-add-esp">${opcoesGeral(OPCOES_ESPESSURA_PLANO, linhas[0]?.espessura, ' mm')}</select>
+                    <select id="geral-add-ral-inf">${opcoesGeral(OPCOES_RAL_INF, linhas[0]?.ralInferior)}</select>
+                    <select id="geral-add-ral-sup">${opcoesGeral(OPCOES_RAL_SUP, linhas[0]?.ralSuperior)}</select>
+                    <button onclick="atlasAdicionarLinhaGeralLive()">INSERIR</button>
+                </div>
+                <div class="atlas-plano-live-wrap">
+                    <table class="atlas-plano-live-tabela atlas-plano-geral-tabela">
+                        <thead>
+                            <tr><th>Pedido</th><th>Cliente</th><th>Tipo</th><th>Esp.</th><th>RAL Inf.</th><th>RAL Sup.</th><th>Qtd</th><th>Metros</th><th>Obs.</th><th>Urg.</th><th>Total</th><th>Acoes</th></tr>
+                        </thead>
+                        <tbody>
+                            ${linhas.map(item => `
+                                <tr>
+                                    <td><input id="geral-${item.id}-pedido" value="${segGeral(item.pedidoNumero || '')}"></td>
+                                    <td><input id="geral-${item.id}-destino" value="${segGeral(item.destino || '')}"></td>
+                                    <td><select id="geral-${item.id}-tipo">${opcoesGeral(OPCOES_TIPO_PLANO, item.tipo)}</select></td>
+                                    <td><select id="geral-${item.id}-esp">${opcoesGeral(OPCOES_ESPESSURA_PLANO, item.espessura, ' mm')}</select></td>
+                                    <td><select id="geral-${item.id}-ral-inf">${opcoesGeral(OPCOES_RAL_INF, item.ralInferior)}</select></td>
+                                    <td><select id="geral-${item.id}-ral-sup">${opcoesGeral(OPCOES_RAL_SUP, item.ralSuperior)}</select></td>
+                                    <td><input id="geral-${item.id}-qtd" type="number" value="${segGeral(item.quantidadeChapas || 0)}"></td>
+                                    <td><input id="geral-${item.id}-metros" type="number" step="0.01" value="${segGeral(item.metrosUnidade || 0)}"></td>
+                                    <td><input id="geral-${item.id}-info" value="${segGeral(item.infoManual || item.descricaoManual || '')}"></td>
+                                    <td><input id="geral-${item.id}-urgente" type="checkbox" ${item.urgente ? 'checked' : ''}></td>
+                                    <td><b>${Number(item.totalMetros || 0).toFixed(2)} m</b></td>
+                                    <td>
+                                        <button onclick="atlasSalvarLinhaGeralLive('${item.id}')">SALVAR</button>
+                                        <button onclick="atlasExcluirLinhaGeralLive('${item.id}')" class="perigo">EXCLUIR</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+        modal.style.display = 'flex';
+    };
+
+    window.atlasFecharPlanilhaGeral = function() {
+        const modal = document.getElementById('atlas-plano-geral-modal');
+        if (modal) modal.style.display = 'none';
+    };
+
+    window.atlasSalvarLinhaGeralLive = function(id) {
+        const item = (db_plano_live?.linhasAbertas || []).find(linha => String(linha.id) === String(id));
+        if (!item) return;
+        const qtd = numGeral(document.getElementById(`geral-${id}-qtd`)?.value);
+        const metros = numGeral(document.getElementById(`geral-${id}-metros`)?.value);
+        if (qtd <= 0 || metros <= 0) return alert('Informe quantidade e metros validos.');
+        item.pedidoNumero = document.getElementById(`geral-${id}-pedido`)?.value.trim() || item.pedidoNumero || 'S/N';
+        item.destino = document.getElementById(`geral-${id}-destino`)?.value.trim() || item.destino || '';
+        item.tipo = document.getElementById(`geral-${id}-tipo`)?.value || item.tipo;
+        item.espessura = document.getElementById(`geral-${id}-esp`)?.value || item.espessura;
+        item.ralInferior = document.getElementById(`geral-${id}-ral-inf`)?.value || item.ralInferior;
+        item.ralSuperior = document.getElementById(`geral-${id}-ral-sup`)?.value || item.ralSuperior;
+        item.quantidadeChapas = qtd;
+        item.metrosUnidade = metros;
+        item.totalMetros = Number((qtd * metros).toFixed(2));
+        item.infoManual = document.getElementById(`geral-${id}-info`)?.value.trim() || '';
+        item.descricaoManual = item.infoManual;
+        item.urgente = !!document.getElementById(`geral-${id}-urgente`)?.checked;
+        item.descricao = `PEDIDO ${item.pedidoNumero}`;
+        if (item.destino && !destinosPlano.includes(item.destino)) {
+            destinosPlano.push(item.destino);
+            destinosPlano.sort();
+            salvarDestinosPlano();
+        }
+        salvarPlanoLive();
+        atualizarTelaPlanoAtual();
+        atlasAbrirPlanilhaGeralLive();
+    };
+
+    window.atlasExcluirLinhaGeralLive = function(id) {
+        if (!usuarioPodeExcluirModulo('plano')) return alert('Sem permissao para excluir no Plano.');
+        if (!confirm('Excluir esta linha?')) return;
+        db_plano_live.linhasAbertas = (db_plano_live.linhasAbertas || []).filter(item => String(item.id) !== String(id));
+        salvarPlanoLive();
+        atualizarTelaPlanoAtual();
+        if (linhasLive().length) atlasAbrirPlanilhaGeralLive();
+        else atlasFecharPlanilhaGeral();
+    };
+
+    window.atlasAdicionarLinhaGeralLive = function() {
+        if (!db_plano_live) return;
+        const pedidoNumero = document.getElementById('geral-add-pedido')?.value.trim() || 'S/N';
+        const destino = document.getElementById('geral-add-destino')?.value.trim() || '';
+        const qtd = numGeral(document.getElementById('geral-add-qtd')?.value);
+        const metros = numGeral(document.getElementById('geral-add-metros')?.value);
+        if (qtd <= 0 || metros <= 0) return alert('Informe quantidade e metros validos.');
+        db_plano_live.linhasAbertas.push({
+            id: Date.now() + Math.floor(Math.random() * 1000),
+            modo: 'pedido',
+            pedidoNumero,
+            destino,
+            tipo: document.getElementById('geral-add-tipo')?.value || OPCOES_TIPO_PLANO[0] || '',
+            espessura: document.getElementById('geral-add-esp')?.value || OPCOES_ESPESSURA_PLANO[0] || '',
+            ralInferior: document.getElementById('geral-add-ral-inf')?.value || OPCOES_RAL_INF[0] || '',
+            ralSuperior: document.getElementById('geral-add-ral-sup')?.value || OPCOES_RAL_SUP[0] || '',
+            quantidadeChapas: qtd,
+            metrosUnidade: metros,
+            totalMetros: Number((qtd * metros).toFixed(2)),
+            descricao: `PEDIDO ${pedidoNumero}`
+        });
+        if (destino && !destinosPlano.includes(destino)) {
+            destinosPlano.push(destino);
+            destinosPlano.sort();
+            salvarDestinosPlano();
+        }
+        salvarPlanoLive();
+        atualizarTelaPlanoAtual();
+        atlasAbrirPlanilhaGeralLive();
+    };
+
+    window.atlasGerarPDFGeralLive = function() {
+        const linhas = linhasLive();
+        if (!linhas.length) return alert('Nao existem pedidos inseridos.');
+        const rel = {
+            data: formatarDataPlanoBR(db_plano_live?.dataISO || new Date().toISOString().slice(0, 10)),
+            operador: db_plano_live?.operador || '',
+            itens: linhas,
+            totalGeral: linhas.reduce((acc, item) => acc + Number(item.totalMetros || 0), 0)
+        };
+        if (typeof gerarPDF_Plano === 'function') gerarPDF_Plano(encodeURIComponent(JSON.stringify(rel)));
+    };
+
+    function renderBotaoGeralHistorico(indexPlano) {
+        const painel = document.getElementById('atlas-historico-planilha-pedidos');
+        if (!painel || painel.querySelector('.atlas-plano-geral-barra')) return;
+        painel.insertAdjacentHTML('afterbegin', `
+            <div class="atlas-plano-geral-barra">
+                <button onclick="atlasAbrirPlanilhaGeralHistorico(${indexPlano})">VER TUDO / PLANILHA GERAL</button>
+                <button onclick="atlasGerarPDFGeralHistorico(${indexPlano})" class="pdf">PDF GERAL</button>
+            </div>
+        `);
+    }
+
+    window.atlasAbrirPlanilhaGeralHistorico = function(indexPlano) {
+        const rel = db_plano_hist[indexPlano];
+        const linhas = (rel?.itens || []).map((item, idx) => ({ item, idx })).filter(reg => reg.item.modo === 'pedido');
+        if (!rel || !linhas.length) return alert('Nao existem pedidos neste historico.');
+        const modal = modalGeral();
+        const total = linhas.reduce((acc, reg) => acc + Number(reg.item.totalMetros || 0), 0);
+        modal.innerHTML = `
+            <div class="atlas-plano-live-janela">
+                <div class="atlas-plano-live-topo">
+                    <div><h2>Historico - planilha geral</h2><small>${linhas.length} linha(s) | Total: <b>${total.toFixed(2)} m</b></small></div>
+                    <div class="atlas-plano-live-topo-acoes">
+                        <button onclick="atlasGerarPDFGeralHistorico(${indexPlano})" class="pdf">PDF GERAL</button>
+                        <button onclick="atlasFecharPlanilhaGeral()">FECHAR</button>
+                    </div>
+                </div>
+                <div class="atlas-plano-live-wrap">
+                    <table class="atlas-plano-live-tabela atlas-plano-geral-tabela">
+                        <thead><tr><th>Pedido</th><th>Cliente</th><th>Tipo</th><th>Esp.</th><th>RAL Inf.</th><th>RAL Sup.</th><th>Qtd</th><th>Metros</th><th>Obs.</th><th>Urg.</th><th>Total</th><th>Acoes</th></tr></thead>
+                        <tbody>
+                            ${linhas.map(reg => `
+                                <tr>
+                                    <td><input id="histgeral-${reg.idx}-pedido" value="${segGeral(reg.item.pedidoNumero || '')}"></td>
+                                    <td><input id="histgeral-${reg.idx}-destino" value="${segGeral(reg.item.destino || '')}"></td>
+                                    <td><select id="histgeral-${reg.idx}-tipo">${opcoesGeral(OPCOES_TIPO_PLANO, reg.item.tipo)}</select></td>
+                                    <td><select id="histgeral-${reg.idx}-esp">${opcoesGeral(OPCOES_ESPESSURA_PLANO, reg.item.espessura, ' mm')}</select></td>
+                                    <td><select id="histgeral-${reg.idx}-ral-inf">${opcoesGeral(OPCOES_RAL_INF, reg.item.ralInferior)}</select></td>
+                                    <td><select id="histgeral-${reg.idx}-ral-sup">${opcoesGeral(OPCOES_RAL_SUP, reg.item.ralSuperior)}</select></td>
+                                    <td><input id="histgeral-${reg.idx}-qtd" type="number" value="${segGeral(reg.item.quantidadeChapas || 0)}"></td>
+                                    <td><input id="histgeral-${reg.idx}-metros" type="number" step="0.01" value="${segGeral(reg.item.metrosUnidade || 0)}"></td>
+                                    <td><input id="histgeral-${reg.idx}-info" value="${segGeral(reg.item.infoManual || reg.item.descricaoManual || '')}"></td>
+                                    <td><input id="histgeral-${reg.idx}-urgente" type="checkbox" ${reg.item.urgente ? 'checked' : ''}></td>
+                                    <td><b>${Number(reg.item.totalMetros || 0).toFixed(2)} m</b></td>
+                                    <td>
+                                        <button onclick="atlasSalvarLinhaGeralHistorico(${indexPlano}, ${reg.idx})">SALVAR</button>
+                                        <button onclick="atlasExcluirLinhaGeralHistorico(${indexPlano}, ${reg.idx})" class="perigo">EXCLUIR</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+        modal.style.display = 'flex';
+    };
+
+    function recalcularHistoricoGeral(rel) {
+        rel.totalGeral = Number((rel.itens || []).reduce((acc, item) => acc + Number(item.totalMetros || 0), 0).toFixed(2));
+        if (typeof gerarResumoPlano === 'function') rel.resumo = gerarResumoPlano(rel.itens || []);
+    }
+
+    window.atlasSalvarLinhaGeralHistorico = function(indexPlano, idx) {
+        const rel = db_plano_hist[indexPlano];
+        const item = rel?.itens?.[idx];
+        if (!item) return;
+        const qtd = numGeral(document.getElementById(`histgeral-${idx}-qtd`)?.value);
+        const metros = numGeral(document.getElementById(`histgeral-${idx}-metros`)?.value);
+        if (qtd <= 0 || metros <= 0) return alert('Informe quantidade e metros validos.');
+        item.pedidoNumero = document.getElementById(`histgeral-${idx}-pedido`)?.value.trim() || item.pedidoNumero || 'S/N';
+        item.destino = document.getElementById(`histgeral-${idx}-destino`)?.value.trim() || item.destino || '';
+        item.tipo = document.getElementById(`histgeral-${idx}-tipo`)?.value || item.tipo;
+        item.espessura = document.getElementById(`histgeral-${idx}-esp`)?.value || item.espessura;
+        item.ralInferior = document.getElementById(`histgeral-${idx}-ral-inf`)?.value || item.ralInferior;
+        item.ralSuperior = document.getElementById(`histgeral-${idx}-ral-sup`)?.value || item.ralSuperior;
+        item.quantidadeChapas = qtd;
+        item.metrosUnidade = metros;
+        item.totalMetros = Number((qtd * metros).toFixed(2));
+        item.infoManual = document.getElementById(`histgeral-${idx}-info`)?.value.trim() || '';
+        item.descricaoManual = item.infoManual;
+        item.urgente = !!document.getElementById(`histgeral-${idx}-urgente`)?.checked;
+        item.descricao = `PEDIDO ${item.pedidoNumero}`;
+        recalcularHistoricoGeral(rel);
+        salvarPlanoHistoricoEditado(indexPlano, rel, `Editou linha ${item.pedidoNumero} na planilha geral`);
+        renderizarGestaoPlanoHistorico(indexPlano);
+        atlasAbrirPlanilhaGeralHistorico(indexPlano);
+    };
+
+    window.atlasExcluirLinhaGeralHistorico = function(indexPlano, idx) {
+        if (!usuarioPodeExcluirModulo('plano')) return alert('Sem permissao para excluir no Plano.');
+        const rel = db_plano_hist[indexPlano];
+        if (!rel?.itens?.[idx]) return;
+        if (!confirm('Excluir esta linha do historico?')) return;
+        rel.itens.splice(idx, 1);
+        recalcularHistoricoGeral(rel);
+        salvarPlanoHistoricoEditado(indexPlano, rel, 'Excluiu linha na planilha geral');
+        renderizarGestaoPlanoHistorico(indexPlano);
+        atlasAbrirPlanilhaGeralHistorico(indexPlano);
+    };
+
+    window.atlasGerarPDFGeralHistorico = function(indexPlano) {
+        const rel = db_plano_hist[indexPlano];
+        if (!rel) return;
+        if (typeof gerarPDF_Plano === 'function') gerarPDF_Plano(encodeURIComponent(JSON.stringify(rel)));
+    };
+
+    const atualizarTelaGeralOriginal = window.atualizarTelaPlanoAtual || atualizarTelaPlanoAtual;
+    window.atualizarTelaPlanoAtual = function() {
+        atualizarTelaGeralOriginal();
+        renderBotaoGeralLive();
+    };
+    atualizarTelaPlanoAtual = window.atualizarTelaPlanoAtual;
+
+    const renderGestaoGeralOriginal = window.renderizarGestaoPlanoHistorico || renderizarGestaoPlanoHistorico;
+    window.renderizarGestaoPlanoHistorico = function(indexPlano) {
+        renderGestaoGeralOriginal(indexPlano);
+        setTimeout(() => renderBotaoGeralHistorico(indexPlano), 0);
+    };
+    renderizarGestaoPlanoHistorico = window.renderizarGestaoPlanoHistorico;
+})();
+
+/* ==========================================================
    PLANO - REAPLICAR DESTAQUE URGENTE FINAL
    ========================================================== */
 
