@@ -8188,6 +8188,206 @@ document.addEventListener('click', function(evento) {
 })();
 
 /* ==========================================================
+   PLANO - CORRECAO FINAL: PLANILHA GERAL MESCLADA E BOTAO FIXO
+   ========================================================== */
+
+(function() {
+    if (window.atlasPlanoMesclaFinalDefinitivaAtivo) return;
+    window.atlasPlanoMesclaFinalDefinitivaAtivo = true;
+
+    const esc = valor => String(valor ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+    const num = valor => {
+        const n = Number(String(valor ?? '').replace(',', '.'));
+        return Number.isFinite(n) ? n : 0;
+    };
+    const js = valor => String(valor ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const opts = (lista, selecionado, sufixo = '') => (lista || []).map(v => {
+        const limpo = String(v ?? '');
+        const texto = sufixo && !limpo.toLowerCase().includes(String(sufixo).toLowerCase()) ? `${limpo}${sufixo}` : limpo;
+        return `<option value="${esc(limpo)}" ${String(selecionado) === limpo ? 'selected' : ''}>${esc(texto)}</option>`;
+    }).join('');
+    const keyId = chave => String(chave || '').replace(/[^a-z0-9]/gi, '_');
+
+    function modalFinal() {
+        let modal = document.getElementById('atlas-plano-geral-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'atlas-plano-geral-modal';
+            modal.className = 'atlas-plano-live-modal';
+            document.body.appendChild(modal);
+        }
+        return modal;
+    }
+
+    function linhasLiveFinal() {
+        return (db_plano_live?.linhasAbertas || []).filter(item => item.modo === 'pedido');
+    }
+
+    function gruposFinal(linhas) {
+        const mapa = {};
+        const ordem = [];
+        linhas.forEach(item => {
+            const chave = `${item.pedidoNumero || 'S/N'}|||${item.destino || ''}`;
+            if (!mapa[chave]) {
+                mapa[chave] = { chave, pedido: item.pedidoNumero || 'S/N', destino: item.destino || '', linhas: [] };
+                ordem.push(mapa[chave]);
+            }
+            mapa[chave].linhas.push(item);
+        });
+        return ordem;
+    }
+
+    function grupoCells(grupo) {
+        const base = grupo.linhas[0] || {};
+        const id = `final-${keyId(grupo.chave)}`;
+        const span = grupo.linhas.length;
+        return `
+            <td rowspan="${span}" class="atlas-mescla-celula"><input id="${id}-pedido" value="${esc(grupo.pedido)}"></td>
+            <td rowspan="${span}" class="atlas-mescla-celula"><input id="${id}-destino" value="${esc(grupo.destino)}"></td>
+            <td rowspan="${span}" class="atlas-mescla-celula"><select id="${id}-tipo">${opts(OPCOES_TIPO_PLANO, base.tipo)}</select></td>
+            <td rowspan="${span}" class="atlas-mescla-celula"><select id="${id}-esp">${opts(OPCOES_ESPESSURA_PLANO, base.espessura, ' mm')}</select></td>
+            <td rowspan="${span}" class="atlas-mescla-celula"><select id="${id}-ral-inf">${opts(OPCOES_RAL_INF, base.ralInferior)}</select></td>
+            <td rowspan="${span}" class="atlas-mescla-celula"><select id="${id}-ral-sup">${opts(OPCOES_RAL_SUP, base.ralSuperior)}</select></td>
+        `;
+    }
+
+    function aplicarGrupo(chave, item) {
+        const id = `final-${keyId(chave)}`;
+        item.pedidoNumero = document.getElementById(`${id}-pedido`)?.value.trim() || item.pedidoNumero || 'S/N';
+        item.destino = document.getElementById(`${id}-destino`)?.value.trim() || item.destino || '';
+        item.tipo = document.getElementById(`${id}-tipo`)?.value || item.tipo;
+        item.espessura = document.getElementById(`${id}-esp`)?.value || item.espessura;
+        item.ralInferior = document.getElementById(`${id}-ral-inf`)?.value || item.ralInferior;
+        item.ralSuperior = document.getElementById(`${id}-ral-sup`)?.value || item.ralSuperior;
+    }
+
+    window.atlasAbrirPlanilhaGeralLive = function() {
+        const linhas = linhasLiveFinal();
+        if (!linhas.length) return alert('Nao existem pedidos inseridos no plano.');
+        const grupos = gruposFinal(linhas);
+        const total = linhas.reduce((acc, item) => acc + Number(item.totalMetros || 0), 0);
+        const modal = modalFinal();
+        modal.innerHTML = `
+            <div class="atlas-plano-live-janela">
+                <div class="atlas-plano-live-topo">
+                    <div><h2>Planilha geral dos pedidos</h2><small>${linhas.length} linha(s) | Total: <b>${total.toFixed(2)} m</b></small></div>
+                    <div class="atlas-plano-live-topo-acoes">
+                        <button onclick="atlasGerarPDFGeralLive()" class="pdf">PDF GERAL</button>
+                        <button onclick="atlasFecharPlanilhaGeral()">FECHAR</button>
+                    </div>
+                </div>
+                <div class="atlas-plano-live-add">
+                    <input id="geral-add-pedido" placeholder="Pedido">
+                    <input id="geral-add-destino" placeholder="Cliente">
+                    <input id="geral-add-qtd" type="number" placeholder="Qtd">
+                    <input id="geral-add-metros" type="number" step="0.01" placeholder="Metros">
+                    <select id="geral-add-tipo">${opts(OPCOES_TIPO_PLANO, linhas[0]?.tipo)}</select>
+                    <select id="geral-add-esp">${opts(OPCOES_ESPESSURA_PLANO, linhas[0]?.espessura, ' mm')}</select>
+                    <select id="geral-add-ral-inf">${opts(OPCOES_RAL_INF, linhas[0]?.ralInferior)}</select>
+                    <select id="geral-add-ral-sup">${opts(OPCOES_RAL_SUP, linhas[0]?.ralSuperior)}</select>
+                    <button onclick="atlasAdicionarLinhaGeralLive()">INSERIR</button>
+                </div>
+                <div class="atlas-plano-live-wrap">
+                    <table class="atlas-plano-live-tabela atlas-plano-geral-tabela atlas-planilha-mesclada">
+                        <thead><tr><th>Pedido</th><th>Cliente</th><th>Tipo</th><th>Esp.</th><th>RAL Inf.</th><th>RAL Sup.</th><th>Qtd</th><th>Metros</th><th>Obs.</th><th>Urg.</th><th>Total</th><th>Acoes</th></tr></thead>
+                        <tbody>
+                            ${grupos.map(grupo => grupo.linhas.map((item, i) => `
+                                <tr>
+                                    ${i === 0 ? grupoCells(grupo) : ''}
+                                    <td><input id="geral-${item.id}-qtd" type="number" value="${esc(item.quantidadeChapas || 0)}"></td>
+                                    <td><input id="geral-${item.id}-metros" type="number" step="0.01" value="${esc(item.metrosUnidade || 0)}"></td>
+                                    <td><input id="geral-${item.id}-info" value="${esc(item.infoManual || item.descricaoManual || '')}"></td>
+                                    <td><input id="geral-${item.id}-urgente" type="checkbox" ${item.urgente ? 'checked' : ''}></td>
+                                    <td><b>${Number(item.totalMetros || 0).toFixed(2)} m</b></td>
+                                    <td>
+                                        <button onclick="atlasSalvarLinhaGeralLive('${item.id}', '${js(grupo.chave)}')">SALVAR</button>
+                                        <button onclick="atlasExcluirLinhaGeralLive('${item.id}')" class="perigo">EXCLUIR</button>
+                                    </td>
+                                </tr>
+                            `).join('')).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+        modal.style.display = 'flex';
+    };
+
+    window.atlasSalvarLinhaGeralLive = function(id, chave = '') {
+        const item = linhasLiveFinal().find(linha => String(linha.id) === String(id));
+        if (!item) return;
+        const qtd = num(document.getElementById(`geral-${id}-qtd`)?.value);
+        const metros = num(document.getElementById(`geral-${id}-metros`)?.value);
+        if (qtd <= 0 || metros <= 0) return alert('Informe quantidade e metros validos.');
+        if (chave) aplicarGrupo(chave, item);
+        item.quantidadeChapas = qtd;
+        item.metrosUnidade = metros;
+        item.totalMetros = Number((qtd * metros).toFixed(2));
+        item.infoManual = document.getElementById(`geral-${id}-info`)?.value.trim() || '';
+        item.descricaoManual = item.infoManual;
+        item.urgente = !!document.getElementById(`geral-${id}-urgente`)?.checked;
+        item.descricao = `PEDIDO ${item.pedidoNumero || 'S/N'}`;
+        if (item.destino && !destinosPlano.includes(item.destino)) {
+            destinosPlano.push(item.destino);
+            destinosPlano.sort();
+            salvarDestinosPlano();
+        }
+        salvarPlanoLive();
+        atualizarTelaPlanoAtual();
+        atlasAbrirPlanilhaGeralLive();
+    };
+
+    function garantirBotaoFinal() {
+        if (!linhasLiveFinal().length) return;
+        if (document.getElementById('atlas-plano-geral-persistente-final')) return;
+        const container = document.getElementById('container-acao-plano') || document.getElementById('render-modulo');
+        if (!container) return;
+        const titulos = Array.from(container.querySelectorAll('h1,h2,h3,h4,div,span'))
+            .filter(el => String(el.textContent || '').trim().toLowerCase() === 'pedidos inseridos');
+        const ref = titulos[titulos.length - 1] || document.getElementById('plano-lista-aberta');
+        if (!ref) return;
+        const barra = document.createElement('div');
+        barra.id = 'atlas-plano-geral-persistente-final';
+        barra.className = 'atlas-plano-geral-barra destaque persistente';
+        barra.innerHTML = `
+            <button onclick="atlasAbrirPlanilhaGeralLive()">VER TODOS OS PEDIDOS / PLANILHA GERAL</button>
+            <button onclick="atlasGerarPDFGeralLive()" class="pdf">PDF GERAL</button>
+        `;
+        ref.insertAdjacentElement('afterend', barra);
+    }
+
+    function agendarBotaoFinal() {
+        setTimeout(garantirBotaoFinal, 0);
+        setTimeout(garantirBotaoFinal, 150);
+        setTimeout(garantirBotaoFinal, 500);
+    }
+
+    const atualizarFinal = window.atualizarTelaPlanoAtual || atualizarTelaPlanoAtual;
+    window.atualizarTelaPlanoAtual = function() {
+        atualizarFinal();
+        document.getElementById('atlas-plano-geral-persistente-final')?.remove();
+        agendarBotaoFinal();
+    };
+    atualizarTelaPlanoAtual = window.atualizarTelaPlanoAtual;
+
+    const abrirFinal = window.abrirFormularioPlano || abrirFormularioPlano;
+    window.abrirFormularioPlano = function(modo) {
+        abrirFinal(modo);
+        document.getElementById('atlas-plano-geral-persistente-final')?.remove();
+        agendarBotaoFinal();
+    };
+    abrirFormularioPlano = window.abrirFormularioPlano;
+
+    const finalizarFinal = window.finalizarPedidoPlano || finalizarPedidoPlano;
+    window.finalizarPedidoPlano = function() {
+        finalizarFinal();
+        document.getElementById('atlas-plano-geral-persistente-final')?.remove();
+        agendarBotaoFinal();
+    };
+    finalizarPedidoPlano = window.finalizarPedidoPlano;
+})();
+
+/* ==========================================================
    PLANO - GARANTIR BOTAO PLANILHA GERAL APOS FINALIZAR PEDIDO
    ========================================================== */
 
@@ -13592,4 +13792,194 @@ window.addEventListener('load', () => setTimeout(instalarProtecaoExclusaoSeparad
         if (typeof window.atlasPlanoLiveAtualizarUrgente === 'function') window.atlasPlanoLiveAtualizarUrgente();
     };
     abrirFormularioPlano = window.abrirFormularioPlano;
+})();
+
+/* ==========================================================
+   PLANO - CORRECAO FINAL ABSOLUTA: MESCLAR E MANTER BOTAO
+   ========================================================== */
+
+(function() {
+    if (window.atlasPlanoMesclaFinalAbsolutaAtivo) return;
+    window.atlasPlanoMesclaFinalAbsolutaAtivo = true;
+
+    const esc = valor => String(valor ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+    const num = valor => {
+        const n = Number(String(valor ?? '').replace(',', '.'));
+        return Number.isFinite(n) ? n : 0;
+    };
+    const safe = valor => String(valor ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const idKey = valor => String(valor ?? '').replace(/[^a-z0-9]/gi, '_');
+    const options = (lista, selecionado, sufixo = '') => (lista || []).map(v => {
+        const limpo = String(v ?? '');
+        const texto = sufixo && !limpo.toLowerCase().includes(String(sufixo).toLowerCase()) ? `${limpo}${sufixo}` : limpo;
+        return `<option value="${esc(limpo)}" ${String(selecionado) === limpo ? 'selected' : ''}>${esc(texto)}</option>`;
+    }).join('');
+
+    function pedidosLive() {
+        return (db_plano_live?.linhasAbertas || []).filter(item => item.modo === 'pedido');
+    }
+
+    function grupos(linhas) {
+        const mapa = {};
+        const ordem = [];
+        linhas.forEach(item => {
+            const chave = `${item.pedidoNumero || 'S/N'}|||${item.destino || ''}`;
+            if (!mapa[chave]) {
+                mapa[chave] = { chave, pedido: item.pedidoNumero || 'S/N', destino: item.destino || '', linhas: [] };
+                ordem.push(mapa[chave]);
+            }
+            mapa[chave].linhas.push(item);
+        });
+        return ordem;
+    }
+
+    function modal() {
+        let el = document.getElementById('atlas-plano-geral-modal');
+        if (!el) {
+            el = document.createElement('div');
+            el.id = 'atlas-plano-geral-modal';
+            el.className = 'atlas-plano-live-modal';
+            document.body.appendChild(el);
+        }
+        return el;
+    }
+
+    function celulasGrupo(grupo) {
+        const base = grupo.linhas[0] || {};
+        const id = `abs-${idKey(grupo.chave)}`;
+        return `
+            <td rowspan="${grupo.linhas.length}" class="atlas-mescla-celula"><input id="${id}-pedido" value="${esc(grupo.pedido)}"></td>
+            <td rowspan="${grupo.linhas.length}" class="atlas-mescla-celula"><input id="${id}-destino" value="${esc(grupo.destino)}"></td>
+            <td rowspan="${grupo.linhas.length}" class="atlas-mescla-celula"><select id="${id}-tipo">${options(OPCOES_TIPO_PLANO, base.tipo)}</select></td>
+            <td rowspan="${grupo.linhas.length}" class="atlas-mescla-celula"><select id="${id}-esp">${options(OPCOES_ESPESSURA_PLANO, base.espessura, ' mm')}</select></td>
+            <td rowspan="${grupo.linhas.length}" class="atlas-mescla-celula"><select id="${id}-ral-inf">${options(OPCOES_RAL_INF, base.ralInferior)}</select></td>
+            <td rowspan="${grupo.linhas.length}" class="atlas-mescla-celula"><select id="${id}-ral-sup">${options(OPCOES_RAL_SUP, base.ralSuperior)}</select></td>
+        `;
+    }
+
+    function aplicarGrupo(chave, item) {
+        const id = `abs-${idKey(chave)}`;
+        item.pedidoNumero = document.getElementById(`${id}-pedido`)?.value.trim() || item.pedidoNumero || 'S/N';
+        item.destino = document.getElementById(`${id}-destino`)?.value.trim() || item.destino || '';
+        item.tipo = document.getElementById(`${id}-tipo`)?.value || item.tipo;
+        item.espessura = document.getElementById(`${id}-esp`)?.value || item.espessura;
+        item.ralInferior = document.getElementById(`${id}-ral-inf`)?.value || item.ralInferior;
+        item.ralSuperior = document.getElementById(`${id}-ral-sup`)?.value || item.ralSuperior;
+    }
+
+    window.atlasAbrirPlanilhaGeralLive = function() {
+        const linhas = pedidosLive();
+        if (!linhas.length) return alert('Nao existem pedidos inseridos no plano.');
+        const total = linhas.reduce((acc, item) => acc + Number(item.totalMetros || 0), 0);
+        const htmlGrupos = grupos(linhas).map(grupo => grupo.linhas.map((item, index) => `
+            <tr>
+                ${index === 0 ? celulasGrupo(grupo) : ''}
+                <td><input id="geral-${item.id}-qtd" type="number" value="${esc(item.quantidadeChapas || 0)}"></td>
+                <td><input id="geral-${item.id}-metros" type="number" step="0.01" value="${esc(item.metrosUnidade || 0)}"></td>
+                <td><input id="geral-${item.id}-info" value="${esc(item.infoManual || item.descricaoManual || '')}"></td>
+                <td><input id="geral-${item.id}-urgente" type="checkbox" ${item.urgente ? 'checked' : ''}></td>
+                <td><b>${Number(item.totalMetros || 0).toFixed(2)} m</b></td>
+                <td>
+                    <button onclick="atlasSalvarLinhaGeralLive('${item.id}', '${safe(grupo.chave)}')">SALVAR</button>
+                    <button onclick="atlasExcluirLinhaGeralLive('${item.id}')" class="perigo">EXCLUIR</button>
+                </td>
+            </tr>
+        `).join('')).join('');
+
+        const el = modal();
+        el.innerHTML = `
+            <div class="atlas-plano-live-janela">
+                <div class="atlas-plano-live-topo">
+                    <div><h2>Planilha geral dos pedidos</h2><small>${linhas.length} linha(s) | Total: <b>${total.toFixed(2)} m</b></small></div>
+                    <div class="atlas-plano-live-topo-acoes">
+                        <button onclick="atlasGerarPDFGeralLive()" class="pdf">PDF GERAL</button>
+                        <button onclick="atlasFecharPlanilhaGeral()">FECHAR</button>
+                    </div>
+                </div>
+                <div class="atlas-plano-live-add">
+                    <input id="geral-add-pedido" placeholder="Pedido">
+                    <input id="geral-add-destino" placeholder="Cliente">
+                    <input id="geral-add-qtd" type="number" placeholder="Qtd">
+                    <input id="geral-add-metros" type="number" step="0.01" placeholder="Metros">
+                    <select id="geral-add-tipo">${options(OPCOES_TIPO_PLANO, linhas[0]?.tipo)}</select>
+                    <select id="geral-add-esp">${options(OPCOES_ESPESSURA_PLANO, linhas[0]?.espessura, ' mm')}</select>
+                    <select id="geral-add-ral-inf">${options(OPCOES_RAL_INF, linhas[0]?.ralInferior)}</select>
+                    <select id="geral-add-ral-sup">${options(OPCOES_RAL_SUP, linhas[0]?.ralSuperior)}</select>
+                    <button onclick="atlasAdicionarLinhaGeralLive()">INSERIR</button>
+                </div>
+                <div class="atlas-plano-live-wrap">
+                    <table class="atlas-plano-live-tabela atlas-plano-geral-tabela atlas-planilha-mesclada">
+                        <thead><tr><th>Pedido</th><th>Cliente</th><th>Tipo</th><th>Esp.</th><th>RAL Inf.</th><th>RAL Sup.</th><th>Qtd</th><th>Metros</th><th>Obs.</th><th>Urg.</th><th>Total</th><th>Acoes</th></tr></thead>
+                        <tbody>${htmlGrupos}</tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+        el.style.display = 'flex';
+    };
+
+    window.atlasSalvarLinhaGeralLive = function(id, chave = '') {
+        const item = pedidosLive().find(linha => String(linha.id) === String(id));
+        if (!item) return;
+        const qtd = num(document.getElementById(`geral-${id}-qtd`)?.value);
+        const metros = num(document.getElementById(`geral-${id}-metros`)?.value);
+        if (qtd <= 0 || metros <= 0) return alert('Informe quantidade e metros validos.');
+        if (chave) aplicarGrupo(chave, item);
+        item.quantidadeChapas = qtd;
+        item.metrosUnidade = metros;
+        item.totalMetros = Number((qtd * metros).toFixed(2));
+        item.infoManual = document.getElementById(`geral-${id}-info`)?.value.trim() || '';
+        item.descricaoManual = item.infoManual;
+        item.urgente = !!document.getElementById(`geral-${id}-urgente`)?.checked;
+        item.descricao = `PEDIDO ${item.pedidoNumero || 'S/N'}`;
+        salvarPlanoLive();
+        atualizarTelaPlanoAtual();
+        atlasAbrirPlanilhaGeralLive();
+    };
+
+    function garantirBotao() {
+        if (!pedidosLive().length) return;
+        if (document.getElementById('atlas-plano-geral-final-absoluto')) return;
+        const container = document.getElementById('container-acao-plano') || document.getElementById('render-modulo');
+        if (!container) return;
+        const titulos = Array.from(container.querySelectorAll('h1,h2,h3,h4,div,span'))
+            .filter(el => String(el.textContent || '').trim().toLowerCase() === 'pedidos inseridos');
+        const ref = titulos[titulos.length - 1] || document.getElementById('plano-lista-aberta');
+        if (!ref) return;
+        const barra = document.createElement('div');
+        barra.id = 'atlas-plano-geral-final-absoluto';
+        barra.className = 'atlas-plano-geral-barra destaque persistente';
+        barra.innerHTML = `<button onclick="atlasAbrirPlanilhaGeralLive()">VER TODOS OS PEDIDOS / PLANILHA GERAL</button><button onclick="atlasGerarPDFGeralLive()" class="pdf">PDF GERAL</button>`;
+        ref.insertAdjacentElement('afterend', barra);
+    }
+
+    function agenda() {
+        setTimeout(garantirBotao, 0);
+        setTimeout(garantirBotao, 200);
+        setTimeout(garantirBotao, 700);
+    }
+
+    const atualizar = window.atualizarTelaPlanoAtual || atualizarTelaPlanoAtual;
+    window.atualizarTelaPlanoAtual = function() {
+        atualizar();
+        document.getElementById('atlas-plano-geral-final-absoluto')?.remove();
+        agenda();
+    };
+    atualizarTelaPlanoAtual = window.atualizarTelaPlanoAtual;
+
+    const abrir = window.abrirFormularioPlano || abrirFormularioPlano;
+    window.abrirFormularioPlano = function(modo) {
+        abrir(modo);
+        document.getElementById('atlas-plano-geral-final-absoluto')?.remove();
+        agenda();
+    };
+    abrirFormularioPlano = window.abrirFormularioPlano;
+
+    const finalizar = window.finalizarPedidoPlano || finalizarPedidoPlano;
+    window.finalizarPedidoPlano = function() {
+        finalizar();
+        document.getElementById('atlas-plano-geral-final-absoluto')?.remove();
+        agenda();
+    };
+    finalizarPedidoPlano = window.finalizarPedidoPlano;
 })();
