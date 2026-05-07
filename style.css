@@ -1159,3 +1159,182 @@ table {
         min-height: 88px;
     }
 }
+
+/* Melhorias Atlas - ajustes, plano, relatorios e mobile */
+.atlas-ajuste-pasta {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 0;
+    overflow: hidden;
+}
+
+.atlas-ajuste-pasta summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    cursor: pointer;
+    color: #fff;
+    font-weight: 900;
+    list-style: none;
+}
+
+.atlas-ajuste-pasta summary::-webkit-details-marker {
+    display: none;
+}
+
+.atlas-ajuste-pasta summary small {
+    color: #93c5fd;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.atlas-ajuste-lista {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0 14px 12px;
+}
+
+.atlas-ajuste-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 8px;
+}
+
+.atlas-ajuste-item > span {
+    flex: 1;
+    min-width: 90px;
+    overflow-wrap: anywhere;
+}
+
+.atlas-ajuste-item > div {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.atlas-ajuste-item button,
+.atlas-ajuste-add button {
+    border: none;
+    border-radius: 8px;
+    padding: 9px 10px;
+    background: #334155;
+    color: #fff;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.atlas-ajuste-item button.perigo {
+    background: #7f1d1d;
+}
+
+.atlas-ajuste-add {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 0 14px 14px;
+}
+
+.atlas-ajuste-add input {
+    padding: 12px;
+    background: #0f172a !important;
+    color: #fff !important;
+    border: 1px solid #334155;
+    border-radius: 8px;
+}
+
+.atlas-plano-finalizados {
+    margin-top: 12px;
+    display: grid;
+    gap: 8px;
+}
+
+.atlas-plano-finalizados h4 {
+    margin: 0;
+    color: #fff;
+}
+
+.atlas-plano-pedido-ok {
+    background: #052e16;
+    border: 1px solid #16a34a;
+    border-radius: 8px;
+    color: #dcfce7;
+    padding: 10px;
+}
+
+.atlas-plano-pedido-ok small {
+    display: block;
+    margin-top: 4px;
+    color: #bbf7d0;
+}
+
+@media (max-width: 760px) {
+    #conteudo-ajustes > div,
+    #container-acao-plano > div,
+    #render-modulo > div {
+        max-width: 100% !important;
+    }
+
+    .atlas-ajuste-pasta summary,
+    .atlas-ajuste-item,
+    .atlas-ajuste-add {
+        grid-template-columns: 1fr !important;
+    }
+
+    .atlas-ajuste-item {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .atlas-ajuste-item > div {
+        justify-content: stretch;
+    }
+
+    .atlas-ajuste-item button {
+        flex: 1 1 42%;
+        min-width: 70px;
+    }
+
+    .atlas-ajuste-add {
+        display: grid;
+    }
+
+    .grid-quimicos {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+    }
+
+    .linha-densidade-injecao {
+        grid-template-columns: 1fr !important;
+    }
+
+    #modal-edicao label {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 4px !important;
+        color: #cbd5e1 !important;
+        font-size: 12px !important;
+    }
+
+    .plano-wrap {
+        border-width: 1px !important;
+        max-height: 76vh !important;
+    }
+
+    .plano-tabela,
+    #render-modulo table,
+    #conteudo-modal table {
+        min-width: 980px;
+    }
+}

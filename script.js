@@ -720,6 +720,12 @@ let producoesDoDia = []; // Deve ficar no topo do script
             <select id="inj-painel" onchange="atualizarEspumaInjecaoPadrao()" style="width:100%; padding:12px; background:#020617; color:white; border:1px solid #334155; border-radius:8px; margin-bottom:15px;">
                 ${opcoesTipoPainelHTML()}
             </select>
+
+            <label style="font-size:12px; color:#94a3b8;">RAL DO PAINEL</label>
+            <select id="inj-ral" style="width:100%; padding:12px; background:#020617; color:white; border:1px solid #334155; border-radius:8px; margin-bottom:15px;">
+                <option value="">Sem RAL</option>
+                ${OPCOES_RAL_INF.concat(OPCOES_RAL_SUP).filter((v,i,a)=>a.indexOf(v)===i).map(v => `<option value="${v}">${v}</option>`).join('')}
+            </select>
             
             <div style="display:flex; gap:10px; margin-bottom:10px;">
                 <div style="flex:1;">
@@ -761,6 +767,7 @@ let producoesDoDia = []; // Deve ficar no topo do script
 
             <div class="grid-quimicos">
                 <input type="number" id="q-pol" placeholder="POL kg">
+                <input type="number" id="q-polpir" placeholder="POL/PIR kg">
                 <input type="number" id="q-mdi" placeholder="MDI kg">
                 <input type="number" id="q-pen" placeholder="PEN kg">
                 <input type="number" id="q-cat1" placeholder="Cat 1 kg">
@@ -768,14 +775,7 @@ let producoesDoDia = []; // Deve ficar no topo do script
                 <input type="number" id="q-cat3" placeholder="Cat 3 kg">
                 <input type="number" id="q-cat4" placeholder="Cat 4 kg">
                 <select id="q-vel">
-                    <option value="" disabled selected>Vel (m/min)</option>
-                    <option value="5 m/min">5 m/min</option>
-                    <option value="6 m/min">6 m/min</option>
-                    <option value="8 m/min">8 m/min</option>
-                    <option value="9 m/min">9 m/min</option>
-                    <option value="10 m/min">10 m/min</option>
-                    <option value="11 m/min">11 m/min</option>
-                    <option value="12 m/min">12 m/min</option>
+                    ${opcoesVelocidadeInjecaoHTML()}
                 </select>
             </div>
 
@@ -849,11 +849,13 @@ function salvarNaLista() {
         id: Date.now(),
         nome: painel,
         esp: esp,
+        ral: document.getElementById('inj-ral')?.value || '',
         espuma,
         fita,
         densidades,
         metros: metros,
         pol: document.getElementById('q-pol').value || 0,
+        polpir: document.getElementById('q-polpir')?.value || 0,
         mdi: document.getElementById('q-mdi').value || 0,
         pen: document.getElementById('q-pen').value || 0,
         cat1: document.getElementById('q-cat1').value || 0,
@@ -1031,12 +1033,18 @@ function editarTudo(id) {
                             ${[30, 40, 50, 60, 80, 100, 120].map(v => `<option value="${v}" ${String(item.esp) === String(v) ? 'selected' : ''}>${v} mm</option>`).join('')}
                         </select>
                     </label>
+                    <label style="color:#94a3b8; font-size:11px;">RAL
+                        <select id="inj-ral-edit" style="width:100%; margin-top:4px; padding:10px; background:#020617; color:white; border:1px solid #334155; border-radius:8px;">
+                            <option value="">Sem RAL</option>
+                            ${OPCOES_RAL_INF.concat(OPCOES_RAL_SUP).filter((v,i,a)=>a.indexOf(v)===i).map(v => `<option value="${v}" ${String(item.ral || '') === String(v) ? 'selected' : ''}>${v}</option>`).join('')}
+                        </select>
+                    </label>
                     <label style="color:#94a3b8; font-size:11px;">METROS
                         <input type="number" id="edit-metros" value="${item.metros}" style="width:100%; margin-top:4px; padding:10px; border-radius:8px; background:#020617; color:white; border:1px solid #334155;">
                     </label>
                     <label style="color:#94a3b8; font-size:11px;">VELOCIDADE
                         <select id="edit-vel" style="width:100%; margin-top:4px; padding:10px; background:#020617; color:white; border:1px solid #334155; border-radius:8px;">
-                            ${['', '5 m/min', '6 m/min', '8 m/min', '9 m/min', '10 m/min', '11 m/min', '12 m/min'].map(v => `<option value="${v}" ${String(item.vel || '') === String(v) ? 'selected' : ''}>${v || 'Vel (m/min)'}</option>`).join('')}
+                            ${opcoesVelocidadeInjecaoHTML(item.vel || '')}
                         </select>
                     </label>
                 </div>
@@ -1068,6 +1076,7 @@ function editarTudo(id) {
                 <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(95px, 1fr)); gap:8px;">
                     ${[
                         ['edit-pol', 'POL', item.pol],
+                        ['edit-polpir', 'POL/PIR', item.polpir],
                         ['edit-mdi', 'MDI', item.mdi],
                         ['edit-pen', 'PEN', item.pen],
                         ['edit-cat1', 'CAT 1', item.cat1],
@@ -1119,11 +1128,13 @@ function salvarEdicaoModal() {
         item.metros = document.getElementById('edit-metros').value;
         item.nome = document.getElementById('inj-painel-edit')?.value || item.nome;
         item.esp = document.getElementById('edit-esp')?.value || item.esp;
+        item.ral = document.getElementById('inj-ral-edit')?.value || '';
         item.vel = document.getElementById('edit-vel')?.value || item.vel;
         item.espuma = document.getElementById('inj-espuma-edit')?.value || '';
         item.fita = document.getElementById('inj-fita-edit')?.value || '';
         item.densidades = coletarDensidadesInjecao('container-densidade-injecao-edit');
         item.pol = document.getElementById('edit-pol')?.value || 0;
+        item.polpir = document.getElementById('edit-polpir')?.value || 0;
         item.mdi = document.getElementById('edit-mdi')?.value || 0;
         item.pen = document.getElementById('edit-pen')?.value || 0;
         item.cat1 = document.getElementById('edit-cat1')?.value || 0;
@@ -4193,6 +4204,7 @@ var OPCOES_ESP_CHAPA = atlasListaConfig('atlas_config_esp_chapa', ["0,28", "0,30
 atlasSalvarListaConfig('atlas_config_esp_chapa', OPCOES_ESP_CHAPA);
 var OPCOES_ESPUMA_INJECAO = atlasListaConfig('atlas_config_espuma_injecao', ["30 mm", "35 mm", "40 mm", "50 mm", "65 mm ADH"]);
 var OPCOES_FITA_INJECAO = atlasListaConfig('atlas_config_fita_injecao', ["30 mm", "35 mm", "40 mm", "50 mm", "65 mm ADH"]);
+var OPCOES_VELOCIDADE_INJECAO = atlasListaConfig('atlas_config_velocidade_injecao', ["5 m/min", "6 m/min", "8 m/min", "9 m/min", "10 m/min", "11 m/min", "12 m/min"]);
 var OPCOES_MEDIDAS_CHAPA_STOCK = atlasListaConfig('atlas_config_medidas_chapa_stock', ["1265", "1060", "1163", "1065"]);
 var OPCOES_FORNECEDORES_STOCK = atlasListaConfig('atlas_config_fornecedores_stock', ["Fornecedor X", "Fornecedor Y"]);
 var OPCOES_FILMES_STOCK = atlasListaConfig('atlas_config_filmes_stock', ["Telha (1180mm)", "Ondulado (1055mm)", "5 Ondas (1175mm)", "Fachada (1010)"]);
@@ -4212,12 +4224,19 @@ window.OPCOES_RAL_INF = OPCOES_RAL_INF;
 window.OPCOES_ESP_CHAPA = OPCOES_ESP_CHAPA;
 window.OPCOES_ESPUMA_INJECAO = OPCOES_ESPUMA_INJECAO;
 window.OPCOES_FITA_INJECAO = OPCOES_FITA_INJECAO;
+window.OPCOES_VELOCIDADE_INJECAO = OPCOES_VELOCIDADE_INJECAO;
 window.OPCOES_MEDIDAS_CHAPA_STOCK = OPCOES_MEDIDAS_CHAPA_STOCK;
 window.OPCOES_FORNECEDORES_STOCK = OPCOES_FORNECEDORES_STOCK;
 window.OPCOES_FILMES_STOCK = OPCOES_FILMES_STOCK;
 window.OPCOES_PACOTES_SERRA = OPCOES_PACOTES_SERRA;
 var OPCOES_QUALIDADE = ["P1", "P2", "Descarte"];
 var MESES_PT = ["", "JANEIRO", "FEVEREIRO", "MARCO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
+
+if (!OPCOES_TIPO_PLANO.some(v => String(v).toLowerCase() === 'pir')) {
+    OPCOES_TIPO_PLANO.push('PIR');
+    atlasSalvarListaConfig('atlas_config_tipos_painel', OPCOES_TIPO_PLANO);
+    window.OPCOES_TIPO_PLANO = OPCOES_TIPO_PLANO;
+}
 
 function opcoesTipoPainelHTML(selecionado = '') {
     return (OPCOES_TIPO_PLANO || []).map(v => `<option value="${v}" ${String(selecionado) === String(v) ? 'selected' : ''}>${v}</option>`).join('');
@@ -4232,6 +4251,18 @@ function opcoesEspumaInjecaoHTML(selecionado = '') {
 function opcoesFitaInjecaoHTML(selecionado = '') {
     return [`<option value="">Fita opcional</option>`]
         .concat((OPCOES_FITA_INJECAO || []).map(v => `<option value="${v}" ${String(selecionado) === String(v) ? 'selected' : ''}>${v}</option>`))
+        .join('');
+}
+
+function opcoesVelocidadeInjecaoHTML(selecionado = '') {
+    const lista = (OPCOES_VELOCIDADE_INJECAO || []).slice().sort((a, b) => {
+        const na = Number(String(a).replace(/[^\d,.]/g, '').replace(',', '.'));
+        const nb = Number(String(b).replace(/[^\d,.]/g, '').replace(',', '.'));
+        if (Number.isFinite(na) && Number.isFinite(nb) && na !== nb) return na - nb;
+        return String(a).localeCompare(String(b), 'pt-BR', { numeric: true });
+    });
+    return [`<option value="" disabled ${selecionado ? '' : 'selected'}>Vel (m/min)</option>`]
+        .concat(lista.map(v => `<option value="${v}" ${String(selecionado) === String(v) ? 'selected' : ''}>${v}</option>`))
         .join('');
 }
 
@@ -8157,6 +8188,299 @@ document.addEventListener('click', function(evento) {
 })();
 
 /* ==========================================================
+   PLANO - TRAVAR RAL DO PEDIDO ABERTO
+   ========================================================== */
+
+(function() {
+    if (window.atlasPlanoTravaRalPedidoAtivo) return;
+    window.atlasPlanoTravaRalPedidoAtivo = true;
+
+    function aplicarTravaRalPedidoPlano() {
+        const pedido = db_plano_live?.modoAtual === 'pedido' ? db_plano_live.pedidoAtual : null;
+        if (!pedido) return;
+        const ralInf = document.getElementById('plano-ral-inf');
+        const ralSup = document.getElementById('plano-ral-sup');
+        if (ralInf && pedido.ralInferior) {
+            ralInf.value = pedido.ralInferior;
+            ralInf.disabled = true;
+            ralInf.style.background = '#111827';
+            ralInf.style.color = '#10b981';
+            ralInf.style.fontWeight = 'bold';
+        }
+        if (ralSup && pedido.ralSuperior) {
+            ralSup.value = pedido.ralSuperior;
+            ralSup.disabled = true;
+            ralSup.style.background = '#111827';
+            ralSup.style.color = '#10b981';
+            ralSup.style.fontWeight = 'bold';
+        }
+    }
+
+    const abrirFormularioPlanoTravaRalOriginal = window.abrirFormularioPlano || abrirFormularioPlano;
+    window.abrirFormularioPlano = function(modo) {
+        abrirFormularioPlanoTravaRalOriginal(modo);
+        aplicarTravaRalPedidoPlano();
+    };
+    abrirFormularioPlano = window.abrirFormularioPlano;
+
+    const adicionarLinhaPlanoTravaRalOriginal = window.adicionarLinhaPlano || adicionarLinhaPlano;
+    window.adicionarLinhaPlano = function(modo) {
+        const antes = db_plano_live?.linhasAbertas?.length || 0;
+        adicionarLinhaPlanoTravaRalOriginal(modo);
+        const linhas = db_plano_live?.linhasAbertas || [];
+        if (modo === 'pedido' && linhas.length > antes && db_plano_live?.pedidoAtual) {
+            const item = linhas[linhas.length - 1];
+            db_plano_live.pedidoAtual.ralInferior = item.ralInferior;
+            db_plano_live.pedidoAtual.ralSuperior = item.ralSuperior;
+            salvarPlanoLive();
+            aplicarTravaRalPedidoPlano();
+        }
+    };
+    adicionarLinhaPlano = window.adicionarLinhaPlano;
+})();
+
+/* ==========================================================
+   AJUSTES/RELATORIOS - ORGANIZACAO, PERSISTENCIA E MOBILE
+   ========================================================== */
+
+(function() {
+    if (window.atlasAjustesRelatoriosMobileV3Ativo) return;
+    window.atlasAjustesRelatoriosMobileV3Ativo = true;
+
+    const listasNumericasAtlas = new Set([
+        'atlas_config_esp_chapa',
+        'atlas_config_espuma_injecao',
+        'atlas_config_fita_injecao',
+        'atlas_config_medidas_chapa_stock',
+        'atlas_config_velocidade_injecao'
+    ]);
+
+    function atlasConfigSeguro(valor) {
+        return String(valor ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function atlasValorNumericoLista(valor) {
+        const numero = Number(String(valor ?? '').replace(/[^\d,.]/g, '').replace(',', '.'));
+        return Number.isFinite(numero) ? numero : null;
+    }
+
+    function atlasOrdenarListaConfig(chave, lista) {
+        const limpa = [...new Set((lista || []).map(v => String(v || '').trim()).filter(Boolean))];
+        if (!listasNumericasAtlas.has(chave)) return limpa;
+        return limpa.sort((a, b) => {
+            const na = atlasValorNumericoLista(a);
+            const nb = atlasValorNumericoLista(b);
+            if (na !== null && nb !== null && na !== nb) return na - nb;
+            return String(a).localeCompare(String(b), 'pt-BR', { numeric: true });
+        });
+    }
+
+    const salvarListaConfigOriginalAtlas = window.atlasSalvarListaConfig || atlasSalvarListaConfig;
+    window.atlasSalvarListaConfig = function(chave, lista) {
+        const ordenada = atlasOrdenarListaConfig(chave, lista);
+        localStorage.setItem(chave, JSON.stringify(ordenada));
+        localStorage.setItem(`${chave}_updated_ms`, String(Date.now()));
+        if (typeof window.atlasFirebaseSincronizarAgora === 'function') {
+            setTimeout(() => window.atlasFirebaseSincronizarAgora(), 80);
+        }
+        return ordenada;
+    };
+    atlasSalvarListaConfig = window.atlasSalvarListaConfig;
+
+    if (!window.OPCOES_VELOCIDADE_INJECAO) {
+        window.OPCOES_VELOCIDADE_INJECAO = atlasListaConfig('atlas_config_velocidade_injecao', ["5 m/min", "6 m/min", "8 m/min", "9 m/min", "10 m/min", "11 m/min", "12 m/min"]);
+    }
+    OPCOES_VELOCIDADE_INJECAO = window.atlasSalvarListaConfig('atlas_config_velocidade_injecao', window.OPCOES_VELOCIDADE_INJECAO);
+    window.OPCOES_VELOCIDADE_INJECAO = OPCOES_VELOCIDADE_INJECAO;
+
+    function atlasSetListaVariavel(variavel, lista) {
+        if (variavel === 'destinosPlano') destinosPlano = lista;
+        if (variavel === 'OPCOES_TIPO_PLANO') OPCOES_TIPO_PLANO = lista;
+        if (variavel === 'OPCOES_RAL_INF') OPCOES_RAL_INF = lista;
+        if (variavel === 'OPCOES_RAL_SUP') OPCOES_RAL_SUP = lista;
+        if (variavel === 'OPCOES_ESP_CHAPA') OPCOES_ESP_CHAPA = lista;
+        if (variavel === 'OPCOES_ESPUMA_INJECAO') OPCOES_ESPUMA_INJECAO = lista;
+        if (variavel === 'OPCOES_FITA_INJECAO') OPCOES_FITA_INJECAO = lista;
+        if (variavel === 'OPCOES_VELOCIDADE_INJECAO') OPCOES_VELOCIDADE_INJECAO = lista;
+        if (variavel === 'OPCOES_MEDIDAS_CHAPA_STOCK') OPCOES_MEDIDAS_CHAPA_STOCK = lista;
+        if (variavel === 'OPCOES_FORNECEDORES_STOCK') OPCOES_FORNECEDORES_STOCK = lista;
+        if (variavel === 'OPCOES_FILMES_STOCK') OPCOES_FILMES_STOCK = lista;
+        window[variavel] = lista;
+    }
+
+    window.atlasMoverItemListaSistema = function(chave, variavel, index, direcao) {
+        if (!usuarioPodeEditarModulo('config')) return alert('Sem permissao para editar nos Ajustes.');
+        if (listasNumericasAtlas.has(chave)) return alert('Esta lista fica em ordem crescente automaticamente.');
+        const lista = (obterVariavelListaSistema(variavel) || []).slice();
+        const destino = index + direcao;
+        if (destino < 0 || destino >= lista.length) return;
+        [lista[index], lista[destino]] = [lista[destino], lista[index]];
+        const salva = window.atlasSalvarListaConfig(chave, lista);
+        atlasSetListaVariavel(variavel, salva);
+        abrirAjustesSistema();
+    };
+
+    const adicionarItemOriginal = window.adicionarItemListaSistema || adicionarItemListaSistema;
+    window.adicionarItemListaSistema = function(chave, variavel, idInput) {
+        const input = document.getElementById(idInput);
+        const valor = input?.value.trim();
+        if (!valor) return alert('Informe um valor.');
+        const atual = obterVariavelListaSistema(variavel);
+        const lista = window.atlasSalvarListaConfig(chave, [...atual, valor]);
+        atlasSetListaVariavel(variavel, lista);
+        abrirAjustesSistema();
+    };
+    adicionarItemListaSistema = window.adicionarItemListaSistema;
+
+    const editarItemOriginal = window.editarItemListaSistema || editarItemListaSistema;
+    window.editarItemListaSistema = function(chave, variavel, index) {
+        if (!usuarioPodeEditarModulo('config')) return alert('Sem permissao para editar nos Ajustes.');
+        const atual = obterVariavelListaSistema(variavel);
+        const antigo = atual[index];
+        if (typeof antigo === 'undefined') return;
+        const novo = prompt('Novo nome:', antigo);
+        if (novo === null) return;
+        const valor = novo.trim();
+        if (!valor) return alert('Informe um valor.');
+        const lista = window.atlasSalvarListaConfig(chave, atual.map((item, i) => i === index ? valor : item));
+        atlasSetListaVariavel(variavel, lista);
+        if (variavel === 'OPCOES_FILMES_STOCK' && typeof renomearFilmeSistemaAtlas === 'function') renomearFilmeSistemaAtlas(antigo, valor);
+        abrirAjustesSistema();
+    };
+    editarItemListaSistema = window.editarItemListaSistema;
+
+    window.removerItemListaSistema = function(chave, variavel, index) {
+        if (!usuarioPodeExcluirModulo('config')) return alert('Sem permissao para excluir nos Ajustes.');
+        const atual = obterVariavelListaSistema(variavel);
+        const lista = window.atlasSalvarListaConfig(chave, atual.filter((_, i) => i !== index));
+        atlasSetListaVariavel(variavel, lista);
+        abrirAjustesSistema();
+    };
+    removerItemListaSistema = window.removerItemListaSistema;
+
+    window.htmlEditorListaSistema = function(titulo, chave, lista, variavel) {
+        const id = chave.replace(/[^a-z0-9_]/gi, '_');
+        const automatico = listasNumericasAtlas.has(chave);
+        return `
+            <details class="atlas-ajuste-pasta" ${titulo.includes('Clientes') ? 'open' : ''}>
+                <summary>
+                    <span>${atlasConfigSeguro(titulo)}</span>
+                    <small>${automatico ? 'ordem crescente' : 'toque para abrir'}</small>
+                </summary>
+                <div id="${id}-lista" class="atlas-ajuste-lista">
+                    ${(lista || []).map((valor, index) => `
+                        <div class="atlas-ajuste-item">
+                            <span>${atlasConfigSeguro(valor)}</span>
+                            <div>
+                                ${automatico ? '' : `
+                                    <button onclick="atlasMoverItemListaSistema('${chave}','${variavel}',${index},-1)" title="Subir"><i class="fas fa-arrow-up"></i></button>
+                                    <button onclick="atlasMoverItemListaSistema('${chave}','${variavel}',${index},1)" title="Descer"><i class="fas fa-arrow-down"></i></button>
+                                `}
+                                <button onclick="editarItemListaSistema('${chave}','${variavel}',${index})">EDITAR</button>
+                                <button onclick="removerItemListaSistema('${chave}','${variavel}',${index})" class="perigo">X</button>
+                            </div>
+                        </div>
+                    `).join('') || `<div style="color:#94a3b8;">Nenhum item.</div>`}
+                </div>
+                <div class="atlas-ajuste-add">
+                    <input id="${id}-novo" placeholder="Novo item">
+                    <button onclick="adicionarItemListaSistema('${chave}','${variavel}','${id}-novo')">ADICIONAR</button>
+                </div>
+            </details>
+        `;
+    };
+    htmlEditorListaSistema = window.htmlEditorListaSistema;
+
+    const obterVariavelOriginal = window.obterVariavelListaSistema || obterVariavelListaSistema;
+    window.obterVariavelListaSistema = function(variavel) {
+        if (variavel === 'OPCOES_VELOCIDADE_INJECAO') return OPCOES_VELOCIDADE_INJECAO || [];
+        return obterVariavelOriginal(variavel);
+    };
+    obterVariavelListaSistema = window.obterVariavelListaSistema;
+
+    const abrirAjustesOriginal = window.abrirAjustesSistema || abrirAjustesSistema;
+    window.abrirAjustesSistema = function() {
+        abrirAjustesOriginal();
+        const grade = document.querySelector('#conteudo-ajustes [style*="grid-template-columns:1fr 1fr"]');
+        if (!grade || document.getElementById('atlas-ajustes-velocidade')) return;
+        const bloco = document.createElement('div');
+        bloco.innerHTML = htmlEditorListaSistema('Velocidade - Injecao', 'atlas_config_velocidade_injecao', OPCOES_VELOCIDADE_INJECAO, 'OPCOES_VELOCIDADE_INJECAO');
+        if (bloco.firstElementChild) bloco.firstElementChild.id = 'atlas-ajustes-velocidade';
+        grade.insertBefore(bloco.firstElementChild, grade.querySelector('[style*="minimo"], [style*="Pacotes"]') || null);
+    };
+    abrirAjustesSistema = window.abrirAjustesSistema;
+
+    const criarNovoPlanoOriginal = window.criarNovoPlanoLimpo || criarNovoPlanoLimpo;
+    window.criarNovoPlanoLimpo = function(modo) {
+        criarNovoPlanoOriginal(modo);
+        if (db_plano_live) db_plano_live.pedidosFinalizados = db_plano_live.pedidosFinalizados || [];
+        if (typeof salvarPlanoLive === 'function') salvarPlanoLive();
+    };
+    criarNovoPlanoLimpo = window.criarNovoPlanoLimpo;
+
+    const adicionarLinhaPlanoOriginalAtlas = window.adicionarLinhaPlano || adicionarLinhaPlano;
+    window.adicionarLinhaPlano = function(modo) {
+        const antes = db_plano_live?.linhasAbertas?.length || 0;
+        adicionarLinhaPlanoOriginalAtlas(modo);
+        const linhas = db_plano_live?.linhasAbertas || [];
+        if (modo === 'pedido' && linhas.length > antes && db_plano_live?.pedidoAtual) {
+            const item = linhas[linhas.length - 1];
+            db_plano_live.pedidoAtual.ralSuperior = item.ralSuperior;
+            db_plano_live.pedidoAtual.ralInferior = item.ralInferior;
+            salvarPlanoLive();
+        }
+    };
+    adicionarLinhaPlano = window.adicionarLinhaPlano;
+
+    const finalizarPedidoOriginal = window.finalizarPedidoPlano || finalizarPedidoPlano;
+    window.finalizarPedidoPlano = function() {
+        if (db_plano_live?.modoAtual === 'pedido' && db_plano_live.pedidoAtual) {
+            const pedido = db_plano_live.pedidoAtual;
+            const itens = (db_plano_live.linhasAbertas || []).filter(x => x.modo === 'pedido' && x.pedidoNumero === pedido.numero);
+            db_plano_live.pedidosFinalizados = db_plano_live.pedidosFinalizados || [];
+            if (itens.length) {
+                db_plano_live.pedidosFinalizados.push({
+                    ...pedido,
+                    itens: itens.map(item => ({ ...item })),
+                    totalMetros: Number(itens.reduce((acc, item) => acc + Number(item.totalMetros || 0), 0).toFixed(2)),
+                    finalizadoEm: new Date().toLocaleString('pt-BR')
+                });
+            }
+        }
+        finalizarPedidoOriginal();
+    };
+    finalizarPedidoPlano = window.finalizarPedidoPlano;
+
+    const atualizarTelaPlanoOriginal = window.atualizarTelaPlanoAtual || atualizarTelaPlanoAtual;
+    window.atualizarTelaPlanoAtual = function() {
+        atualizarTelaPlanoOriginal();
+        const destino = document.getElementById('plano-lista-aberta');
+        if (!destino || !db_plano_live) return;
+        const finalizados = db_plano_live.pedidosFinalizados || [];
+        const htmlFinalizados = finalizados.length ? `
+            <div class="atlas-plano-finalizados">
+                <h4>Pedidos ja inseridos</h4>
+                ${finalizados.map(pedido => `
+                    <div class="atlas-plano-pedido-ok">
+                        <b>Pedido ${atlasConfigSeguro(pedido.numero)} - ${atlasConfigSeguro(pedido.destino)}</b>
+                        <small>${atlasConfigSeguro(pedido.tipo)} ${atlasConfigSeguro(pedido.espessura)} mm | RAL ${atlasConfigSeguro(pedido.ralInferior || '-')}/${atlasConfigSeguro(pedido.ralSuperior || '-')} | ${Number(pedido.totalMetros || 0).toFixed(2)} m</small>
+                    </div>
+                `).join('')}
+            </div>
+        ` : '';
+        if (htmlFinalizados && !document.getElementById('atlas-plano-finalizados-wrap')) {
+            destino.insertAdjacentHTML('afterend', `<div id="atlas-plano-finalizados-wrap">${htmlFinalizados}</div>`);
+        }
+    };
+    atualizarTelaPlanoAtual = window.atualizarTelaPlanoAtual;
+})();
+
+/* ==========================================================
    PLANO - PDF LIMPO COM PEDIDO/RAL MESCLADO + GERIR PLANILHA
    ========================================================== */
 
@@ -9387,8 +9711,8 @@ function gerarPDF_Injecao_Final(dadosEncoded) {
             return `${texto} kg`;
         };
         const linhasConsumo = quimicos.map(([nome, chave, cor, texto]) => {
-            const valorA = chave === 'polpir' ? '' : (prodA[chave] || '');
-            const valorB = chave === 'polpir' ? '' : (prodB[chave] || '');
+            const valorA = prodA[chave] || '';
+            const valorB = prodB[chave] || '';
             return `<tr><td class="quimico" style="background:${cor}; color:${texto};">${nome}</td><td colspan="2" class="valor-quimico">${seguro(valorQuimicoPDF(valorA))}</td><td colspan="2" class="valor-quimico">${seguro(valorQuimicoPDF(valorB))}</td></tr>`;
         }).join('');
         const metrosA = prodA.metros ? `${Number(prodA.metros || 0).toFixed(2)} m` : '';
