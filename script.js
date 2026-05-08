@@ -5273,11 +5273,7 @@ function formatarMedidaRelatorio(metros) {
     const valor = Number(metros || 0);
     const mm = Math.round(valor * 1000);
 
-    let metrosTexto = valor.toFixed(2).replace('.', ',');
-    metrosTexto = metrosTexto.replace(/,00$/, '');
-    metrosTexto = metrosTexto.replace(/(\,\d*[1-9])0$/, '$1');
-
-    return `${mm} (${metrosTexto} metros)`;
+    return `${mm}`;
 }
 function formatarTotalRelatorio(metros) {
     const valor = Number(metros || 0);
@@ -9797,11 +9793,9 @@ document.addEventListener('click', function(evento) {
     }
 
     function metroPlanoDetalhado(valor) {
-        const numero = numPlano(valor);
-        const mm = Math.round(numero * 1000);
-        let metros = numero.toFixed(2).replace('.', ',');
-        metros = metros.replace(/,00$/, '').replace(/(\,\d*[1-9])0$/, '$1');
-        return `${mm} (${metros} metros)`;
+      const numero = numPlano(valor);
+      const mm = Math.round(numero * 1000);
+      return `${mm}`;
     }
 
     function espTextoPlano(valor) {
@@ -10568,11 +10562,9 @@ document.addEventListener('click', function(evento) {
     }
 
     function atlasFormatoMetroPlanoDetalhado(valor) {
-        const numero = atlasNumeroPlano(valor);
-        const milimetros = Math.round(numero * 1000);
-        let metros = numero.toFixed(2).replace('.', ',');
-        metros = metros.replace(/,00$/, '').replace(/(\,\d*[1-9])0$/, '$1');
-        return `${milimetros} (${metros} metros)`;
+      const numero = atlasNumeroPlano(valor);
+      const milimetros = Math.round(numero * 1000);
+      return `${milimetros}`;
     }
 
     function atlasEspessuraTexto(valor) {
