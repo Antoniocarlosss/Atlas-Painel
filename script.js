@@ -10069,7 +10069,12 @@ document.addEventListener('click', function(evento) {
                 .plano-modal { max-width:1540px; margin:0 auto; background:#f8fafc; min-height:100%; border:2px solid #0f172a; border-radius:10px; padding:14px; color:#020617; box-shadow:0 18px 60px rgba(0,0,0,.45); }
                 .plano-topo { position:sticky; top:0; background:#f8fafc; z-index:3; border-bottom:2px solid #0f172a; padding-bottom:12px; }
                 .plano-add { display:grid; grid-template-columns:repeat(6, minmax(130px, 1fr)); gap:8px; margin-top:12px; padding:10px; border:1px solid #0f172a; background:#e5e7eb; }
+                .plano-add.fechado { display:none; }
+                .plano-add-toggle { display:flex; justify-content:flex-start; gap:10px; flex-wrap:wrap; margin-top:12px; }
+                .plano-btn-inserir { background:#10b981; min-width:180px; min-height:46px; font-size:15px; }
+                .plano-btn-fechar-inserir { background:#475569; min-height:46px; }
                 .plano-add .linha-cheia { grid-column:span 2; }
+                .plano-add .acabamento-add.oculto { display:none; }
                 .plano-input, .plano-select { width:100%; padding:9px; background:#fff; color:#020617; border:1px solid #111827; border-radius:0; font-size:14px; font-weight:700; }
                 .plano-input::placeholder { color:#64748b; font-weight:600; }
                 .plano-wrap { overflow:auto; margin-top:14px; border:2px solid #0f172a; border-radius:0; max-height:70vh; background:white; }
@@ -10078,8 +10083,9 @@ document.addEventListener('click', function(evento) {
                 .plano-tabela td { padding:5px; border:1px solid #111827; vertical-align:middle; background:#fff; color:#000; }
                 .plano-tabela tr:nth-child(even) td:not(.plano-grupo-celula) { background:#f8fafc; }
                 .plano-grupo td { background:#111827; color:#fff; border:1px solid #111827; }
-                .plano-grupo-celula { background:#111827 !important; color:#fff !important; }
+                .plano-grupo-celula { background:#111827 !important; color:#fff !important; font-weight:900 !important; }
                 .plano-grupo-grid { display:grid; grid-template-columns:150px 1fr 115px 145px 130px 125px 145px; gap:8px; align-items:center; }
+                .plano-grupo-grid .plano-input, .plano-grupo-grid b { font-weight:900 !important; font-size:15px; }
                 .plano-total { color:#047857; font-weight:900; text-align:center; }
                 .plano-label-add { font-size:11px; color:#334155; font-weight:900; text-transform:uppercase; margin-bottom:3px; display:block; }
                 .plano-btn { border:none; border-radius:7px; padding:9px 10px; color:white; font-weight:800; cursor:pointer; }
@@ -10102,6 +10108,7 @@ document.addEventListener('click', function(evento) {
                     .plano-topo > div:first-child { align-items:flex-start !important; }
                     .plano-topo h2 { font-size:20px !important; }
                     .plano-add { grid-template-columns:1fr; padding:8px; gap:7px; }
+                    .plano-add-toggle { display:grid; grid-template-columns:1fr; }
                     .plano-add .linha-cheia { grid-column:auto; }
                     .plano-btn, .plano-btn-add, .plano-btn-fechar { width:100%; min-height:44px; }
                     .plano-wrap { max-height:none; overflow:visible; border:0; background:transparent; margin-top:10px; }
@@ -10137,7 +10144,11 @@ document.addEventListener('click', function(evento) {
                         <button onclick="fecharGestaoPlanoHistorico()" class="plano-btn plano-btn-fechar">FECHAR</button>
                     </div>
 
-                    <div class="plano-add">
+                    <div class="plano-add-toggle">
+                        <button id="btn-abrir-inserir-plano-hist" onclick="toggleInserirPlanoHistorico(true)" class="plano-btn plano-btn-inserir">INSERIR</button>
+                    </div>
+
+                    <div id="bloco-inserir-plano-hist" class="plano-add fechado">
                         <div><span class="plano-label-add">Pedido</span><input id="grid-add-pedido" class="plano-input" placeholder="Pedido"></div>
                         <div>
                             <span class="plano-label-add">Cliente</span>
@@ -10153,13 +10164,13 @@ document.addEventListener('click', function(evento) {
                         <div><span class="plano-label-add">Espessura</span><select id="grid-add-esp" class="plano-select">${opcoesPlano(OPCOES_ESPESSURA_PLANO, '', ' mm')}</select></div>
                         <div><span class="plano-label-add">RAL inferior</span><select id="grid-add-ral-inf" class="plano-select">${opcoesPlano(OPCOES_RAL_INF, '')}</select></div>
                         <div><span class="plano-label-add">RAL superior</span><select id="grid-add-ral-sup" class="plano-select">${opcoesPlano(OPCOES_RAL_SUP, '')}</select></div>
-                        <div><span class="plano-label-add">Acab. inferior</span><select id="grid-add-perfil-inf" class="plano-select">
+                        <div id="grid-add-perfil-inf-wrap" class="acabamento-add"><span class="plano-label-add">Acab. inferior</span><select id="grid-add-perfil-inf" class="plano-select">
                             <option value="">Opcional</option>
                             <option value="Canelada" selected>Canelada</option>
                             <option value="Micronervurada">Micronervurada</option>
                             <option value="Lisa">Lisa</option>
                         </select></div>
-                        <div><span class="plano-label-add">Acab. superior</span><select id="grid-add-perfil-sup" class="plano-select">
+                        <div id="grid-add-perfil-sup-wrap" class="acabamento-add"><span class="plano-label-add">Acab. superior</span><select id="grid-add-perfil-sup" class="plano-select">
                             <option value="">Opcional</option>
                             <option value="Canelada" selected>Canelada</option>
                             <option value="Micronervurada">Micronervurada</option>
@@ -10169,6 +10180,7 @@ document.addEventListener('click', function(evento) {
                         <div><span class="plano-label-add">Metro</span><input id="grid-add-metros" type="number" inputmode="decimal" step="0.01" class="plano-input" placeholder="Metro"></div>
                         <div class="linha-cheia"><span class="plano-label-add">Mensagem / descricao</span><input id="grid-add-info" class="plano-input" placeholder="Informacao manual / descricao"></div>
                         <button onclick="adicionarLinhaPlanoExcel(${indexPlano})" class="plano-btn plano-btn-add">ADICIONAR</button>
+                        <button onclick="toggleInserirPlanoHistorico(false)" class="plano-btn plano-btn-fechar-inserir">FECHAR INSERIR</button>
                     </div>
                 </div>
 
@@ -10215,21 +10227,21 @@ document.addEventListener('click', function(evento) {
                                                 <td data-label="Espessura"><select id="grid-${idx}-esp" class="plano-select">${opcoesPlano(OPCOES_ESPESSURA_PLANO, item.espessura, ' mm')}</select></td>
                                                 <td data-label="RAL inferior / Acab. inferior">
                                                     <select id="grid-${idx}-ral-inf" class="plano-select">${opcoesPlano(OPCOES_RAL_INF, item.ralInferior)}</select>
-                                                    <select id="grid-${idx}-perfil-inf" class="plano-select" style="margin-top:5px;" ${tipoPlanoAceitaPerfil(item.tipo) ? '' : 'disabled'}>
+                                                    ${tipoPlanoAceitaPerfil(item.tipo) ? `<select id="grid-${idx}-perfil-inf" class="plano-select" style="margin-top:5px;">
                                                         <option value="">Acab. inf.</option>
                                                         <option value="Canelada" ${(item.perfilInferior || item.acabamentoInferior || item.perfilPainel || 'Canelada') === 'Canelada' ? 'selected' : ''}>Canelada</option>
                                                         <option value="Micronervurada" ${(item.perfilInferior || item.acabamentoInferior || item.perfilPainel) === 'Micronervurada' ? 'selected' : ''}>Micronervurada</option>
                                                         <option value="Lisa" ${(item.perfilInferior || item.acabamentoInferior || item.perfilPainel) === 'Lisa' ? 'selected' : ''}>Lisa</option>
-                                                    </select>
+                                                    </select>` : ''}
                                                 </td>
                                                 <td data-label="RAL superior / Acab. superior">
                                                     <select id="grid-${idx}-ral-sup" class="plano-select">${opcoesPlano(OPCOES_RAL_SUP, item.ralSuperior)}</select>
-                                                    <select id="grid-${idx}-perfil-sup" class="plano-select" style="margin-top:5px;" ${tipoPlanoAceitaPerfil(item.tipo) ? '' : 'disabled'}>
+                                                    ${tipoPlanoAceitaPerfil(item.tipo) ? `<select id="grid-${idx}-perfil-sup" class="plano-select" style="margin-top:5px;">
                                                         <option value="">Acab. sup.</option>
                                                         <option value="Canelada" ${(item.perfilSuperior || item.acabamentoSuperior || item.perfilPainel || 'Canelada') === 'Canelada' ? 'selected' : ''}>Canelada</option>
                                                         <option value="Micronervurada" ${(item.perfilSuperior || item.acabamentoSuperior || item.perfilPainel) === 'Micronervurada' ? 'selected' : ''}>Micronervurada</option>
                                                         <option value="Lisa" ${(item.perfilSuperior || item.acabamentoSuperior || item.perfilPainel) === 'Lisa' ? 'selected' : ''}>Lisa</option>
-                                                    </select>
+                                                    </select>` : ''}
                                                 </td>
                                                 <td data-label="Descricao / mensagem">
                                                     <input id="grid-${idx}-info" class="plano-input" value="${segPlano(item.descricaoManual || item.infoManual || item.observacaoPlano || '')}" placeholder="Info manual">
@@ -10258,11 +10270,25 @@ document.addEventListener('click', function(evento) {
         if (typeof atualizarAcabamentoAdicionarPlanoExcel === 'function') atualizarAcabamentoAdicionarPlanoExcel();
     };
 
+    window.toggleInserirPlanoHistorico = function(abrir) {
+        const bloco = document.getElementById('bloco-inserir-plano-hist');
+        const botao = document.getElementById('btn-abrir-inserir-plano-hist');
+        if (!bloco) return;
+        bloco.classList.toggle('fechado', !abrir);
+        if (botao) botao.style.display = abrir ? 'none' : '';
+        if (abrir) {
+            atualizarAcabamentoAdicionarPlanoExcel();
+            setTimeout(() => document.getElementById('grid-add-pedido')?.focus(), 80);
+        }
+    };
+
     window.atualizarAcabamentoAdicionarPlanoExcel = function() {
         const tipo = document.getElementById('grid-add-tipo')?.value || '';
         const pode = tipoPlanoAceitaPerfil(tipo);
         ['grid-add-perfil-inf', 'grid-add-perfil-sup'].forEach(id => {
             const campo = document.getElementById(id);
+            const wrap = document.getElementById(`${id}-wrap`);
+            if (wrap) wrap.classList.toggle('oculto', !pode);
             if (!campo) return;
             campo.disabled = !pode;
             if (pode && !campo.value) campo.value = 'Canelada';
@@ -10340,6 +10366,7 @@ document.addEventListener('click', function(evento) {
 
         if (typeof atualizarAcabamentoAdicionarPlanoExcel === 'function') atualizarAcabamentoAdicionarPlanoExcel();
 
+        if (typeof toggleInserirPlanoHistorico === 'function') toggleInserirPlanoHistorico(true);
         const foco = document.getElementById('grid-add-qtd');
         foco?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         setTimeout(() => foco?.focus(), 250);
