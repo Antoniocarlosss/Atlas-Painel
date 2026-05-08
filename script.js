@@ -726,6 +726,11 @@ let producoesDoDia = []; // Deve ficar no topo do script
                 <option value="">Sem RAL</option>
                 ${OPCOES_RAL_INF.concat(OPCOES_RAL_SUP).filter((v,i,a)=>a.indexOf(v)===i).map(v => `<option value="${v}">${v}</option>`).join('')}
             </select>
+
+            <label style="display:flex; align-items:center; gap:12px; background:#1e293b; border:2px solid #3b82f6; color:white; border-radius:8px; padding:13px; margin-bottom:15px; font-weight:900;">
+                <input type="checkbox" id="inj-pir" style="width:20px; height:20px;">
+                <span>PIR</span>
+            </label>
             
             <div style="display:flex; gap:10px; margin-bottom:10px;">
                 <div style="flex:1;">
@@ -850,6 +855,7 @@ function salvarNaLista() {
         nome: painel,
         esp: esp,
         ral: document.getElementById('inj-ral')?.value || '',
+        pir: !!document.getElementById('inj-pir')?.checked,
         espuma,
         fita,
         densidades,
@@ -880,7 +886,7 @@ function atualizarListaVisual() {
         
             <div style="padding:10px; border-bottom:1px solid #334155; background:#1e293b; margin-bottom:5px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
                 <div style="font-size:12px; color:white;">
-                    <b>${item.nome} (${item.esp}mm)</b>${item.espuma ? ` <small style="color:#fbbf24;">| Espuma: ${item.espuma}</small>` : ''}${item.fita ? ` <small style="color:#22c55e;">| Fita: ${item.fita}</small>` : ''}<br>
+                    <b>${item.pir ? 'PIR - ' : ''}${item.nome} (${item.esp}mm)</b>${item.espuma ? ` <small style="color:#fbbf24;">| Espuma: ${item.espuma}</small>` : ''}${item.fita ? ` <small style="color:#22c55e;">| Fita: ${item.fita}</small>` : ''}<br>
                     ${textoDensidadesInjecao(item.densidades) ? `<small style="color:#38bdf8;">Densidade: ${textoDensidadesInjecao(item.densidades)}</small><br>` : ''}
                     <span>Mts: ${item.metros} | Vel: ${item.vel}</span>
                 </div>
@@ -1039,6 +1045,10 @@ function editarTudo(id) {
                             ${OPCOES_RAL_INF.concat(OPCOES_RAL_SUP).filter((v,i,a)=>a.indexOf(v)===i).map(v => `<option value="${v}" ${String(item.ral || '') === String(v) ? 'selected' : ''}>${v}</option>`).join('')}
                         </select>
                     </label>
+                    <label style="color:white; font-size:14px; font-weight:900; display:flex; align-items:center; gap:10px; background:#1e293b; border:2px solid #3b82f6; border-radius:8px; padding:10px; margin-top:4px;">
+                        <input type="checkbox" id="inj-pir-edit" ${item.pir ? 'checked' : ''} style="width:20px; height:20px;">
+                        PIR
+                    </label>
                     <label style="color:#94a3b8; font-size:11px;">METROS
                         <input type="number" id="edit-metros" value="${item.metros}" style="width:100%; margin-top:4px; padding:10px; border-radius:8px; background:#020617; color:white; border:1px solid #334155;">
                     </label>
@@ -1129,6 +1139,7 @@ function salvarEdicaoModal() {
         item.nome = document.getElementById('inj-painel-edit')?.value || item.nome;
         item.esp = document.getElementById('edit-esp')?.value || item.esp;
         item.ral = document.getElementById('inj-ral-edit')?.value || '';
+        item.pir = !!document.getElementById('inj-pir-edit')?.checked;
         item.vel = document.getElementById('edit-vel')?.value || item.vel;
         item.espuma = document.getElementById('inj-espuma-edit')?.value || '';
         item.fita = document.getElementById('inj-fita-edit')?.value || '';
@@ -1245,7 +1256,7 @@ function exibirHistoricoModulo(modulo) {
                             <div id="${relId}" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid #334155; font-size:12px; color:#cbd5e1;">
                                 ${rel.itens.map(item => `
                                     <div style="margin-bottom:8px;">
-                                        <b style="color:#10b981;">${item.nome} (${item.esp}mm)</b>: ${item.metros}m | Vel: ${item.vel}m/min ${item.espuma ? '| Espuma: ' + item.espuma : ''} ${item.fita ? '| Fita: ' + item.fita : ''}
+                                        <b style="color:#10b981;">${item.pir ? 'PIR - ' : ''}${item.nome} (${item.esp}mm)</b>: ${item.metros}m | Vel: ${item.vel}m/min ${item.espuma ? '| Espuma: ' + item.espuma : ''} ${item.fita ? '| Fita: ' + item.fita : ''}
                                         ${textoDensidadesInjecao(item.densidades) ? `<div style="font-size:10px; color:#38bdf8;">Densidade: ${textoDensidadesInjecao(item.densidades)}</div>` : ''}
                                         <div style="font-size:10px; color:#94a3b8;">P:${item.pol} M:${item.mdi} Pen:${item.pen} | C1:${item.cat1} C2:${item.cat2}</div>
                                     </div>
@@ -11206,7 +11217,8 @@ function gerarPDF_Injecao_Final(dadosEncoded) {
     ];
 
     const textoPainelRal = item => {
-        const nome = item?.nome || '';
+        const nomeBase = item?.nome || '';
+        const nome = item?.pir ? `PIR - ${nomeBase}` : nomeBase;
         const ral = item?.ral || item?.ralInferior || item?.ralSuperior || '';
         return ral ? `${nome} / ${ral}` : nome;
     };
@@ -11221,6 +11233,7 @@ function gerarPDF_Injecao_Final(dadosEncoded) {
                 <div class="espaco-campos"></div>
                 <div class="campo"><span>Fita Atlas:</span><span class="linha">${seguro(item?.fita || '')}</span></div>
                 <div class="campo"><span>Esponja:</span><span class="linha">${seguro(item?.espuma || '')}</span></div>
+                <div class="campo"><span>PIR:</span><span class="linha">${seguro(item?.pir ? 'SIM' : '')}</span></div>
                 <div class="campo"><span>Velocidade:</span><span class="linha">${seguro(item?.vel || '')}</span></div>
                 <div class="espaco-densidade"></div>
                 <div class="campo"><span>Densidade:</span><span class="linha">${seguro(densidade)}</span></div>

@@ -131,7 +131,7 @@ function atlasRenderGerirInjecao(ano, mes, index, modulo, rel) {
             <div style="padding-top:14px;">
                 ${(rel.itens || []).map((item, i) => `
                     <div style="background:#111827; border:1px solid #334155; border-radius:10px; padding:12px; margin-bottom:10px;">
-                        <div style="color:white; font-weight:bold;">${atlasHtml(item.nome)} ${atlasHtml(item.esp)}mm</div>
+                        <div style="color:white; font-weight:bold;">${item.pir ? 'PIR - ' : ''}${atlasHtml(item.nome)} ${atlasHtml(item.esp)}mm</div>
                         <div style="color:#94a3b8; font-size:12px; margin-top:4px;">
                             ${atlasHtml(item.metros)} m | Vel: ${atlasHtml(item.vel)}<br>
                             ${item.espuma ? `Espuma: ${atlasHtml(item.espuma)}<br>` : ''}
@@ -168,6 +168,10 @@ function atlasFormItemInjecao(item, titulo, salvarJS, voltarJS) {
                 <select id="inj-edit-esp" style="width:100%; margin:6px 0 12px; padding:12px; background:#1e293b; color:white; border:1px solid #334155; border-radius:8px;">
                     ${esp.map(v => `<option value="${v}" ${String(item?.esp) === String(v) ? 'selected' : ''}>${v} mm</option>`).join('')}
                 </select>
+                <label style="display:flex; align-items:center; gap:10px; background:#1e293b; border:2px solid #3b82f6; color:white; border-radius:8px; padding:12px; margin:6px 0 12px; font-weight:900;">
+                    <input id="inj-edit-pir" type="checkbox" ${item?.pir ? 'checked' : ''} style="width:20px; height:20px;">
+                    PIR
+                </label>
                 <label style="color:#94a3b8; font-size:12px;">ESPUMA</label>
                 <select id="inj-edit-espuma" style="width:100%; margin:6px 0 12px; padding:12px; background:#1e293b; color:white; border:1px solid #334155; border-radius:8px;">
                     <option value="">Opcional</option>
@@ -200,6 +204,7 @@ function atlasColetarItemInjecao() {
         id: Date.now(),
         nome: document.getElementById('inj-edit-nome').value,
         esp: document.getElementById('inj-edit-esp').value,
+        pir: !!document.getElementById('inj-edit-pir')?.checked,
         espuma: document.getElementById('inj-edit-espuma')?.value || '',
         metros,
         vel: document.getElementById('inj-edit-vel').value,
@@ -304,7 +309,7 @@ exibirHistoricoModulo = function(modulo) {
                             </div>
                         </div>
                         <div id="${relId}" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid #334155; font-size:12px; color:#cbd5e1;">
-                            ${(rel.itens || []).map(item => `<div style="margin-bottom:8px;"><b style="color:#10b981;">${atlasHtml(item.nome)} (${atlasHtml(item.esp)}mm)</b>: ${atlasHtml(item.metros)}m | Vel: ${atlasHtml(item.vel)} ${item.espuma ? '| Espuma: ' + atlasHtml(item.espuma) : ''}</div>`).join('')}
+                            ${(rel.itens || []).map(item => `<div style="margin-bottom:8px;"><b style="color:#10b981;">${item.pir ? 'PIR - ' : ''}${atlasHtml(item.nome)} (${atlasHtml(item.esp)}mm)</b>: ${atlasHtml(item.metros)}m | Vel: ${atlasHtml(item.vel)} ${item.espuma ? '| Espuma: ' + atlasHtml(item.espuma) : ''}</div>`).join('')}
                         </div>
                     </div>
                 `;
