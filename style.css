@@ -1671,6 +1671,86 @@ table {
     background: #7f1d1d;
 }
 
+#modal-plano-historico {
+    background: rgba(15, 23, 42, .62) !important;
+}
+
+#modal-plano-historico > div {
+    background: #f8fafc !important;
+    color: #020617 !important;
+    border: 2px solid #0f172a !important;
+    border-radius: 8px !important;
+}
+
+#modal-plano-historico > div > div:first-child {
+    background: #f8fafc !important;
+    color: #020617 !important;
+    border-bottom: 2px solid #111827 !important;
+}
+
+#modal-plano-historico h2,
+#modal-plano-historico b,
+#modal-plano-historico div,
+#modal-plano-historico label {
+    color: #020617 !important;
+}
+
+#modal-plano-historico input,
+#modal-plano-historico select {
+    background: #fff !important;
+    color: #020617 !important;
+    border: 1px solid #111827 !important;
+    border-radius: 4px !important;
+    font-weight: 700 !important;
+}
+
+#modal-plano-historico table {
+    background: #fff !important;
+    border: 2px solid #111827 !important;
+    border-collapse: collapse !important;
+}
+
+#modal-plano-historico thead tr,
+#modal-plano-historico th {
+    background: #d9d9d9 !important;
+    color: #020617 !important;
+}
+
+#modal-plano-historico tr,
+#modal-plano-historico td {
+    background: #f8fafc !important;
+    color: #020617 !important;
+}
+
+#modal-plano-historico th,
+#modal-plano-historico td {
+    border: 1px solid #111827 !important;
+}
+
+#modal-plano-historico td[style*="color:#10b981"] {
+    color: #020617 !important;
+}
+
+#modal-plano-historico button {
+    color: #fff !important;
+}
+
+#modal-plano-historico button[onclick*="adicionarLinhaPlanoExcel"] {
+    background: #10b981 !important;
+}
+
+#modal-plano-historico button[onclick*="salvarLinhaPlanoExcel"] {
+    background: #2563eb !important;
+}
+
+#modal-plano-historico button[onclick*="excluirLinhaPlanoExcel"] {
+    background: #7f1d1d !important;
+}
+
+#modal-plano-historico button[onclick*="fecharGestaoPlanoHistorico"] {
+    background: #2563eb !important;
+}
+
 .atlas-ajuste-detalhe > div {
     border: 0 !important;
     border-radius: 0 !important;
