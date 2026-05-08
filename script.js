@@ -8184,6 +8184,243 @@ document.addEventListener('click', function(evento) {
 })();
 
 /* ==========================================================
+   PLANO HISTORICO - GERIR IGUAL A PLANILHA GERAL
+   ========================================================== */
+
+(function() {
+    if (window.atlasHistoricoGerirIgualPlanilhaAtivo) return;
+    window.atlasHistoricoGerirIgualPlanilhaAtivo = true;
+
+    const escHistExcel = valor => String(valor ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+    const numHistExcel = valor => {
+        const n = Number(String(valor ?? '').replace(',', '.'));
+        return Number.isFinite(n) ? n : 0;
+    };
+    const keyHistExcel = valor => String(valor ?? '').replace(/[^a-z0-9]/gi, '_');
+    const jsHistExcel = valor => String(valor ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const opcoesHistExcel = (lista, selecionado, sufixo = '') => (lista || []).map(v => {
+        const limpo = String(v ?? '');
+        const texto = sufixo && !limpo.toLowerCase().includes(String(sufixo).toLowerCase()) ? `${limpo}${sufixo}` : limpo;
+        return `<option value="${escHistExcel(limpo)}" ${String(selecionado) === limpo ? 'selected' : ''}>${escHistExcel(texto)}</option>`;
+    }).join('');
+
+    function linhasHistoricoExcel(rel) {
+        return (rel?.itens || [])
+            .map((item, idx) => ({ item, idx }))
+            .filter(reg => reg.item.modo === 'pedido');
+    }
+
+    function gruposHistoricoExcel(linhas) {
+        const mapa = {};
+        const ordem = [];
+        linhas.forEach(reg => {
+            const item = reg.item;
+            const chave = [
+                item.pedidoNumero || 'S/N',
+                item.destino || '',
+                item.tipo || '',
+                item.espessura || '',
+                item.ralInferior || '',
+                item.ralSuperior || ''
+            ].join('|||');
+            if (!mapa[chave]) {
+                mapa[chave] = { chave, linhas: [] };
+                ordem.push(mapa[chave]);
+            }
+            mapa[chave].linhas.push(reg);
+        });
+        return ordem;
+    }
+
+    function recalcularHistoricoExcel(rel) {
+        rel.totalGeral = Number((rel.itens || []).reduce((acc, item) => acc + numHistExcel(item.totalMetros), 0).toFixed(2));
+        if (typeof gerarResumoPlano === 'function') rel.resumo = gerarResumoPlano(rel.itens || []);
+    }
+
+    function grupoCellsHistoricoExcel(grupo) {
+        const base = grupo.linhas[0]?.item || {};
+        const id = `histgrp-${keyHistExcel(grupo.chave)}`;
+        const span = grupo.linhas.length;
+        return `
+            <td rowspan="${span}" class="atlas-mescla-celula"><input id="${id}-pedido" value="${escHistExcel(base.pedidoNumero || '')}"></td>
+            <td rowspan="${span}" class="atlas-mescla-celula"><input id="${id}-destino" value="${escHistExcel(base.destino || '')}"></td>
+            <td rowspan="${span}" class="atlas-mescla-celula"><select id="${id}-tipo">${opcoesHistExcel(OPCOES_TIPO_PLANO, base.tipo)}</select></td>
+            <td rowspan="${span}" class="atlas-mescla-celula"><select id="${id}-esp">${opcoesHistExcel(OPCOES_ESPESSURA_PLANO, base.espessura, ' mm')}</select></td>
+            <td rowspan="${span}" class="atlas-mescla-celula"><select id="${id}-ral-inf">${opcoesHistExcel(OPCOES_RAL_INF, base.ralInferior)}</select></td>
+            <td rowspan="${span}" class="atlas-mescla-celula"><select id="${id}-ral-sup">${opcoesHistExcel(OPCOES_RAL_SUP, base.ralSuperior)}</select></td>
+        `;
+    }
+
+    function aplicarGrupoHistoricoExcel(chave, item) {
+        const id = `histgrp-${keyHistExcel(chave)}`;
+        item.pedidoNumero = document.getElementById(`${id}-pedido`)?.value.trim() || item.pedidoNumero || 'S/N';
+        item.destino = document.getElementById(`${id}-destino`)?.value.trim() || item.destino || '';
+        item.tipo = document.getElementById(`${id}-tipo`)?.value || item.tipo;
+        item.espessura = document.getElementById(`${id}-esp`)?.value || item.espessura;
+        item.ralInferior = document.getElementById(`${id}-ral-inf`)?.value || item.ralInferior;
+        item.ralSuperior = document.getElementById(`${id}-ral-sup`)?.value || item.ralSuperior;
+        item.perfilInferior = tipoPlanoAceitaPerfil(item.tipo) ? (item.perfilInferior || item.acabamentoInferior || 'Canelada') : '';
+        item.perfilSuperior = tipoPlanoAceitaPerfil(item.tipo) ? (item.perfilSuperior || item.acabamentoSuperior || 'Canelada') : '';
+        item.acabamentoInferior = item.perfilInferior;
+        item.acabamentoSuperior = item.perfilSuperior;
+    }
+
+    window.renderizarGestaoPlanoHistorico = function(indexPlano) {
+        const rel = db_plano_hist[indexPlano];
+        const modal = document.getElementById('modal-plano-historico');
+        if (!rel || !modal) return;
+
+        const linhas = linhasHistoricoExcel(rel);
+        const total = linhas.reduce((acc, reg) => acc + numHistExcel(reg.item.totalMetros), 0);
+        const grupos = gruposHistoricoExcel(linhas);
+        const base = linhas[0]?.item || {};
+
+        const htmlGrupos = grupos.map(grupo => grupo.linhas.map((reg, index) => {
+            const item = reg.item;
+            return `
+                <tr>
+                    ${index === 0 ? grupoCellsHistoricoExcel(grupo) : ''}
+                    <td><input id="histxl-${reg.idx}-qtd" type="number" value="${escHistExcel(item.quantidadeChapas || 0)}"></td>
+                    <td><input id="histxl-${reg.idx}-metros" type="number" step="0.01" value="${escHistExcel(item.metrosUnidade || 0)}"></td>
+                    <td><input id="histxl-${reg.idx}-info" value="${escHistExcel(item.infoManual || item.descricaoManual || '')}"></td>
+                    <td><input id="histxl-${reg.idx}-urgente" type="checkbox" ${item.urgente ? 'checked' : ''}></td>
+                    <td><b>${numHistExcel(item.totalMetros).toFixed(2)} m</b></td>
+                    <td>
+                        <button onclick="atlasSalvarLinhaGestaoHistoricoExcel(${indexPlano}, ${reg.idx}, '${jsHistExcel(grupo.chave)}')">SALVAR</button>
+                        <button onclick="atlasExcluirLinhaGestaoHistoricoExcel(${indexPlano}, ${reg.idx})" class="perigo">EXCLUIR</button>
+                    </td>
+                </tr>
+            `;
+        }).join('')).join('');
+
+        modal.innerHTML = `
+            <div class="atlas-plano-live-janela">
+                <div class="atlas-plano-live-topo">
+                    <div>
+                        <h2>Planilha geral dos pedidos</h2>
+                        <small>${linhas.length} linha(s) | Total: <b>${total.toFixed(2)} m</b></small>
+                    </div>
+                    <div class="atlas-plano-live-topo-acoes">
+                        <button onclick="atlasGerarPDFGeralHistorico(${indexPlano})" class="pdf">PDF GERAL</button>
+                        <button onclick="fecharGestaoPlanoHistorico()">FECHAR</button>
+                    </div>
+                </div>
+                <div class="atlas-plano-live-add">
+                    <input id="histxl-add-pedido" placeholder="Pedido">
+                    <input id="histxl-add-destino" placeholder="Cliente">
+                    <input id="histxl-add-qtd" type="number" placeholder="Qtd">
+                    <input id="histxl-add-metros" type="number" step="0.01" placeholder="Metros">
+                    <select id="histxl-add-tipo">${opcoesHistExcel(OPCOES_TIPO_PLANO, base.tipo)}</select>
+                    <select id="histxl-add-esp">${opcoesHistExcel(OPCOES_ESPESSURA_PLANO, base.espessura, ' mm')}</select>
+                    <select id="histxl-add-ral-inf">${opcoesHistExcel(OPCOES_RAL_INF, base.ralInferior)}</select>
+                    <select id="histxl-add-ral-sup">${opcoesHistExcel(OPCOES_RAL_SUP, base.ralSuperior)}</select>
+                    <button onclick="atlasAdicionarLinhaGestaoHistoricoExcel(${indexPlano})">INSERIR</button>
+                </div>
+                <div class="atlas-plano-live-wrap">
+                    <table class="atlas-plano-live-tabela atlas-plano-geral-tabela atlas-planilha-mesclada">
+                        <thead>
+                            <tr>
+                                <th>Pedido</th>
+                                <th>Cliente</th>
+                                <th>Tipo</th>
+                                <th>Esp.</th>
+                                <th>RAL Inf.</th>
+                                <th>RAL Sup.</th>
+                                <th>Qtd</th>
+                                <th>Metros</th>
+                                <th>Obs.</th>
+                                <th>Urg.</th>
+                                <th>Total</th>
+                                <th>Acoes</th>
+                            </tr>
+                        </thead>
+                        <tbody>${htmlGrupos || '<tr><td colspan="12">Nenhum pedido neste plano.</td></tr>'}</tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+        modal.style.display = 'block';
+    };
+
+    window.atlasSalvarLinhaGestaoHistoricoExcel = function(indexPlano, idx, chave) {
+        const rel = db_plano_hist[indexPlano];
+        const item = rel?.itens?.[idx];
+        if (!rel || !item) return;
+        const qtd = numHistExcel(document.getElementById(`histxl-${idx}-qtd`)?.value);
+        const metros = numHistExcel(document.getElementById(`histxl-${idx}-metros`)?.value);
+        if (qtd <= 0 || metros <= 0) return alert('Informe quantidade e metros validos.');
+
+        aplicarGrupoHistoricoExcel(chave, item);
+        item.quantidadeChapas = qtd;
+        item.metrosUnidade = metros;
+        item.totalMetrosAntesCancelamento = Number((qtd * metros).toFixed(2));
+        item.totalMetros = item.encomendaCancelada ? 0 : item.totalMetrosAntesCancelamento;
+        item.infoManual = document.getElementById(`histxl-${idx}-info`)?.value.trim() || '';
+        item.descricaoManual = item.infoManual;
+        item.urgente = !!document.getElementById(`histxl-${idx}-urgente`)?.checked;
+        item.descricao = `${item.tipo} ${item.espessura} mm`;
+
+        recalcularHistoricoExcel(rel);
+        salvarPlanoHistoricoEditado(indexPlano, rel, `Editou linha ${item.pedidoNumero || 'S/N'} na planilha geral`);
+        renderizarGestaoPlanoHistorico(indexPlano);
+        listarHistoricoPlano();
+    };
+
+    window.atlasExcluirLinhaGestaoHistoricoExcel = function(indexPlano, idx) {
+        if (!usuarioPodeExcluirModulo('plano')) return alert('Sem permissao para excluir no Plano.');
+        const rel = db_plano_hist[indexPlano];
+        const item = rel?.itens?.[idx];
+        if (!rel || !item) return;
+        if (!confirm('Excluir esta linha do historico?')) return;
+        rel.itens.splice(idx, 1);
+        recalcularHistoricoExcel(rel);
+        salvarPlanoHistoricoEditado(indexPlano, rel, 'Excluiu linha na planilha geral');
+        renderizarGestaoPlanoHistorico(indexPlano);
+        listarHistoricoPlano();
+    };
+
+    window.atlasAdicionarLinhaGestaoHistoricoExcel = function(indexPlano) {
+        const rel = db_plano_hist[indexPlano];
+        if (!rel) return;
+        const qtd = numHistExcel(document.getElementById('histxl-add-qtd')?.value);
+        const metros = numHistExcel(document.getElementById('histxl-add-metros')?.value);
+        if (qtd <= 0 || metros <= 0) return alert('Informe quantidade e metros validos para inserir.');
+
+        const tipo = document.getElementById('histxl-add-tipo')?.value || OPCOES_TIPO_PLANO[0] || '';
+        const espessura = document.getElementById('histxl-add-esp')?.value || OPCOES_ESPESSURA_PLANO[0] || '';
+        const aceitaPerfil = tipoPlanoAceitaPerfil(tipo);
+        const novo = {
+            id: Date.now() + '-' + Math.random().toString(16).slice(2),
+            modo: 'pedido',
+            pedidoNumero: document.getElementById('histxl-add-pedido')?.value.trim() || 'S/N',
+            destino: document.getElementById('histxl-add-destino')?.value.trim() || '',
+            tipo,
+            espessura,
+            ralInferior: document.getElementById('histxl-add-ral-inf')?.value || OPCOES_RAL_INF[0] || '',
+            ralSuperior: document.getElementById('histxl-add-ral-sup')?.value || OPCOES_RAL_SUP[0] || '',
+            quantidadeChapas: qtd,
+            metrosUnidade: metros,
+            totalMetros: Number((qtd * metros).toFixed(2)),
+            totalMetrosAntesCancelamento: Number((qtd * metros).toFixed(2)),
+            infoManual: '',
+            descricaoManual: '',
+            descricao: `${tipo} ${espessura} mm`,
+            perfilInferior: aceitaPerfil ? 'Canelada' : '',
+            perfilSuperior: aceitaPerfil ? 'Canelada' : '',
+            acabamentoInferior: aceitaPerfil ? 'Canelada' : '',
+            acabamentoSuperior: aceitaPerfil ? 'Canelada' : '',
+            urgente: false
+        };
+        rel.itens ||= [];
+        rel.itens.push(novo);
+        recalcularHistoricoExcel(rel);
+        salvarPlanoHistoricoEditado(indexPlano, rel, `Inseriu linha ${novo.pedidoNumero} na planilha geral`);
+        renderizarGestaoPlanoHistorico(indexPlano);
+        listarHistoricoPlano();
+    };
+})();
+
+/* ==========================================================
    PLANO - LIMPAR BOTOES DUPLICADOS E CENTRALIZAR BOTAO GERAL
    ========================================================== */
 
@@ -14235,4 +14472,220 @@ window.addEventListener('load', () => setTimeout(instalarProtecaoExclusaoSeparad
         clearTimeout(window.atlasPlanoBotaoCanonicoTimer);
         window.atlasPlanoBotaoCanonicoTimer = setTimeout(inserirCanonico, 120);
     }).observe(document.body, { childList: true, subtree: true });
+})();
+
+/* ==========================================================
+   PLANO HISTORICO - GERIR NO MESMO MODELO DA PLANILHA GERAL
+   ========================================================== */
+
+(function() {
+    if (window.atlasHistoricoGerirPlanilhaFinalAtivo) return;
+    window.atlasHistoricoGerirPlanilhaFinalAtivo = true;
+
+    const esc = valor => String(valor ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+    const num = valor => {
+        const n = Number(String(valor ?? '').replace(',', '.'));
+        return Number.isFinite(n) ? n : 0;
+    };
+    const key = valor => String(valor ?? '').replace(/[^a-z0-9]/gi, '_');
+    const js = valor => String(valor ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const opts = (lista, selecionado, sufixo = '') => (lista || []).map(v => {
+        const limpo = String(v ?? '');
+        const texto = sufixo && !limpo.toLowerCase().includes(String(sufixo).toLowerCase()) ? `${limpo}${sufixo}` : limpo;
+        return `<option value="${esc(limpo)}" ${String(selecionado) === limpo ? 'selected' : ''}>${esc(texto)}</option>`;
+    }).join('');
+    const aceitaPerfil = tipo => String(tipo || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .includes('fachada');
+
+    function linhas(rel) {
+        return (rel?.itens || []).map((item, idx) => ({ item, idx })).filter(reg => reg.item.modo === 'pedido');
+    }
+
+    function grupos(registros) {
+        const mapa = {};
+        const ordem = [];
+        registros.forEach(reg => {
+            const item = reg.item;
+            const chave = [
+                item.pedidoNumero || 'S/N',
+                item.destino || '',
+                item.tipo || '',
+                item.espessura || '',
+                item.ralInferior || '',
+                item.ralSuperior || ''
+            ].join('|||');
+            if (!mapa[chave]) {
+                mapa[chave] = { chave, linhas: [] };
+                ordem.push(mapa[chave]);
+            }
+            mapa[chave].linhas.push(reg);
+        });
+        return ordem;
+    }
+
+    function recalcular(rel) {
+        rel.totalGeral = Number((rel.itens || []).reduce((acc, item) => acc + num(item.totalMetros), 0).toFixed(2));
+        if (typeof gerarResumoPlano === 'function') rel.resumo = gerarResumoPlano(rel.itens || []);
+    }
+
+    function aplicarGrupo(chave, item) {
+        const id = `hist-final-${key(chave)}`;
+        item.pedidoNumero = document.getElementById(`${id}-pedido`)?.value.trim() || item.pedidoNumero || 'S/N';
+        item.destino = document.getElementById(`${id}-destino`)?.value.trim() || item.destino || '';
+        item.tipo = document.getElementById(`${id}-tipo`)?.value || item.tipo;
+        item.espessura = document.getElementById(`${id}-esp`)?.value || item.espessura;
+        item.ralInferior = document.getElementById(`${id}-ral-inf`)?.value || item.ralInferior;
+        item.ralSuperior = document.getElementById(`${id}-ral-sup`)?.value || item.ralSuperior;
+        item.perfilInferior = aceitaPerfil(item.tipo) ? (item.perfilInferior || item.acabamentoInferior || 'Canelada') : '';
+        item.perfilSuperior = aceitaPerfil(item.tipo) ? (item.perfilSuperior || item.acabamentoSuperior || 'Canelada') : '';
+        item.acabamentoInferior = item.perfilInferior;
+        item.acabamentoSuperior = item.perfilSuperior;
+    }
+
+    function cellsGrupo(grupo) {
+        const item = grupo.linhas[0]?.item || {};
+        const id = `hist-final-${key(grupo.chave)}`;
+        const span = grupo.linhas.length;
+        return `
+            <td rowspan="${span}" class="atlas-mescla-celula"><input id="${id}-pedido" value="${esc(item.pedidoNumero || '')}"></td>
+            <td rowspan="${span}" class="atlas-mescla-celula"><input id="${id}-destino" value="${esc(item.destino || '')}"></td>
+            <td rowspan="${span}" class="atlas-mescla-celula"><select id="${id}-tipo">${opts(OPCOES_TIPO_PLANO, item.tipo)}</select></td>
+            <td rowspan="${span}" class="atlas-mescla-celula"><select id="${id}-esp">${opts(OPCOES_ESPESSURA_PLANO, item.espessura, ' mm')}</select></td>
+            <td rowspan="${span}" class="atlas-mescla-celula"><select id="${id}-ral-inf">${opts(OPCOES_RAL_INF, item.ralInferior)}</select></td>
+            <td rowspan="${span}" class="atlas-mescla-celula"><select id="${id}-ral-sup">${opts(OPCOES_RAL_SUP, item.ralSuperior)}</select></td>
+        `;
+    }
+
+    window.renderizarGestaoPlanoHistorico = function(indexPlano) {
+        const rel = db_plano_hist[indexPlano];
+        const modal = document.getElementById('modal-plano-historico');
+        if (!rel || !modal) return;
+
+        const registros = linhas(rel);
+        const total = registros.reduce((acc, reg) => acc + num(reg.item.totalMetros), 0);
+        const base = registros[0]?.item || {};
+        const corpo = grupos(registros).map(grupo => grupo.linhas.map((reg, pos) => {
+            const item = reg.item;
+            return `
+                <tr>
+                    ${pos === 0 ? cellsGrupo(grupo) : ''}
+                    <td><input id="hist-final-${reg.idx}-qtd" type="number" value="${esc(item.quantidadeChapas || 0)}"></td>
+                    <td><input id="hist-final-${reg.idx}-metros" type="number" step="0.01" value="${esc(item.metrosUnidade || 0)}"></td>
+                    <td><input id="hist-final-${reg.idx}-info" value="${esc(item.infoManual || item.descricaoManual || '')}"></td>
+                    <td><input id="hist-final-${reg.idx}-urgente" type="checkbox" ${item.urgente ? 'checked' : ''}></td>
+                    <td><b>${num(item.totalMetros).toFixed(2)} m</b></td>
+                    <td>
+                        <button onclick="atlasSalvarGestaoHistoricoPlanilha(${indexPlano}, ${reg.idx}, '${js(grupo.chave)}')">SALVAR</button>
+                        <button onclick="atlasExcluirGestaoHistoricoPlanilha(${indexPlano}, ${reg.idx})" class="perigo">EXCLUIR</button>
+                    </td>
+                </tr>
+            `;
+        }).join('')).join('');
+
+        modal.innerHTML = `
+            <div class="atlas-plano-live-janela">
+                <div class="atlas-plano-live-topo">
+                    <div><h2>Planilha geral dos pedidos</h2><small>${registros.length} linha(s) | Total: <b>${total.toFixed(2)} m</b></small></div>
+                    <div class="atlas-plano-live-topo-acoes">
+                        <button onclick="atlasGerarPDFGeralHistorico(${indexPlano})" class="pdf">PDF GERAL</button>
+                        <button onclick="fecharGestaoPlanoHistorico()">FECHAR</button>
+                    </div>
+                </div>
+                <div class="atlas-plano-live-add">
+                    <input id="hist-final-add-pedido" placeholder="Pedido">
+                    <input id="hist-final-add-destino" placeholder="Cliente">
+                    <input id="hist-final-add-qtd" type="number" placeholder="Qtd">
+                    <input id="hist-final-add-metros" type="number" step="0.01" placeholder="Metros">
+                    <select id="hist-final-add-tipo">${opts(OPCOES_TIPO_PLANO, base.tipo)}</select>
+                    <select id="hist-final-add-esp">${opts(OPCOES_ESPESSURA_PLANO, base.espessura, ' mm')}</select>
+                    <select id="hist-final-add-ral-inf">${opts(OPCOES_RAL_INF, base.ralInferior)}</select>
+                    <select id="hist-final-add-ral-sup">${opts(OPCOES_RAL_SUP, base.ralSuperior)}</select>
+                    <button onclick="atlasInserirGestaoHistoricoPlanilha(${indexPlano})">INSERIR</button>
+                </div>
+                <div class="atlas-plano-live-wrap">
+                    <table class="atlas-plano-live-tabela atlas-plano-geral-tabela atlas-planilha-mesclada">
+                        <thead><tr><th>Pedido</th><th>Cliente</th><th>Tipo</th><th>Esp.</th><th>RAL Inf.</th><th>RAL Sup.</th><th>Qtd</th><th>Metros</th><th>Obs.</th><th>Urg.</th><th>Total</th><th>Acoes</th></tr></thead>
+                        <tbody>${corpo || '<tr><td colspan="12">Nenhum pedido neste plano.</td></tr>'}</tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+        modal.style.display = 'block';
+    };
+
+    window.atlasSalvarGestaoHistoricoPlanilha = function(indexPlano, idx, chave) {
+        const rel = db_plano_hist[indexPlano];
+        const item = rel?.itens?.[idx];
+        if (!rel || !item) return;
+        const qtd = num(document.getElementById(`hist-final-${idx}-qtd`)?.value);
+        const metros = num(document.getElementById(`hist-final-${idx}-metros`)?.value);
+        if (qtd <= 0 || metros <= 0) return alert('Informe quantidade e metros validos.');
+        aplicarGrupo(chave, item);
+        item.quantidadeChapas = qtd;
+        item.metrosUnidade = metros;
+        item.totalMetrosAntesCancelamento = Number((qtd * metros).toFixed(2));
+        item.totalMetros = item.encomendaCancelada ? 0 : item.totalMetrosAntesCancelamento;
+        item.infoManual = document.getElementById(`hist-final-${idx}-info`)?.value.trim() || '';
+        item.descricaoManual = item.infoManual;
+        item.urgente = !!document.getElementById(`hist-final-${idx}-urgente`)?.checked;
+        item.descricao = `${item.tipo} ${item.espessura} mm`;
+        recalcular(rel);
+        salvarPlanoHistoricoEditado(indexPlano, rel, `Editou linha ${item.pedidoNumero || 'S/N'} na planilha geral`);
+        renderizarGestaoPlanoHistorico(indexPlano);
+        listarHistoricoPlano();
+    };
+
+    window.atlasExcluirGestaoHistoricoPlanilha = function(indexPlano, idx) {
+        if (!usuarioPodeExcluirModulo('plano')) return alert('Sem permissao para excluir no Plano.');
+        const rel = db_plano_hist[indexPlano];
+        if (!rel?.itens?.[idx]) return;
+        if (!confirm('Excluir esta linha do historico?')) return;
+        rel.itens.splice(idx, 1);
+        recalcular(rel);
+        salvarPlanoHistoricoEditado(indexPlano, rel, 'Excluiu linha na planilha geral');
+        renderizarGestaoPlanoHistorico(indexPlano);
+        listarHistoricoPlano();
+    };
+
+    window.atlasInserirGestaoHistoricoPlanilha = function(indexPlano) {
+        const rel = db_plano_hist[indexPlano];
+        if (!rel) return;
+        const qtd = num(document.getElementById('hist-final-add-qtd')?.value);
+        const metros = num(document.getElementById('hist-final-add-metros')?.value);
+        if (qtd <= 0 || metros <= 0) return alert('Informe quantidade e metros validos para inserir.');
+        const tipo = document.getElementById('hist-final-add-tipo')?.value || OPCOES_TIPO_PLANO[0] || '';
+        const espessura = document.getElementById('hist-final-add-esp')?.value || OPCOES_ESPESSURA_PLANO[0] || '';
+        const fachada = aceitaPerfil(tipo);
+        const novo = {
+            id: Date.now() + '-' + Math.random().toString(16).slice(2),
+            modo: 'pedido',
+            pedidoNumero: document.getElementById('hist-final-add-pedido')?.value.trim() || 'S/N',
+            destino: document.getElementById('hist-final-add-destino')?.value.trim() || '',
+            tipo,
+            espessura,
+            ralInferior: document.getElementById('hist-final-add-ral-inf')?.value || OPCOES_RAL_INF[0] || '',
+            ralSuperior: document.getElementById('hist-final-add-ral-sup')?.value || OPCOES_RAL_SUP[0] || '',
+            quantidadeChapas: qtd,
+            metrosUnidade: metros,
+            totalMetros: Number((qtd * metros).toFixed(2)),
+            totalMetrosAntesCancelamento: Number((qtd * metros).toFixed(2)),
+            descricao: `${tipo} ${espessura} mm`,
+            infoManual: '',
+            descricaoManual: '',
+            perfilInferior: fachada ? 'Canelada' : '',
+            perfilSuperior: fachada ? 'Canelada' : '',
+            acabamentoInferior: fachada ? 'Canelada' : '',
+            acabamentoSuperior: fachada ? 'Canelada' : '',
+            urgente: false
+        };
+        rel.itens ||= [];
+        rel.itens.push(novo);
+        recalcular(rel);
+        salvarPlanoHistoricoEditado(indexPlano, rel, `Inseriu linha ${novo.pedidoNumero} na planilha geral`);
+        renderizarGestaoPlanoHistorico(indexPlano);
+        listarHistoricoPlano();
+    };
 })();
