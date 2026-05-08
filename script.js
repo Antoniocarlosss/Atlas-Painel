@@ -11218,7 +11218,7 @@ function gerarPDF_Injecao_Final(dadosEncoded) {
 
     const textoPainelRal = item => {
         const nomeBase = item?.nome || '';
-        const nome = item?.pir ? `PIR - ${nomeBase}` : nomeBase;
+        const nome = nomeBase;
         const ral = item?.ral || item?.ralInferior || item?.ralSuperior || '';
         return ral ? `${nome} / ${ral}` : nome;
     };
@@ -11274,6 +11274,7 @@ function gerarPDF_Injecao_Final(dadosEncoded) {
         }).join('');
         const metrosA = prodA.metros ? `${Number(prodA.metros || 0).toFixed(2)} m` : '';
         const metrosB = prodB.metros ? `${Number(prodB.metros || 0).toFixed(2)} m` : '';
+        const pirPagina = prodA.pir || prodB.pir;
 
         return `
             <section class="page">
@@ -11301,7 +11302,7 @@ function gerarPDF_Injecao_Final(dadosEncoded) {
                             <th>Espessura</th>
                         </tr>
                         <tr>
-                            <th></th>
+                            <th>${pirPagina ? '<span class="pir-badge">PIR</span>' : ''}</th>
                             <td>${seguro(textoPainelRal(prodA))}</td>
                             <td>${seguro(prodA.esp ? prodA.esp + ' mm' : '')}</td>
                             <td>${seguro(textoPainelRal(prodB))}</td>
@@ -11369,6 +11370,7 @@ function gerarPDF_Injecao_Final(dadosEncoded) {
                 .consumos { width: 78%; margin: 4mm auto 8mm; }
                 .consumos caption { caption-side: top; border: 2px solid #111; border-bottom: 0; padding: 5px; font-weight: 800; }
                 .quimico { width: 29mm; text-align: center; font-weight: 800; }
+                .pir-badge { display:block; background:#fef08a; color:#991b1b; border:2px solid #991b1b; font-weight:900; font-size:14px; padding:2px 4px; text-align:center; }
                 .valor-quimico { text-align: center; font-weight: 700; }
                 .dados { width: 58%; margin: 0 auto 4mm; }
                 .dados th { background: #f5f5f5; }
