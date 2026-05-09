@@ -275,6 +275,7 @@ function atlasRegistrarUltimoAcessoUsuario(agora, versao, aparelho, idDispositiv
     usuariosSistema[indice]._atlasUltimoAcessoAparelho = aparelho;
     usuariosSistema[indice]._atlasUltimoAcessoDispositivoId = idDispositivo;
     usuarioLogado = usuariosSistema[indice];
+    window.usuarioLogado = usuarioLogado;
     localStorage.setItem('atlas_usuarios', JSON.stringify(usuariosSistema));
 }
 
@@ -731,6 +732,7 @@ async function fazerLogin() {
 
     if (idLogin === 'admin' && senhaInput === '123') {
         usuarioLogado = garantirAdminSistemaAtlas();
+        window.usuarioLogado = usuarioLogado;
         document.getElementById('tela-login').style.display = 'none';
         document.getElementById('app-principal').style.display = 'block';
         document.getElementById('user-display').innerText = 'ADMIN';
@@ -784,6 +786,7 @@ async function fazerLogin() {
         }
 
         usuarioLogado = usuarioEncontrado;
+        window.usuarioLogado = usuarioLogado;
         document.getElementById('tela-login').style.display = 'none';
         document.getElementById('app-principal').style.display = 'block';
         document.getElementById('user-display').innerText = usuarioEncontrado.id.toUpperCase();
@@ -5677,6 +5680,7 @@ function alterarMinhaSenha() {
     marcarUsuarioAlteradoAtlas(usuariosSistema[indice]);
     usuariosSistema[indice].senha = novaSenha;
     usuarioLogado = usuariosSistema[indice];
+    window.usuarioLogado = usuarioLogado;
     localStorage.setItem('atlas_usuarios', JSON.stringify(usuariosSistema));
     if (typeof window.atlasFirebaseSincronizarAgora === 'function') window.atlasFirebaseSincronizarAgora();
 

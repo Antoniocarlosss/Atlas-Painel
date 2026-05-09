@@ -324,9 +324,9 @@ function atlasChavesAtualizacaoLocais() {
     const usuarioTexto = document.getElementById("user-display")?.innerText || "";
     let usuarioLocal = null;
     try {
-        usuarioLocal = typeof usuarioLogado !== "undefined" ? usuarioLogado : null;
+        usuarioLocal = window.usuarioLogado || (typeof usuarioLogado !== "undefined" ? usuarioLogado : null);
     } catch (erro) {
-        usuarioLocal = null;
+        usuarioLocal = window.usuarioLogado || null;
     }
 
     const usuarios = [
