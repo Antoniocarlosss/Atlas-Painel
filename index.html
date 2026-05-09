@@ -9,7 +9,7 @@
     <title>Atlas Painel - Gestão</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20260509-online-aparelho-tempo-real">
+    <link rel="stylesheet" href="style.css?v=20260509-botao-atualizar-usuario">
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
@@ -94,8 +94,8 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script>
-        window.ATLAS_SISTEMA_VERSAO = '20260509-online-aparelho-tempo-real';
-        window.ATLAS_SISTEMA_BUILD = 125;
+        window.ATLAS_SISTEMA_VERSAO = '20260509-botao-atualizar-usuario';
+        window.ATLAS_SISTEMA_BUILD = 126;
         window.atlasMostrarTelaAtualizacao = function atlasMostrarTelaAtualizacao(opcoes = {}) {
             const finalizado = opcoes.finalizado === true;
             let overlay = document.getElementById('atlas-update-screen');
@@ -256,10 +256,10 @@
             });
         })();
     </script>
-    <script src="script.js?v=20260509-online-aparelho-tempo-real"></script>
-    <script src="historicos-admin.js?v=20260509-online-aparelho-tempo-real"></script>
+    <script src="script.js?v=20260509-botao-atualizar-usuario"></script>
+    <script src="historicos-admin.js?v=20260509-botao-atualizar-usuario"></script>
     <script src="atlas-ajustes-fachadas.js?v=20260427-permissao-excluir"></script>
-    <script type="module" src="firebase-atlas.js?v=20260509-online-aparelho-tempo-real"></script>
+    <script type="module" src="firebase-atlas.js?v=20260509-botao-atualizar-usuario"></script>
     <script>
         if ('serviceWorker' in navigator) {
             let atlasAtualizandoPWA = false;
@@ -270,7 +270,7 @@
             });
 
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=20260509-online-aparelho-tempo-real')
+                navigator.serviceWorker.register('sw.js?v=20260509-botao-atualizar-usuario')
                     .then(reg => {
                         console.log('Atlas PWA: Ativo!');
                         reg.update();

@@ -5910,6 +5910,19 @@ function atlasHTMLUsuariosSaudeSistema(dispositivos) {
                         <b style="color:${status?.corVersao || '#94a3b8'};">Atualizacao: ${status?.textoVersao || '-'}</b>
                         <div style="color:#94a3b8; font-size:12px; overflow-wrap:anywhere;">${principal ? atlasTextoSeguroSaude(principal.versao || '-') : '-'}</div>
                     </div>
+                    <div>
+                        ${principal && principal.id ? `
+                            <button onclick="atlasSolicitarAtualizacaoDispositivo('${atlasJSStringSaude(principal.id || '')}', '${atlasJSStringSaude(usuario.id || '')}')"
+                                style="width:100%; padding:12px; border:none; border-radius:8px; background:#2563eb; color:white; font-weight:900; cursor:pointer;">
+                                FORCAR ATUALIZACAO
+                            </button>
+                        ` : `
+                            <button disabled
+                                style="width:100%; padding:12px; border:none; border-radius:8px; background:#334155; color:#94a3b8; font-weight:900; cursor:not-allowed;">
+                                SEM APARELHO
+                            </button>
+                        `}
+                    </div>
                 </div>
 
                 ${aparelhosVisiveis.length ? `
