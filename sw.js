@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v133-atualizacao-automatica-status';
+const CACHE_NAME = 'atlas-v134-saude-diagnostico-limpar';
 const assets = [
   './',
   './index.html',

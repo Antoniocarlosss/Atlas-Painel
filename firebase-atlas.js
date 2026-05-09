@@ -806,6 +806,14 @@ window.atlasFirebaseListarDispositivos = function() {
     });
 };
 
+window.atlasFirebaseRemoverDispositivo = function(idDispositivo) {
+    const id = atlasDocId(idDispositivo);
+    if (!id) return Promise.resolve();
+    return deleteDoc(doc(atlasFirestore, "dispositivos_online", id)).catch(erro => {
+        console.error("Erro ao remover dispositivo:", erro);
+    });
+};
+
 window.atlasFirebaseSincronizarAgora = function() {
     return atlasFirebaseSincronizarVersaoSistema()
         .then(() => atlasFirebaseEnviarDispositivosLocais())

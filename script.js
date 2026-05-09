@@ -5763,10 +5763,21 @@ function atlasStatusDispositivoSaude(dispositivo) {
         online,
         atualizado,
         textoOnline: online ? 'ONLINE' : 'OFFLINE',
+        textoVisto: ultimo ? atlasTempoRelativoSaude(ultimo) : 'nunca',
         textoVersao: atualizado ? 'ATUALIZADO' : 'ANTIGO',
         corOnline: online ? '#22c55e' : '#94a3b8',
         corVersao: atualizado ? '#22c55e' : '#ef4444'
     };
+}
+
+function atlasTempoRelativoSaude(ms) {
+    const diff = Math.max(0, Date.now() - Number(ms || 0));
+    const min = Math.floor(diff / 60000);
+    if (min < 1) return 'agora';
+    if (min < 60) return `ha ${min} min`;
+    const horas = Math.floor(min / 60);
+    if (horas < 24) return `ha ${horas} h`;
+    return `ha ${Math.floor(horas / 24)} dia(s)`;
 }
 
 async function atlasObterDispositivosSaudeSistema() {
@@ -5973,6 +5984,41 @@ async function atlasSolicitarAtualizacaoUsuarioSaude(usuarioId, nomeUsuario) {
     alert(`Pedido de atualizacao enviado para ${usuariosAlvo.length} identificador(es) e ${dispositivos.length} aparelho(s) deste usuario.`);
 }
 
+async function atlasLimparAparelhosUsuarioSaude(usuarioId, nomeUsuario) {
+    if (!usuarioEhAdmin()) return alert('Apenas ADMIN pode limpar aparelhos.');
+    const confirmar = confirm(`Limpar registros antigos de aparelho de ${nomeUsuario || usuarioId}? O usuario vai reaparecer quando abrir o sistema de novo.`);
+    if (!confirmar) return;
+
+    const usuario = (usuariosSistema || []).find(u => atlasIdUsuarioNormalizado(u.id) === atlasIdUsuarioNormalizado(usuarioId))
+        || { id: usuarioId, nome: nomeUsuario };
+    const dispositivos = atlasJSONLocal('atlas_dispositivos_online', {});
+    const ids = Object.values(dispositivos)
+        .filter(dispositivo => atlasDispositivoPertenceAoUsuario(dispositivo, usuario))
+        .map(dispositivo => dispositivo.id)
+        .filter(Boolean);
+
+    ids.forEach(id => delete dispositivos[id]);
+    localStorage.setItem('atlas_dispositivos_online', JSON.stringify(dispositivos));
+
+    const idx = (usuariosSistema || []).findIndex(u => atlasIdUsuarioNormalizado(u.id) === atlasIdUsuarioNormalizado(usuarioId));
+    if (idx >= 0) {
+        delete usuariosSistema[idx]._atlasUltimoAcessoMs;
+        delete usuariosSistema[idx]._atlasUltimoAcesso;
+        delete usuariosSistema[idx]._atlasUltimoAcessoVersao;
+        delete usuariosSistema[idx]._atlasUltimoAcessoAparelho;
+        delete usuariosSistema[idx]._atlasUltimoAcessoDispositivoId;
+        localStorage.setItem('atlas_usuarios', JSON.stringify(usuariosSistema));
+    }
+
+    if (typeof window.atlasFirebaseRemoverDispositivo === 'function') {
+        await Promise.all(ids.map(id => window.atlasFirebaseRemoverDispositivo(id)));
+    }
+    if (typeof window.atlasFirebaseSincronizarAgora === 'function') {
+        await window.atlasFirebaseSincronizarAgora();
+    }
+    await atlasAtualizarSaudeSistemaAberta();
+}
+
 function atlasHTMLDispositivoSaude(dispositivo) {
     const status = atlasStatusDispositivoSaude(dispositivo);
     const dispositivoId = atlasJSStringSaude(dispositivo.id || '');
@@ -6127,6 +6173,7 @@ function atlasHTMLUsuariosSaudeSistema(dispositivos) {
                     <div>
                         <b style="color:${status?.corOnline || '#94a3b8'};">${status?.textoOnline || 'SEM ACESSO'}</b>
                         <div style="color:#94a3b8; font-size:12px;">${principal ? atlasTextoSeguroSaude(principal.ultimoAcesso || '-') : 'Nenhum aparelho registrado'}</div>
+                        ${principal ? `<div style="color:#bfdbfe; font-size:12px;">Visto: ${atlasTextoSeguroSaude(status.textoVisto)}</div>` : ''}
                     </div>
                     <div>
                         <b>${descricaoPrincipal ? atlasTextoSeguroSaude(descricaoPrincipal.titulo) : 'Aparelho: -'}</b>
@@ -6140,8 +6187,12 @@ function atlasHTMLUsuariosSaudeSistema(dispositivos) {
                     <div>
                         ${principal ? `
                             <button onclick="atlasSolicitarAtualizacaoUsuarioSaude('${atlasJSStringSaude(usuario.id || '')}', '${atlasJSStringSaude(usuario.nome || '')}')"
-                                style="width:100%; padding:12px; border:none; border-radius:8px; background:#2563eb; color:white; font-weight:900; cursor:pointer;">
+                                style="width:100%; padding:10px; border:none; border-radius:8px; background:#2563eb; color:white; font-weight:900; cursor:pointer; margin-bottom:8px;">
                                 FORCAR ATUALIZACAO
+                            </button>
+                            <button onclick="atlasLimparAparelhosUsuarioSaude('${atlasJSStringSaude(usuario.id || '')}', '${atlasJSStringSaude(usuario.nome || '')}')"
+                                style="width:100%; padding:10px; border:1px solid #475569; border-radius:8px; background:#1e293b; color:#bfdbfe; font-weight:900; cursor:pointer;">
+                                LIMPAR REGISTRO
                             </button>
                         ` : `
                             <button disabled
