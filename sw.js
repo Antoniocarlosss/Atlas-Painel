@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v124-sync-tempo-real';
+const CACHE_NAME = 'atlas-v125-online-aparelho-tempo-real';
 const assets = [
   './',
   './index.html',

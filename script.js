@@ -611,7 +611,7 @@ atlasRegistrarDispositivoAtual();
 setTimeout(atlasRegistrarDispositivoAtual, 1500);
 setTimeout(atlasRegistrarDispositivoAtual, 5000);
 if (!window.atlasTimerDispositivoAtual) {
-    window.atlasTimerDispositivoAtual = setInterval(atlasRegistrarDispositivoAtual, 30000);
+    window.atlasTimerDispositivoAtual = setInterval(atlasRegistrarDispositivoAtual, 10000);
 }
 if (!window.atlasEventosDispositivoOnline) {
     window.atlasEventosDispositivoOnline = true;
@@ -5600,7 +5600,7 @@ function atlasStatusDispositivoSaude(dispositivo) {
     const versaoAtual = window.ATLAS_SISTEMA_VERSAO || '';
     const ultimo = Number(dispositivo?.ultimoAcessoMs || 0);
     const segundos = ultimo ? ((Date.now() - ultimo) / 1000) : 999999;
-    const online = dispositivo?.online !== false && segundos <= 50;
+    const online = dispositivo?.online !== false && segundos <= 25;
     const atualizado = String(dispositivo?.versao || '') === String(versaoAtual);
     return {
         online,
@@ -5729,8 +5729,20 @@ function atlasIniciarAtualizacaoSaudeSistema() {
             return;
         }
         atlasAtualizarSaudeSistemaAberta();
-    }, 7000);
+    }, 2000);
 }
+
+window.addEventListener('atlasDispositivosNuvemAtualizados', () => {
+    if (document.getElementById('atlas-saude-usuarios-lista')) {
+        atlasAtualizarSaudeSistemaAberta();
+    }
+});
+
+window.addEventListener('atlasDadosNuvemAtualizados', () => {
+    if (document.getElementById('atlas-saude-usuarios-lista')) {
+        atlasAtualizarSaudeSistemaAberta();
+    }
+});
 
 function atlasCardSaudeSistema(titulo, valor, cor) {
     return `
@@ -5889,6 +5901,10 @@ function atlasHTMLUsuariosSaudeSistema(dispositivos) {
                     <div>
                         <b style="color:${status?.corOnline || '#94a3b8'};">${status?.textoOnline || 'SEM ACESSO'}</b>
                         <div style="color:#94a3b8; font-size:12px;">${principal ? atlasTextoSeguroSaude(principal.ultimoAcesso || '-') : 'Nenhum aparelho registrado'}</div>
+                    </div>
+                    <div>
+                        <b>${principal ? atlasTextoSeguroSaude(principal.aparelho || 'Aparelho') : 'Aparelho: -'}</b>
+                        <div style="color:#94a3b8; font-size:12px;">${principal ? `${atlasTextoSeguroSaude(principal.largura || '-')}x${atlasTextoSeguroSaude(principal.altura || '-')}` : '-'}</div>
                     </div>
                     <div>
                         <b style="color:${status?.corVersao || '#94a3b8'};">Atualizacao: ${status?.textoVersao || '-'}</b>

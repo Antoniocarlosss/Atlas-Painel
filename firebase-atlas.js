@@ -261,6 +261,21 @@ async function atlasFirebaseListarDispositivos() {
         .filter(item => item && item.id);
 }
 
+function atlasFirebaseSalvarDispositivosNuvem(lista) {
+    const objeto = {};
+    (lista || []).forEach(item => {
+        if (item && item.id) objeto[item.id] = item;
+    });
+
+    atlasFirebaseBloqueado = true;
+    atlasLocalStorageSetItemOriginal.call(localStorage, "atlas_dispositivos_online", JSON.stringify(objeto));
+    atlasFirebaseBloqueado = false;
+
+    window.dispatchEvent(new CustomEvent("atlasDispositivosNuvemAtualizados", {
+        detail: { total: Object.keys(objeto).length }
+    }));
+}
+
 async function atlasFirebaseEnviarDispositivosLocais() {
     const dispositivos = atlasParseJSON("atlas_dispositivos_online", {});
     const idAtual = localStorage.getItem("atlas_dispositivo_id");
@@ -599,6 +614,16 @@ function atlasFirebaseAgendarEnvio(chave) {
 
 const atlasLocalStorageSetItemOriginal = localStorage.setItem;
 const atlasLocalStorageRemoveItemOriginal = localStorage.removeItem;
+
+onSnapshot(collection(atlasFirestore, "dispositivos_online"), snap => {
+    atlasFirebaseSalvarDispositivosNuvem(
+        snap.docs
+            .map(d => d.data())
+            .filter(item => item && item.id)
+    );
+}, erro => {
+    console.error("Erro ao ouvir dispositivos online:", erro);
+});
 
 localStorage.setItem = function(chave, valor) {
     const resultado = atlasLocalStorageSetItemOriginal.call(localStorage, chave, valor);
