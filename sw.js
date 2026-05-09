@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v131-admin-recuperacao';
+const CACHE_NAME = 'atlas-v132-cache-presenca-estavel';
 const assets = [
   './',
   './index.html',

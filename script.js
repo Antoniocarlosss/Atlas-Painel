@@ -265,7 +265,9 @@ function atlasRegistrarUltimoAcessoUsuario(agora, versao, aparelho, idDispositiv
     if (indice < 0) return;
 
     const ultimoSalvo = Number(usuariosSistema[indice]._atlasUltimoAcessoMs || 0);
-    if (agora - ultimoSalvo < 60000) return;
+    const mesmaVersao = String(usuariosSistema[indice]._atlasUltimoAcessoVersao || '') === String(versao || '');
+    const mesmoDispositivo = String(usuariosSistema[indice]._atlasUltimoAcessoDispositivoId || '') === String(idDispositivo || '');
+    if (mesmaVersao && mesmoDispositivo && agora - ultimoSalvo < 60000) return;
 
     usuariosSistema[indice]._atlasUltimoAcessoMs = agora;
     usuariosSistema[indice]._atlasUltimoAcesso = atlasFormatarDataHoraSistema(agora);

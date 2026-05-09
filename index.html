@@ -9,7 +9,7 @@
     <title>Atlas Painel - Gestão</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20260509-admin-recuperacao">
+    <link rel="stylesheet" href="style.css?v=20260509-cache-presenca-estavel">
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
@@ -94,8 +94,8 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script>
-        window.ATLAS_SISTEMA_VERSAO = '20260509-admin-recuperacao';
-        window.ATLAS_SISTEMA_BUILD = 131;
+        window.ATLAS_SISTEMA_VERSAO = '20260509-cache-presenca-estavel';
+        window.ATLAS_SISTEMA_BUILD = 132;
         window.atlasMostrarTelaAtualizacao = function atlasMostrarTelaAtualizacao(opcoes = {}) {
             const finalizado = opcoes.finalizado === true;
             let overlay = document.getElementById('atlas-update-screen');
@@ -166,12 +166,19 @@
             const atualizarWorker = ('serviceWorker' in navigator)
                 ? navigator.serviceWorker.getRegistrations().then(regs => Promise.all(regs.map(reg => {
                     if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-                    return reg.update().catch(() => null);
+                    return reg.unregister().catch(() => null);
                 })))
                 : Promise.resolve();
 
             Promise.allSettled([limparCaches, atualizarWorker]).finally(() => {
-                setTimeout(() => location.reload(), 900);
+                try {
+                    localStorage.removeItem('atlas_sistema_versao');
+                    localStorage.setItem('atlas_sistema_forcar_recarregar_sem_cache', String(Date.now()));
+                } catch (erro) {}
+                setTimeout(() => {
+                    const separador = location.href.includes('?') ? '&' : '?';
+                    location.replace(`${location.href.split('#')[0]}${separador}atlas_reload=${Date.now()}`);
+                }, 900);
             });
         };
 
@@ -233,13 +240,15 @@
         (function prepararAtualizacaoAtlas() {
             const chaveVersao = 'atlas_sistema_versao';
             const chaveAviso = 'atlas_sistema_mostrar_atualizado';
+            const chaveLimpeza = `atlas_sistema_cache_limpo_${window.ATLAS_SISTEMA_BUILD || 0}_${window.ATLAS_SISTEMA_VERSAO || ''}`;
             const versaoSalva = localStorage.getItem(chaveVersao);
             const versaoAtual = window.ATLAS_SISTEMA_VERSAO;
             if (versaoSalva === versaoAtual) return;
 
-            if (versaoSalva) window.atlasMostrarTelaAtualizacao();
             localStorage.setItem(chaveVersao, versaoAtual);
             localStorage.setItem(chaveAviso, '1');
+            if (sessionStorage.getItem(chaveLimpeza) === '1') return;
+            sessionStorage.setItem(chaveLimpeza, '1');
 
             const limparCaches = ('caches' in window)
                 ? caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('atlas-')).map(key => caches.delete(key))))
@@ -249,17 +258,13 @@
                 ? navigator.serviceWorker.getRegistrations().then(regs => Promise.all(regs.map(reg => reg.update().catch(() => null))))
                 : Promise.resolve();
 
-            Promise.allSettled([limparCaches, atualizarWorker]).finally(() => {
-                if (versaoSalva) {
-                    setTimeout(() => location.reload(), 1200);
-                }
-            });
+            Promise.allSettled([limparCaches, atualizarWorker]);
         })();
     </script>
-    <script src="script.js?v=20260509-admin-recuperacao"></script>
-    <script src="historicos-admin.js?v=20260509-admin-recuperacao"></script>
+    <script src="script.js?v=20260509-cache-presenca-estavel"></script>
+    <script src="historicos-admin.js?v=20260509-cache-presenca-estavel"></script>
     <script src="atlas-ajustes-fachadas.js?v=20260427-permissao-excluir"></script>
-    <script type="module" src="firebase-atlas.js?v=20260509-admin-recuperacao"></script>
+    <script type="module" src="firebase-atlas.js?v=20260509-cache-presenca-estavel"></script>
     <script>
         if ('serviceWorker' in navigator) {
             let atlasAtualizandoPWA = false;
@@ -270,7 +275,7 @@
             });
 
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=20260509-admin-recuperacao')
+                navigator.serviceWorker.register('sw.js?v=20260509-cache-presenca-estavel')
                     .then(reg => {
                         console.log('Atlas PWA: Ativo!');
                         reg.update();
