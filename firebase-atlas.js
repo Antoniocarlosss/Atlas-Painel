@@ -319,6 +319,43 @@ function atlasChavesAtualizacaoAparelho(alvo = {}) {
     return Array.from(new Set(chaves.filter(Boolean)));
 }
 
+function atlasChavesAtualizacaoLocais() {
+    const idDispositivo = localStorage.getItem("atlas_dispositivo_id") || "";
+    const usuarioTexto = document.getElementById("user-display")?.innerText || "";
+    let usuarioLocal = null;
+    try {
+        usuarioLocal = typeof usuarioLogado !== "undefined" ? usuarioLogado : null;
+    } catch (erro) {
+        usuarioLocal = null;
+    }
+
+    const usuarios = [
+        usuarioTexto,
+        usuarioLocal?.id,
+        usuarioLocal?.nome,
+        ...(Array.isArray(usuarioLocal?.usuarioAliases) ? usuarioLocal.usuarioAliases : [])
+    ].filter(Boolean);
+
+    return atlasChavesAtualizacaoAparelho({ dispositivoId: idDispositivo })
+        .concat(usuarios.flatMap(usuario => atlasChavesAtualizacaoAparelho({ usuario })))
+        .map(chave => atlasDocId(chave));
+}
+
+function atlasFirebaseAvisarAtualizacaoPendente(pedido = {}) {
+    if (!pedido || pedido.pendente === false) return null;
+    const buildPedido = Number(pedido.build || 0);
+    const buildAtual = Number(window.ATLAS_SISTEMA_BUILD || 0);
+    if (buildPedido && buildAtual >= buildPedido) return null;
+
+    const avisoId = `atlas_update_notice_sent_${buildPedido}_${pedido.versao || "sem-versao"}_${pedido.solicitadoEmMs || pedido.chave || ""}`;
+    if (sessionStorage.getItem(avisoId) === "1") return null;
+
+    sessionStorage.setItem(avisoId, "1");
+    atlasLocalStorageSetItemOriginal.call(localStorage, "atlas_atualizacao_pendente_info", JSON.stringify(pedido));
+    window.dispatchEvent(new CustomEvent("atlasAtualizacaoSolicitada", { detail: pedido }));
+    return pedido;
+}
+
 async function atlasFirebaseSolicitarAtualizacaoAparelho(alvo = {}) {
     const chaves = atlasChavesAtualizacaoAparelho(alvo);
     if (!chaves.length) return null;
@@ -354,13 +391,8 @@ async function atlasFirebaseChecarAtualizacaoPendente(dispositivoId, usuarioId) 
         if (!snap.exists()) continue;
         const pedido = snap.data() || {};
         if (pedido.pendente === false) continue;
-        const avisoId = `atlas_update_notice_sent_${Number(pedido.build || 0)}_${pedido.versao || "sem-versao"}_${pedido.solicitadoEmMs || chave}`;
-        if (localStorage.getItem(avisoId) === "1") continue;
-
-        atlasLocalStorageSetItemOriginal.call(localStorage, "atlas_atualizacao_pendente_info", JSON.stringify(pedido));
-        atlasLocalStorageSetItemOriginal.call(localStorage, avisoId, "1");
-        window.dispatchEvent(new CustomEvent("atlasAtualizacaoSolicitada", { detail: pedido }));
-        return pedido;
+        const avisado = atlasFirebaseAvisarAtualizacaoPendente(pedido);
+        if (avisado) return avisado;
     }
 
     return null;
@@ -628,6 +660,19 @@ onSnapshot(collection(atlasFirestore, "dispositivos_online"), snap => {
     );
 }, erro => {
     console.error("Erro ao ouvir dispositivos online:", erro);
+});
+
+onSnapshot(collection(atlasFirestore, "atualizacoes_pendentes"), snap => {
+    const chavesLocais = new Set(atlasChavesAtualizacaoLocais());
+    if (!chavesLocais.size) return;
+
+    snap.docChanges().forEach(change => {
+        if (change.type === "removed") return;
+        if (!chavesLocais.has(change.doc.id)) return;
+        atlasFirebaseAvisarAtualizacaoPendente(change.doc.data() || {});
+    });
+}, erro => {
+    console.error("Erro ao ouvir atualizacoes pendentes:", erro);
 });
 
 localStorage.setItem = function(chave, valor) {

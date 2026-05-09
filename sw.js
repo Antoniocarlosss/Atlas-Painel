@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v137-aviso-instantaneo-estavel';
+const CACHE_NAME = 'atlas-v138-listener-atualizacao-pendente';
 const assets = [
   './',
   './index.html',
