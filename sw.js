@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v122-estavel';
+const CACHE_NAME = 'atlas-v123-admin-protegido';
 const assets = [
   './',
   './index.html',

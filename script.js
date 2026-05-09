@@ -3966,13 +3966,21 @@ function atlasIdUsuarioNormalizado(idUsuario) {
 
 function atlasUsuariosExcluidosSistema() {
     try {
-        return JSON.parse(localStorage.getItem('atlas_usuarios_excluidos')) || {};
+        const excluidos = JSON.parse(localStorage.getItem('atlas_usuarios_excluidos')) || {};
+        if (excluidos.admin) {
+            delete excluidos.admin;
+            localStorage.setItem('atlas_usuarios_excluidos', JSON.stringify(excluidos));
+        }
+        return excluidos;
     } catch (erro) {
         return {};
     }
 }
 
 function atlasSalvarUsuariosExcluidosSistema(excluidos) {
+    if (excluidos && typeof excluidos === 'object') {
+        delete excluidos.admin;
+    }
     localStorage.setItem('atlas_usuarios_excluidos', JSON.stringify(excluidos || {}));
 }
 
@@ -3987,6 +3995,7 @@ function atlasLimparUsuarioExcluidoSistema(idUsuario) {
 function atlasRegistrarUsuarioExcluidoSistema(usuario) {
     const id = atlasIdUsuarioNormalizado(usuario?.id);
     if (!id) return;
+    if (id === 'admin' || usuarioProtegidoAdminAtlas(usuario)) return;
     const excluidos = atlasUsuariosExcluidosSistema();
     excluidos[id] = {
         id: usuario.id,

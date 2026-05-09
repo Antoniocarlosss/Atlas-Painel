@@ -70,11 +70,16 @@ function atlasFirebaseMesclarUsuario(local, nuvem) {
 
 function atlasUsuariosExcluidosFirebase() {
     const excluidos = atlasParseJSON("atlas_usuarios_excluidos", {});
+    if (excluidos && typeof excluidos === "object" && excluidos.admin) {
+        delete excluidos.admin;
+        localStorage.setItem("atlas_usuarios_excluidos", JSON.stringify(excluidos));
+    }
     return excluidos && typeof excluidos === "object" ? excluidos : {};
 }
 
 function atlasUsuarioFoiExcluidoFirebase(idUsuario) {
     const id = String(idUsuario || "").trim().toLowerCase();
+    if (id === "admin") return false;
     return Boolean(id && atlasUsuariosExcluidosFirebase()[id]);
 }
 
@@ -87,6 +92,7 @@ async function atlasFirebaseBaixarUsuariosExcluidosDireto() {
         const dados = d.data() || {};
         const id = String(dados.id || d.id || "").trim().toLowerCase();
         if (!id) return;
+        if (id === "admin") return;
 
         const localAtualizado = Number(excluidosLocais[id]?.atualizadoEm || 0);
         const nuvemAtualizado = Number(dados.atualizadoEm || 0);
@@ -115,6 +121,7 @@ async function atlasFirebaseBaixarUsuariosExcluidosDireto() {
 async function atlasEnviarUsuariosExcluidos() {
     const excluidos = atlasUsuariosExcluidosFirebase();
     await Promise.all(Object.keys(excluidos).map(id => {
+        if (String(id).trim().toLowerCase() === "admin") return Promise.resolve();
         const dados = excluidos[id] || {};
         return atlasSetDoc(["usuarios_excluidos", atlasDocId(id)], {
             ...dados,
@@ -170,6 +177,7 @@ async function atlasLimparColecao(nomeColecao) {
 }
 
 async function atlasFirebaseRemoverUsuarioExcluidoDaNuvem(idUsuario) {
+    if (String(idUsuario || "").trim().toLowerCase() === "admin") return;
     const id = atlasDocId(idUsuario);
     if (!id) return;
     const excluidos = atlasUsuariosExcluidosFirebase();
@@ -193,6 +201,7 @@ async function atlasFirebaseRemoverUsuarioExcluidoDaNuvem(idUsuario) {
 }
 
 async function atlasFirebaseLimparUsuarioExcluidoDaNuvem(idUsuario) {
+    if (String(idUsuario || "").trim().toLowerCase() === "admin") return;
     const id = atlasDocId(idUsuario);
     if (!id) return;
     await deleteDoc(doc(atlasFirestore, "usuarios_excluidos", id)).catch(erro => {
