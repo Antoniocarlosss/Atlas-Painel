@@ -341,11 +341,73 @@ function atlasChavesAtualizacaoLocais() {
         .map(chave => atlasDocId(chave));
 }
 
+function atlasFirebaseSalvarConfirmacoesAtualizacao(lista) {
+    const objeto = {};
+    (lista || []).forEach(item => {
+        if (item && item.chave) objeto[atlasDocId(item.chave)] = item;
+    });
+
+    atlasFirebaseBloqueado = true;
+    atlasLocalStorageSetItemOriginal.call(localStorage, "atlas_atualizacoes_confirmadas", JSON.stringify(objeto));
+    atlasFirebaseBloqueado = false;
+
+    window.dispatchEvent(new CustomEvent("atlasAtualizacoesConfirmadasAtualizadas", {
+        detail: { total: Object.keys(objeto).length }
+    }));
+}
+
+async function atlasFirebaseConfirmarAtualizacaoAparelho(info = {}) {
+    const chaves = new Set([
+        ...atlasChavesAtualizacaoLocais(),
+        ...atlasChavesAtualizacaoAparelho({
+            dispositivoId: info.dispositivoId,
+            usuario: info.usuario
+        }).map(chave => atlasDocId(chave))
+    ].filter(Boolean));
+
+    if (!chaves.size) return null;
+
+    const agora = Date.now();
+    const confirmacao = {
+        usuario: info.usuario || document.getElementById("user-display")?.innerText || "",
+        dispositivoId: info.dispositivoId || localStorage.getItem("atlas_dispositivo_id") || "",
+        versao: info.versao || window.ATLAS_SISTEMA_VERSAO || "sem-versao",
+        build: Number(info.build || window.ATLAS_SISTEMA_BUILD || 0),
+        pedidoSolicitadoEmMs: Number(info.pedidoSolicitadoEmMs || info.solicitadoEmMs || 0),
+        confirmadoEmMs: agora,
+        confirmadoEm: new Date(agora).toLocaleString("pt-BR"),
+        pendente: false
+    };
+
+    await Promise.all(Array.from(chaves).map(chave => Promise.all([
+        atlasSetDoc(["atualizacoes_confirmadas", chave], {
+            ...confirmacao,
+            chave
+        }),
+        deleteDoc(doc(atlasFirestore, "atualizacoes_pendentes", chave)).catch(erro => {
+            console.warn("Nao foi possivel limpar pedido de atualizacao:", erro);
+        })
+    ])));
+
+    return confirmacao;
+}
+
 function atlasFirebaseAvisarAtualizacaoPendente(pedido = {}) {
     if (!pedido || pedido.pendente === false) return null;
     const buildPedido = Number(pedido.build || 0);
     const buildAtual = Number(window.ATLAS_SISTEMA_BUILD || 0);
-    if (buildPedido && buildAtual >= buildPedido) return null;
+    if (buildPedido && buildAtual >= buildPedido) {
+        atlasFirebaseConfirmarAtualizacaoAparelho({
+            usuario: pedido.usuario,
+            dispositivoId: pedido.dispositivoId,
+            versao: window.ATLAS_SISTEMA_VERSAO || pedido.versao,
+            build: buildAtual,
+            pedidoSolicitadoEmMs: pedido.solicitadoEmMs
+        }).catch(erro => {
+            console.error("Erro ao confirmar atualizacao ja aplicada:", erro);
+        });
+        return null;
+    }
 
     const avisoId = `atlas_update_notice_sent_${buildPedido}_${pedido.versao || "sem-versao"}_${pedido.solicitadoEmMs || pedido.chave || ""}`;
     if (sessionStorage.getItem(avisoId) === "1") return null;
@@ -675,6 +737,16 @@ onSnapshot(collection(atlasFirestore, "atualizacoes_pendentes"), snap => {
     console.error("Erro ao ouvir atualizacoes pendentes:", erro);
 });
 
+onSnapshot(collection(atlasFirestore, "atualizacoes_confirmadas"), snap => {
+    atlasFirebaseSalvarConfirmacoesAtualizacao(
+        snap.docs
+            .map(d => d.data())
+            .filter(item => item && item.chave)
+    );
+}, erro => {
+    console.error("Erro ao ouvir confirmacoes de atualizacao:", erro);
+});
+
 localStorage.setItem = function(chave, valor) {
     const resultado = atlasLocalStorageSetItemOriginal.call(localStorage, chave, valor);
     if (!atlasFirebaseBloqueado && atlasFirebaseChaveSincronizada(chave) && chave !== ATLAS_FIREBASE_SYNC_KEY) {
@@ -885,6 +957,13 @@ window.atlasFirebaseSolicitarAtualizacaoAparelho = function(alvo) {
 window.atlasFirebaseChecarAtualizacaoPendente = function(dispositivoId, usuarioId) {
     return atlasFirebaseChecarAtualizacaoPendente(dispositivoId, usuarioId).catch(erro => {
         console.error("Erro ao checar atualizacao pendente:", erro);
+        return null;
+    });
+};
+
+window.atlasFirebaseConfirmarAtualizacaoAparelho = function(info) {
+    return atlasFirebaseConfirmarAtualizacaoAparelho(info).catch(erro => {
+        console.error("Erro ao confirmar atualizacao do aparelho:", erro);
         return null;
     });
 };

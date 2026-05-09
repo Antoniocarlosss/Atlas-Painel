@@ -346,6 +346,7 @@ function atlasRegistrarDispositivoAtual() {
     if (typeof window.atlasFirebaseChecarAtualizacaoPendente === 'function') {
         window.atlasFirebaseChecarAtualizacaoPendente(id, usuarioId);
     }
+    atlasConfirmarAtualizacaoAplicadaLocal(id, usuarioId, versao);
     atlasRegistrarUltimoAcessoUsuario(agora, versao, aparelho, id);
     const ultimoSync = Number(localStorage.getItem('atlas_dispositivo_ultimo_sync_ms') || 0);
     if (typeof window.atlasFirebaseSincronizarAgora === 'function' && agora - ultimoSync > 300000) {
@@ -457,6 +458,90 @@ window.addEventListener('atlasAtualizacaoSolicitada', (evento) => {
     alert('Existe uma atualizacao do sistema. Atualize esta pagina.');
 });
 
+function atlasDocIdLocalSaude(texto) {
+    return String(texto ?? '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^\w.-]+/g, '_')
+        .replace(/^_+|_+$/g, '')
+        .slice(0, 120);
+}
+
+function atlasChavesAtualizacaoSaude(alvo = {}) {
+    const chaves = [];
+    if (alvo.dispositivoId) chaves.push(`device_${alvo.dispositivoId}`);
+    if (alvo.usuario) chaves.push(`user_${String(alvo.usuario).toLowerCase()}`);
+    return Array.from(new Set(chaves.filter(Boolean).map(atlasDocIdLocalSaude).filter(Boolean)));
+}
+
+function atlasChavesUsuarioAtualizacaoSaude(usuario, dispositivos = []) {
+    const idsUsuario = [
+        usuario?.id,
+        usuario?.nome,
+        ...(Array.isArray(usuario?.usuarioAliases) ? usuario.usuarioAliases : [])
+    ].filter(Boolean);
+
+    return Array.from(new Set([
+        ...idsUsuario.flatMap(id => atlasChavesAtualizacaoSaude({ usuario: id })),
+        ...(dispositivos || []).flatMap(dispositivo => [
+            ...atlasChavesAtualizacaoSaude({ dispositivoId: dispositivo.id }),
+            ...atlasChavesAtualizacaoSaude({ usuario: dispositivo.usuario }),
+            ...atlasChavesAtualizacaoSaude({ usuario: dispositivo.nome }),
+            ...(Array.isArray(dispositivo.usuarioAliases)
+                ? dispositivo.usuarioAliases.flatMap(alias => atlasChavesAtualizacaoSaude({ usuario: alias }))
+                : [])
+        ])
+    ].filter(Boolean)));
+}
+
+function atlasConfirmarAtualizacaoAplicadaLocal(dispositivoId, usuarioId, versao) {
+    if (typeof window.atlasFirebaseConfirmarAtualizacaoAparelho !== 'function') return;
+    const buildAtual = Number(window.ATLAS_SISTEMA_BUILD || 0);
+    const pedidos = [
+        atlasJSONLocal('atlas_atualizacao_pendente_info', null),
+        ...Object.values(atlasJSONLocal('atlas_forcar_atualizacao_usuarios', {}))
+    ].filter(Boolean);
+
+    const pedidoAplicado = pedidos.find(pedido => {
+        const buildPedido = Number(pedido.build || 0);
+        if (!buildPedido || buildAtual < buildPedido) return false;
+        const idsPedido = [
+            pedido.usuario,
+            pedido.nome,
+            pedido.dispositivoId
+        ].map(atlasIdUsuarioNormalizado).filter(Boolean);
+        const idsLocais = [
+            usuarioId,
+            usuarioLogado?.id,
+            usuarioLogado?.nome,
+            dispositivoId
+        ].map(atlasIdUsuarioNormalizado).filter(Boolean);
+        return !idsPedido.length || idsPedido.some(id => idsLocais.includes(id));
+    });
+
+    if (!pedidoAplicado) return;
+
+    const chaveConfirmacao = `atlas_update_confirmado_${buildAtual}_${pedidoAplicado.solicitadoEmMs || ''}_${dispositivoId || ''}`;
+    if (sessionStorage.getItem(chaveConfirmacao) === '1') return;
+    sessionStorage.setItem(chaveConfirmacao, '1');
+
+    window.atlasFirebaseConfirmarAtualizacaoAparelho({
+        usuario: usuarioId,
+        dispositivoId,
+        versao,
+        build: buildAtual,
+        pedidoSolicitadoEmMs: pedidoAplicado.solicitadoEmMs
+    }).then(confirmacao => {
+        if (!confirmacao) return;
+        const locais = atlasJSONLocal('atlas_atualizacoes_confirmadas', {});
+        atlasChavesAtualizacaoSaude({ dispositivoId }).concat(atlasChavesAtualizacaoSaude({ usuario: usuarioId })).forEach(chave => {
+            locais[chave] = { ...confirmacao, chave };
+        });
+        localStorage.setItem('atlas_atualizacoes_confirmadas', JSON.stringify(locais));
+        localStorage.removeItem('atlas_atualizacao_pendente_info');
+    });
+}
+
 function atlasChecarAtualizacaoForcadaLocal() {
     if (!usuarioLogado) return;
     const pedidos = atlasJSONLocal('atlas_forcar_atualizacao_usuarios', {});
@@ -469,7 +554,10 @@ function atlasChecarAtualizacaoForcadaLocal() {
     if (!pedido) return;
     const buildPedido = Number(pedido.build || 0);
     const buildAtual = Number(window.ATLAS_SISTEMA_BUILD || 0);
-    if (buildPedido && buildAtual >= buildPedido) return;
+    if (buildPedido && buildAtual >= buildPedido) {
+        atlasConfirmarAtualizacaoAplicadaLocal(localStorage.getItem('atlas_dispositivo_id') || '', usuarioLogado.id, window.ATLAS_SISTEMA_VERSAO || '');
+        return;
+    }
     const chave = `atlas_forcar_update_executado_${buildPedido}_${pedido.solicitadoEmMs || ''}`;
     if (sessionStorage.getItem(chave) === '1') return;
     sessionStorage.setItem(chave, '1');
@@ -5801,6 +5889,20 @@ function atlasStatusDispositivoSaude(dispositivo) {
     };
 }
 
+function atlasConfirmacaoAtualizacaoUsuarioSaude(usuario, dispositivos = [], pedido = null) {
+    const confirmacoes = atlasJSONLocal('atlas_atualizacoes_confirmadas', {});
+    const chaves = atlasChavesUsuarioAtualizacaoSaude(usuario, dispositivos);
+    const buildPedido = Number(pedido?.build || 0);
+    const solicitadoEmMs = Number(pedido?.solicitadoEmMs || 0);
+
+    return chaves
+        .map(chave => confirmacoes[chave])
+        .filter(Boolean)
+        .filter(confirmacao => !buildPedido || Number(confirmacao.build || 0) >= buildPedido)
+        .filter(confirmacao => !solicitadoEmMs || Number(confirmacao.confirmadoEmMs || 0) >= solicitadoEmMs)
+        .sort((a, b) => Number(b.confirmadoEmMs || 0) - Number(a.confirmadoEmMs || 0))[0] || null;
+}
+
 function atlasTempoRelativoSaude(ms) {
     const diff = Math.max(0, Date.now() - Number(ms || 0));
     const min = Math.floor(diff / 60000);
@@ -5945,6 +6047,12 @@ window.addEventListener('atlasDadosNuvemAtualizados', () => {
     }
 });
 
+window.addEventListener('atlasAtualizacoesConfirmadasAtualizadas', () => {
+    if (document.getElementById('atlas-saude-usuarios-lista')) {
+        atlasAtualizarSaudeSistemaAberta();
+    }
+});
+
 function atlasCardSaudeSistema(titulo, valor, cor) {
     return `
         <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:14px;">
@@ -5964,6 +6072,10 @@ async function atlasSolicitarAtualizacaoDispositivo(dispositivoId, usuarioId) {
         dispositivoId: dispositivoId || '',
         usuario: usuarioId || ''
     };
+
+    const confirmacoes = atlasJSONLocal('atlas_atualizacoes_confirmadas', {});
+    atlasChavesAtualizacaoSaude({ dispositivoId }).concat(atlasChavesAtualizacaoSaude({ usuario: usuarioId })).forEach(chave => delete confirmacoes[chave]);
+    localStorage.setItem('atlas_atualizacoes_confirmadas', JSON.stringify(confirmacoes));
 
     await window.atlasFirebaseSolicitarAtualizacaoAparelho(alvo);
     alert('Pedido de atualizacao enviado. Quando esse aparelho sincronizar, o usuario vai receber o aviso para atualizar.');
@@ -6001,6 +6113,10 @@ async function atlasSolicitarAtualizacaoUsuarioSaude(usuarioId, nomeUsuario) {
             usuario: dispositivo.usuario || usuarioId
         }));
     });
+
+    const confirmacoes = atlasJSONLocal('atlas_atualizacoes_confirmadas', {});
+    atlasChavesUsuarioAtualizacaoSaude(usuario, dispositivos).forEach(chave => delete confirmacoes[chave]);
+    localStorage.setItem('atlas_atualizacoes_confirmadas', JSON.stringify(confirmacoes));
 
     const pedidosForcados = atlasJSONLocal('atlas_forcar_atualizacao_usuarios', {});
     const pedidoForcado = {
@@ -6223,6 +6339,7 @@ function atlasHTMLUsuariosSaudeSistema(dispositivos) {
         const descricaoPrincipal = principal ? atlasDescricaoAparelhoSaude(principal) : null;
         const status = principal ? atlasStatusDispositivoSaude(principal) : null;
         const pedidoAtualizacao = atlasJSONLocal('atlas_atualizacoes_solicitadas_local', {})[atlasIdUsuarioNormalizado(usuario.id)];
+        const confirmacaoAtualizacao = atlasConfirmacaoAtualizacaoUsuarioSaude(usuario, aparelhosVisiveis, pedidoAtualizacao);
         const bloqueado = usuario.bloqueado === true;
 
         return `
@@ -6248,7 +6365,8 @@ function atlasHTMLUsuariosSaudeSistema(dispositivos) {
                     <div>
                         <b style="color:${status?.corVersao || '#94a3b8'};">Atualizacao: ${status?.textoVersao || '-'}</b>
                         <div style="color:#94a3b8; font-size:12px; overflow-wrap:anywhere;">${principal ? atlasTextoSeguroSaude(principal.versao || '-') : '-'}</div>
-                        ${pedidoAtualizacao && !status?.atualizado ? `<div style="color:#fbbf24; font-size:12px;">Pedido: ${atlasTextoSeguroSaude(pedidoAtualizacao.solicitadoEm)} por ${atlasTextoSeguroSaude(pedidoAtualizacao.solicitadoPor)}</div>` : ''}
+                        ${confirmacaoAtualizacao ? `<div style="color:#22c55e; font-size:12px;">Atualizado: ${atlasTextoSeguroSaude(confirmacaoAtualizacao.confirmadoEm || atlasFormatarDataHoraSistema(confirmacaoAtualizacao.confirmadoEmMs))}</div>` : ''}
+                        ${pedidoAtualizacao && !status?.atualizado && !confirmacaoAtualizacao ? `<div style="color:#fbbf24; font-size:12px;">Pedido: ${atlasTextoSeguroSaude(pedidoAtualizacao.solicitadoEm)} por ${atlasTextoSeguroSaude(pedidoAtualizacao.solicitadoPor)}</div>` : ''}
                     </div>
                     <div>
                         ${principal ? `
