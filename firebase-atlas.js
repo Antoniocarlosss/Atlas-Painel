@@ -48,8 +48,27 @@ function atlasParseJSON(chave, fallback) {
     }
 }
 
+function atlasFirebaseChaveTemporaria(chave) {
+    return [
+        "atlas_dispositivos_online",
+        "atlas_atualizacoes_confirmadas",
+        "atlas_atualizacoes_solicitadas_local",
+        "atlas_atualizacao_pendente_info",
+        "atlas_atualizacao_global_info",
+        "atlas_forcar_atualizacao_usuarios",
+        "atlas_versao_publicada_info",
+        "atlas_sistema_versao",
+        "atlas_sistema_mostrar_atualizado",
+        "atlas_sistema_forcar_recarregar_sem_cache",
+        "atlas_dispositivo_ultimo_sync_ms"
+    ].includes(chave)
+        || String(chave || "").startsWith("atlas_update_")
+        || String(chave || "").startsWith("atlas_sistema_cache_limpo_")
+        || String(chave || "").startsWith("atlas_dispositivo_");
+}
+
 function atlasFirebaseChaveSincronizada(chave) {
-    return chave && (chave.startsWith("atlas_") || chave === "historicoBobines");
+    return chave && !atlasFirebaseChaveTemporaria(chave) && (chave.startsWith("atlas_") || chave === "historicoBobines");
 }
 
 function atlasFirebaseMesclarUsuario(local, nuvem) {
@@ -509,7 +528,6 @@ async function atlasEnviarUsuarios() {
         .map(usuario => String(usuario?.id || "").trim().toLowerCase() === "admin"
             ? { id: "admin", nome: "ADMIN", senha: "123", cargo: "admin", bloqueado: false, _atlasUsuarioAtualizadoEm: Date.now() }
             : usuario);
-    await atlasLimparColecao("usuarios");
 
     await Promise.all(usuarios.map(usuario => {
         const id = atlasDocId(usuario.id);
@@ -606,7 +624,6 @@ async function atlasEnviarInjecao() {
 
 async function atlasEnviarBobines() {
     const historico = atlasParseJSON("historicoBobines", []);
-    await atlasLimparColecao("bobines");
 
     await Promise.all(historico.map((rel, index) => {
         const id = atlasDocId(rel.id || `${rel.data}_${index}`);
@@ -629,7 +646,6 @@ async function atlasEnviarBobines() {
 
 async function atlasEnviarCorte(nomeColecao, chaveLocalStorage) {
     const historico = atlasParseJSON(chaveLocalStorage, []);
-    await atlasLimparColecao(nomeColecao);
 
     await Promise.all(historico.map((rel, index) => {
         const partes = rel.ano ? {} : atlasDataPartes(rel.data);
@@ -653,7 +669,6 @@ async function atlasEnviarCorte(nomeColecao, chaveLocalStorage) {
 
 async function atlasEnviarPlanos() {
     const historico = atlasParseJSON("atlas_plano_hist", []);
-    await atlasLimparColecao("planos");
 
     await Promise.all(historico.map((rel, index) => {
         const id = atlasDocId(rel.id || `${rel.data}_${index}`);
@@ -679,7 +694,6 @@ async function atlasEnviarPlanos() {
 
 async function atlasEnviarConferencia() {
     const pedidos = atlasParseJSON("atlas_conferencia_serra", []);
-    await atlasLimparColecao("conferencia");
 
     await Promise.all(pedidos.map((pedido, index) => {
         const id = atlasDocId(pedido.id || `${pedido.data}_${pedido.pedidoNumero}_${index}`);
@@ -751,7 +765,7 @@ function atlasFirebaseAgendarEnvio(chave) {
         atlasFirebaseEnviarTudoOrganizadoInterno().catch(erro => {
             console.error("Erro ao sincronizar Firebase:", erro);
         });
-    }, 1000);
+    }, 2500);
 }
 
 const atlasLocalStorageSetItemOriginal = localStorage.setItem;

@@ -112,6 +112,27 @@ function atlasArrayLocal(chave, fallback = []) {
     return Array.isArray(valor) ? valor : fallback;
 }
 
+function atlasRecarregarDadosLocaisDaNuvem() {
+    try {
+        usuariosSistema = atlasArrayLocal('atlas_usuarios', usuariosSistema || []);
+        if (typeof historicoBobines !== 'undefined') historicoBobines = atlasArrayLocal('historicoBobines', historicoBobines || []);
+        if (typeof db_serra_live !== 'undefined') db_serra_live = atlasArrayLocal('atlas_serra_live', db_serra_live || []);
+        if (typeof db_serra_hist !== 'undefined') db_serra_hist = atlasArrayLocal('atlas_serra_hist', db_serra_hist || []);
+        if (typeof db_emb_live !== 'undefined') db_emb_live = atlasArrayLocal('atlas_emb_live', db_emb_live || []);
+        if (typeof db_emb_hist !== 'undefined') db_emb_hist = atlasArrayLocal('atlas_emb_hist', db_emb_hist || []);
+        if (typeof db_plano_live !== 'undefined') db_plano_live = atlasJSONLocal('atlas_plano_live', db_plano_live || null);
+        if (typeof db_plano_hist !== 'undefined') db_plano_hist = atlasArrayLocal('atlas_plano_hist', db_plano_hist || []);
+        if (typeof destinosPlano !== 'undefined') destinosPlano = atlasArrayLocal('atlas_plano_destinos', destinosPlano || []);
+        if (typeof db_conferencia_serra !== 'undefined') db_conferencia_serra = atlasArrayLocal('atlas_conferencia_serra', db_conferencia_serra || []);
+        if (typeof atlasStockBobinas !== 'undefined') atlasStockBobinas = atlasArrayLocal('atlas_stock_bobinas', atlasStockBobinas || []);
+        if (typeof atlasStockFilmes !== 'undefined') atlasStockFilmes = atlasArrayLocal('atlas_stock_filmes', atlasStockFilmes || []);
+    } catch (erro) {
+        console.warn('Nao foi possivel recarregar dados locais da nuvem:', erro);
+    }
+}
+
+window.addEventListener('atlasDadosNuvemAtualizados', atlasRecarregarDadosLocaisDaNuvem);
+
 function atlasFormatarDataHoraSistema(valor) {
     const data = valor ? new Date(valor) : null;
     if (!data || Number.isNaN(data.getTime())) return '-';
@@ -426,22 +447,30 @@ function atlasMarcarDispositivoOffline() {
 }
 
 async function atlasSairSistema() {
+    if (window.atlasSaindoSistema) return;
+    window.atlasSaindoSistema = true;
+    const botaoSair = document.querySelector('.btn-logout');
+    if (botaoSair) {
+        botaoSair.disabled = true;
+        botaoSair.textContent = 'Saindo...';
+    }
     if (window.atlasTimerDispositivoAtual) {
         clearInterval(window.atlasTimerDispositivoAtual);
         window.atlasTimerDispositivoAtual = null;
     }
-    await Promise.race([
-        atlasMarcarDispositivoOffline(),
-        new Promise(resolve => setTimeout(resolve, 3000))
-    ]);
-    location.reload();
+    atlasMarcarDispositivoOffline().catch(erro => {
+        console.warn('Nao foi possivel marcar offline antes de sair:', erro);
+    });
+    setTimeout(() => location.reload(), 180);
 }
 
 window.addEventListener('pagehide', () => {
+    if (window.atlasSaindoSistema) return;
     atlasMarcarDispositivoOffline();
 });
 
 window.addEventListener('beforeunload', () => {
+    if (window.atlasSaindoSistema) return;
     atlasMarcarDispositivoOffline();
 });
 
@@ -5658,6 +5687,12 @@ function renderizarMenuAjustes() {
                 <small style="color:#94a3b8;">Exportar e importar dados</small>
             </div>
 
+            <div class="card" onclick="abrirAtualizacaoUsuarioAtlas()" style="cursor:pointer; background:#1e293b; border-radius:10px; padding:30px 15px; text-align:center; border:1px solid #334155;">
+                <i class="fas fa-rotate" style="color:#f59e0b; font-size:2.5rem; margin-bottom:15px;"></i>
+                <span style="display:block; color:white; font-weight:bold; font-size:13px; text-transform:uppercase;">Atualizacao</span>
+                <small style="color:#94a3b8;">Versao e aparelho</small>
+            </div>
+
             ${usuarioEhAdminSupervisor() ? `<div class="card" onclick="abrirAjustesSistema()" style="cursor:pointer; background:#1e293b; border-radius:10px; padding:30px 15px; text-align:center; border:1px solid #334155; grid-column:1 / -1;">
                 <i class="fas fa-sliders-h" style="color:#f59e0b; font-size:2.5rem; margin-bottom:15px;"></i>
                 <span style="display:block; color:white; font-weight:bold; font-size:13px; text-transform:uppercase;">Sistema</span>
@@ -5799,6 +5834,58 @@ function atlasHTMLStatusAtualizacaoUsuario() {
                     VERIFICAR ATUALIZACAO
                 </button>
             `}
+        </div>
+    `;
+}
+
+async function abrirAtualizacaoUsuarioAtlas() {
+    if (!usuarioLogado) return;
+    if (!alternarAbaAjustes(true)) return;
+    atlasRegistrarDispositivoAtual();
+    atlasChecarAtualizacaoGlobalLocal();
+
+    const c = document.getElementById('conteudo-ajustes');
+    if (!c) return;
+
+    let htmlAdmin = '';
+    if (usuarioEhAdmin()) {
+        const dispositivos = await atlasObterDispositivosSaudeSistema();
+        const versaoAtual = window.ATLAS_SISTEMA_VERSAO || '';
+        const antigos = dispositivos.filter(dispositivo => String(dispositivo.versao || '') !== String(versaoAtual));
+        htmlAdmin = `
+            <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:20px;">
+                <h3 style="margin-top:0; margin-bottom:12px;">Aparelhos pendentes</h3>
+                ${antigos.length ? `
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        ${antigos.map(dispositivo => {
+                            const desc = atlasDescricaoAparelhoSaude(dispositivo);
+                            return `
+                                <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:8px; align-items:center; background:#0f172a; border:1px solid #334155; border-left:5px solid #ef4444; border-radius:10px; padding:12px;">
+                                    <div><b>${atlasTextoSeguroSaude(dispositivo.usuario || '-')}</b><div style="color:#94a3b8; font-size:12px;">${atlasTextoSeguroSaude(dispositivo.nome || '')}</div></div>
+                                    <div><b>${atlasTextoSeguroSaude(desc.titulo)}</b><div style="color:#94a3b8; font-size:12px;">${atlasTextoSeguroSaude(desc.subtitulo)}</div></div>
+                                    <div><b style="color:#ef4444;">ANTIGO</b><div style="color:#94a3b8; font-size:12px;">${atlasTextoSeguroSaude(dispositivo.versao || '-')}</div></div>
+                                    <button onclick="atlasSolicitarAtualizacaoDispositivo('${atlasJSStringSaude(dispositivo.id || '')}', '${atlasJSStringSaude(dispositivo.usuario || '')}')" style="padding:10px; border:none; border-radius:8px; background:#2563eb; color:white; font-weight:900; cursor:pointer;">AVISAR</button>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                ` : `<div style="color:#22c55e; font-weight:900;">Todos os aparelhos registrados estao na versao atual.</div>`}
+            </div>
+        `;
+    }
+
+    c.innerHTML = `
+        <div style="display:flex; align-items:center; margin-bottom:20px;">
+            <button onclick="alternarAbaAjustes(false)" style="background:none; border:none; color:#94a3b8; font-size:20px; cursor:pointer; margin-right:15px;">
+                <i class="fas fa-arrow-left"></i>
+            </button>
+            <h2 style="border-bottom:2px solid #f59e0b; padding-bottom:10px; margin:0; flex:1; font-size:18px; text-transform:uppercase;">
+                Atualizacao
+            </h2>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:15px; max-width:980px; margin:0 auto;">
+            ${atlasHTMLStatusAtualizacaoUsuario()}
+            ${htmlAdmin}
         </div>
     `;
 }
