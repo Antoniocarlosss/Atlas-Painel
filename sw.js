@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v136-link-limpo-atualizacao';
+const CACHE_NAME = 'atlas-v137-aviso-instantaneo-estavel';
 const assets = [
   './',
   './index.html',
