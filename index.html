@@ -9,7 +9,7 @@
     <title>Atlas Painel - Gestão</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20260509-forcar-via-backup">
+    <link rel="stylesheet" href="style.css?v=20260509-link-limpo-atualizacao">
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
@@ -94,8 +94,31 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script>
-        window.ATLAS_SISTEMA_VERSAO = '20260509-forcar-via-backup';
-        window.ATLAS_SISTEMA_BUILD = 135;
+        (function atlasResetPorLink() {
+            const params = new URLSearchParams(location.search);
+            if (!params.has('atlas_reset')) return;
+
+            const limparCaches = ('caches' in window)
+                ? caches.keys().then(keys => Promise.all(keys.filter(key => key.startsWith('atlas-')).map(key => caches.delete(key))))
+                : Promise.resolve();
+            const limparWorker = ('serviceWorker' in navigator)
+                ? navigator.serviceWorker.getRegistrations().then(regs => Promise.all(regs.map(reg => reg.unregister().catch(() => null))))
+                : Promise.resolve();
+
+            try {
+                localStorage.removeItem('atlas_sistema_versao');
+                localStorage.setItem('atlas_sistema_mostrar_atualizado', '1');
+            } catch (erro) {}
+
+            Promise.allSettled([limparCaches, limparWorker]).finally(() => {
+                params.delete('atlas_reset');
+                params.set('atlas_nocache', Date.now());
+                location.replace(`${location.pathname}?${params.toString()}`);
+            });
+        })();
+
+        window.ATLAS_SISTEMA_VERSAO = '20260509-link-limpo-atualizacao';
+        window.ATLAS_SISTEMA_BUILD = 136;
         window.atlasMostrarTelaAtualizacao = function atlasMostrarTelaAtualizacao(opcoes = {}) {
             const finalizado = opcoes.finalizado === true;
             let overlay = document.getElementById('atlas-update-screen');
@@ -261,10 +284,10 @@
             Promise.allSettled([limparCaches, atualizarWorker]);
         })();
     </script>
-    <script src="script.js?v=20260509-forcar-via-backup"></script>
-    <script src="historicos-admin.js?v=20260509-forcar-via-backup"></script>
+    <script src="script.js?v=20260509-link-limpo-atualizacao"></script>
+    <script src="historicos-admin.js?v=20260509-link-limpo-atualizacao"></script>
     <script src="atlas-ajustes-fachadas.js?v=20260427-permissao-excluir"></script>
-    <script type="module" src="firebase-atlas.js?v=20260509-forcar-via-backup"></script>
+    <script type="module" src="firebase-atlas.js?v=20260509-link-limpo-atualizacao"></script>
     <script>
         if ('serviceWorker' in navigator) {
             let atlasAtualizandoPWA = false;
@@ -275,7 +298,7 @@
             });
 
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=20260509-forcar-via-backup')
+                navigator.serviceWorker.register('sw.js?v=20260509-link-limpo-atualizacao')
                     .then(reg => {
                         console.log('Atlas PWA: Ativo!');
                         reg.update();

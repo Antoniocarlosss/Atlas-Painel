@@ -6063,6 +6063,23 @@ async function atlasLimparAparelhosUsuarioSaude(usuarioId, nomeUsuario) {
     await atlasAtualizarSaudeSistemaAberta();
 }
 
+function atlasLinkAtualizacaoLimpa() {
+    const url = new URL(location.href);
+    url.searchParams.set('atlas_reset', Date.now());
+    url.searchParams.delete('atlas_nocache');
+    return url.toString();
+}
+
+async function atlasMostrarLinkAtualizacaoUsuario(usuarioId, nomeUsuario) {
+    const link = atlasLinkAtualizacaoLimpa();
+    try {
+        await navigator.clipboard.writeText(link);
+        alert(`Link de atualizacao limpa copiado. Envie para ${nomeUsuario || usuarioId} abrir no aparelho:\n\n${link}`);
+    } catch (erro) {
+        prompt(`Copie e envie este link para ${nomeUsuario || usuarioId} abrir no aparelho:`, link);
+    }
+}
+
 function atlasHTMLDispositivoSaude(dispositivo) {
     const status = atlasStatusDispositivoSaude(dispositivo);
     const dispositivoId = atlasJSStringSaude(dispositivo.id || '');
@@ -6235,8 +6252,12 @@ function atlasHTMLUsuariosSaudeSistema(dispositivos) {
                                 FORCAR ATUALIZACAO
                             </button>
                             <button onclick="atlasLimparAparelhosUsuarioSaude('${atlasJSStringSaude(usuario.id || '')}', '${atlasJSStringSaude(usuario.nome || '')}')"
-                                style="width:100%; padding:10px; border:1px solid #475569; border-radius:8px; background:#1e293b; color:#bfdbfe; font-weight:900; cursor:pointer;">
+                                style="width:100%; padding:10px; border:1px solid #475569; border-radius:8px; background:#1e293b; color:#bfdbfe; font-weight:900; cursor:pointer; margin-bottom:8px;">
                                 LIMPAR REGISTRO
+                            </button>
+                            <button onclick="atlasMostrarLinkAtualizacaoUsuario('${atlasJSStringSaude(usuario.id || '')}', '${atlasJSStringSaude(usuario.nome || '')}')"
+                                style="width:100%; padding:10px; border:1px solid #2563eb; border-radius:8px; background:#0f172a; color:#93c5fd; font-weight:900; cursor:pointer;">
+                                COPIAR LINK LIMPO
                             </button>
                         ` : `
                             <button disabled

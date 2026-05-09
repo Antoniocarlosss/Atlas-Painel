@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v135-forcar-via-backup';
+const CACHE_NAME = 'atlas-v136-link-limpo-atualizacao';
 const assets = [
   './',
   './index.html',
