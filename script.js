@@ -6103,14 +6103,6 @@ function atlasHTMLUsuariosSaudeSistema(dispositivos) {
                     </div>
                 </div>
 
-                ${aparelhosVisiveis.length ? `
-                    <div style="margin-top:12px;">
-                        <div style="color:#93c5fd; font-weight:900; margin-bottom:8px;">Aparelhos detectados (${aparelhosVisiveis.length})</div>
-                        <div style="display:flex; flex-direction:column; gap:8px;">
-                            ${aparelhosVisiveis.map(dispositivo => atlasHTMLDispositivoSaude(dispositivo)).join('')}
-                        </div>
-                    </div>
-                ` : ''}
             </div>
         `;
     }).join('') + atlasHTMLDispositivosSemUsuarioSaude(dispositivos, dispositivosUsados);

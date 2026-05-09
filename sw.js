@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v129-aparelhos-abertos-modelo-provavel';
+const CACHE_NAME = 'atlas-v130-um-card-por-usuario';
 const assets = [
   './',
   './index.html',
