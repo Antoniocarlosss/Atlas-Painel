@@ -449,8 +449,9 @@ window.addEventListener('atlasFirebasePronto', () => {
 
 window.addEventListener('atlasAtualizacaoSolicitada', (evento) => {
     const info = evento?.detail || atlasJSONLocal('atlas_atualizacao_pendente_info', null);
-    if (typeof window.atlasMostrarAvisoAtualizacaoDisponivel === 'function') {
-        window.atlasMostrarAvisoAtualizacaoDisponivel(info || { versao: window.ATLAS_SISTEMA_VERSAO || 'nova versao' });
+    if (typeof window.atlasExecutarAtualizacaoAparelho === 'function') {
+        window.atlasMostrarTelaAtualizacao?.();
+        setTimeout(() => window.atlasExecutarAtualizacaoAparelho(), 700);
         return;
     }
     alert('Existe uma atualizacao do sistema. Atualize esta pagina.');
@@ -5756,7 +5757,7 @@ function atlasStatusDispositivoSaude(dispositivo) {
     const versaoAtual = window.ATLAS_SISTEMA_VERSAO || '';
     const ultimo = Number(dispositivo?.ultimoAcessoMs || 0);
     const segundos = ultimo ? ((Date.now() - ultimo) / 1000) : 999999;
-    const online = dispositivo?.online !== false && segundos <= 25;
+    const online = segundos <= 180;
     const atualizado = String(dispositivo?.versao || '') === String(versaoAtual);
     return {
         online,
@@ -5958,6 +5959,17 @@ async function atlasSolicitarAtualizacaoUsuarioSaude(usuarioId, nomeUsuario) {
     });
 
     await Promise.all(pedidos);
+    const solicitacoes = atlasJSONLocal('atlas_atualizacoes_solicitadas_local', {});
+    solicitacoes[atlasIdUsuarioNormalizado(usuarioId)] = {
+        usuario: usuarioId,
+        nome: nomeUsuario || usuarioId,
+        solicitadoPor: usuarioLogado?.id || 'admin',
+        solicitadoEm: new Date().toLocaleString('pt-BR'),
+        versao: window.ATLAS_SISTEMA_VERSAO || '',
+        build: window.ATLAS_SISTEMA_BUILD || 0
+    };
+    localStorage.setItem('atlas_atualizacoes_solicitadas_local', JSON.stringify(solicitacoes));
+    atlasAtualizarSaudeSistemaAberta();
     alert(`Pedido de atualizacao enviado para ${usuariosAlvo.length} identificador(es) e ${dispositivos.length} aparelho(s) deste usuario.`);
 }
 
@@ -6098,6 +6110,7 @@ function atlasHTMLUsuariosSaudeSistema(dispositivos) {
         const principal = aparelhosVisiveis[0] || null;
         const descricaoPrincipal = principal ? atlasDescricaoAparelhoSaude(principal) : null;
         const status = principal ? atlasStatusDispositivoSaude(principal) : null;
+        const pedidoAtualizacao = atlasJSONLocal('atlas_atualizacoes_solicitadas_local', {})[atlasIdUsuarioNormalizado(usuario.id)];
         const bloqueado = usuario.bloqueado === true;
 
         return `
@@ -6122,6 +6135,7 @@ function atlasHTMLUsuariosSaudeSistema(dispositivos) {
                     <div>
                         <b style="color:${status?.corVersao || '#94a3b8'};">Atualizacao: ${status?.textoVersao || '-'}</b>
                         <div style="color:#94a3b8; font-size:12px; overflow-wrap:anywhere;">${principal ? atlasTextoSeguroSaude(principal.versao || '-') : '-'}</div>
+                        ${pedidoAtualizacao && !status?.atualizado ? `<div style="color:#fbbf24; font-size:12px;">Pedido: ${atlasTextoSeguroSaude(pedidoAtualizacao.solicitadoEm)} por ${atlasTextoSeguroSaude(pedidoAtualizacao.solicitadoPor)}</div>` : ''}
                     </div>
                     <div>
                         ${principal ? `
