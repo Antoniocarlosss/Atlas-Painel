@@ -186,6 +186,19 @@ function atlasMarcaModeloAndroidPorUA(ua) {
     return { marca: 'Android', modelo: '', nome: `Android${atlasTelaAtual()}` };
 }
 
+function atlasModeloProvavelAndroidPorTela(tela) {
+    const normalizada = String(tela || '').replace(/\s+/g, '').replace(/[^\dx]/gi, '').toLowerCase();
+    const modelos = {
+        '384x857': 'possivel Samsung Galaxy A14/A15',
+        '360x800': 'possivel Samsung Galaxy A12/A13/A14',
+        '412x915': 'possivel Samsung Galaxy A52/A53/A54',
+        '393x873': 'possivel Samsung Galaxy A32/A33/A34',
+        '412x892': 'possivel Xiaomi/Redmi Android',
+        '393x851': 'possivel Xiaomi/Redmi Android'
+    };
+    return modelos[normalizada] || '';
+}
+
 function atlasDetalhesAparelhoBasico() {
     const ua = navigator.userAgent || '';
     const tela = atlasTelaAtual().trim();
@@ -5954,7 +5967,10 @@ function atlasDescricaoAparelhoSaude(dispositivo) {
     const sistema = dispositivo?.sistemaAparelho || '';
     const aparelho = dispositivo?.aparelho || '';
     const tela = dispositivo?.telaAparelho || `${dispositivo?.largura || '-'}x${dispositivo?.altura || '-'}`;
-    const tituloPartes = [tipo, marca, modelo].filter(Boolean);
+    const androidSemModelo = /android/i.test(`${tipo} ${marca} ${modelo} ${aparelho}`) && !modelo;
+    const telaParaModelo = /\d+x\d+/i.test(tela) ? tela : aparelho;
+    const modeloProvavel = androidSemModelo ? atlasModeloProvavelAndroidPorTela(telaParaModelo) : '';
+    const tituloPartes = [tipo || (/android/i.test(aparelho) ? 'Telemovel Android' : ''), marca, modelo || modeloProvavel].filter(Boolean);
     const titulo = tituloPartes.length ? tituloPartes.join(' - ') : (aparelho || 'Aparelho');
     const subtitulo = [sistema, tela].filter(Boolean).join(' | ') || '-';
     return { titulo, subtitulo };
@@ -6088,12 +6104,12 @@ function atlasHTMLUsuariosSaudeSistema(dispositivos) {
                 </div>
 
                 ${aparelhosVisiveis.length ? `
-                    <details style="margin-top:10px;">
-                        <summary style="cursor:pointer; color:#93c5fd; font-weight:900;">Ver ultimo aparelho (${aparelhosVisiveis.length})</summary>
-                        <div style="display:flex; flex-direction:column; gap:8px; margin-top:10px;">
+                    <div style="margin-top:12px;">
+                        <div style="color:#93c5fd; font-weight:900; margin-bottom:8px;">Aparelhos detectados (${aparelhosVisiveis.length})</div>
+                        <div style="display:flex; flex-direction:column; gap:8px;">
                             ${aparelhosVisiveis.map(dispositivo => atlasHTMLDispositivoSaude(dispositivo)).join('')}
                         </div>
-                    </details>
+                    </div>
                 ` : ''}
             </div>
         `;
