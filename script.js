@@ -1,7 +1,7 @@
 // --- BANCO DE USUARIOS ---
-let usuariosSistema = JSON.parse(localStorage.getItem('atlas_usuarios')) || [
+let usuariosSistema = atlasArrayLocal('atlas_usuarios', [
     { id: "admin", senha: "123", cargo: "admin" }
-];
+]);
 
 let usuarioLogado = null;
 const MODULOS_SISTEMA = [
@@ -73,7 +73,7 @@ function obterPreferenciasGrupoCargo(cargoInformado) {
     if (cargo === 'admin') return base;
 
     try {
-        const salvas = JSON.parse(localStorage.getItem(obterChavePreferenciasGrupo(cargo))) || {};
+        const salvas = atlasJSONLocal(obterChavePreferenciasGrupo(cargo), {});
         return {
             tema: salvas.tema || base.tema,
             modulosVisiveis: Array.isArray(salvas.modulosVisiveis) ? salvas.modulosVisiveis : base.modulosVisiveis,
@@ -105,6 +105,11 @@ function atlasJSONLocal(chave, fallback) {
     } catch (erro) {
         return fallback;
     }
+}
+
+function atlasArrayLocal(chave, fallback = []) {
+    const valor = atlasJSONLocal(chave, fallback);
+    return Array.isArray(valor) ? valor : fallback;
 }
 
 function atlasFormatarDataHoraSistema(valor) {
@@ -356,7 +361,7 @@ function usuarioPodeExcluirModulo(chave) {
 
 function obterPreferenciasUsuario(idUsuario) {
     const chave = obterChavePreferenciasUsuario(idUsuario);
-    const salvas = JSON.parse(localStorage.getItem(chave));
+    const salvas = atlasJSONLocal(chave, null);
     const cargo = obterCargoUsuarioPorId(idUsuario);
     const padrao = obterPreferenciasPadraoUsuario(idUsuario);
 
@@ -443,6 +448,9 @@ function aplicarPreferenciasVisuaisUsuario() {
 }
 
 function inicializarUsuarios() {
+    if (!Array.isArray(usuariosSistema)) {
+        usuariosSistema = [];
+    }
     const existeAdmin = usuariosSistema.some(u => u.id === "admin");
     if (!existeAdmin) {
         usuariosSistema.push({ id: "admin", senha: "123", cargo: "admin" });
@@ -566,7 +574,7 @@ async function fazerLogin() {
                 window.atlasFirebaseForcarAtualizacao(),
                 new Promise(resolve => setTimeout(resolve, 2500))
             ]);
-            usuariosSistema = JSON.parse(localStorage.getItem('atlas_usuarios')) || usuariosSistema;
+            usuariosSistema = atlasArrayLocal('atlas_usuarios', usuariosSistema);
             if (typeof atlasNormalizarUsuariosSistema === 'function') {
                 atlasNormalizarUsuariosSistema();
             }
@@ -1744,7 +1752,7 @@ function renderizarMenuBobines() {
    ========================================================================== */
 
 let lancamentosTemporarios = [];
-let historicoBobines = JSON.parse(localStorage.getItem('historicoBobines')) || []; // Salva no navegador
+let historicoBobines = atlasArrayLocal('historicoBobines'); // Salva no navegador
 let producaoAtiva = 1; 
 let lancamentoAtual = { tipo: '', lado: '', subtipo: '', qtd: 1, numBobine: '', ral: '', status: '', producao: 1 };
 
@@ -2761,8 +2769,8 @@ function renderizarCalculadoraAgro() {
 
 // --- VARIÁVEIS DE CONTROLE ---
 // --- BANCO DE DADOS ---
-let db_serra_live = JSON.parse(localStorage.getItem('atlas_serra_live')) || [];
-let db_serra_hist = JSON.parse(localStorage.getItem('atlas_serra_hist')) || [];
+let db_serra_live = atlasArrayLocal('atlas_serra_live');
+let db_serra_hist = atlasArrayLocal('atlas_serra_hist');
 
 // --- 1. MENU PRINCIPAL ---
 function renderizarMenuSerra() {
@@ -3360,8 +3368,8 @@ function gerarPDF_Serra(dadosEncoded) {
 
 //embalagem
 // --- 1. BANCO DE DATOS EMBALAGEM ---
-let db_emb_live = JSON.parse(localStorage.getItem('atlas_emb_live')) || [];
-let db_emb_hist = JSON.parse(localStorage.getItem('atlas_emb_hist')) || [];
+let db_emb_live = atlasArrayLocal('atlas_emb_live');
+let db_emb_hist = atlasArrayLocal('atlas_emb_hist');
 
 function renderizarMenuEmbalagem() {
     const render = document.getElementById('render-modulo');
@@ -4151,9 +4159,9 @@ function excluirUsuario(index) {
 }
  
 // --- MÓDULO PLANO ---
-var db_plano_live = JSON.parse(localStorage.getItem('atlas_plano_live')) || null;
-var db_plano_hist = JSON.parse(localStorage.getItem('atlas_plano_hist')) || [];
-var destinosPlano = JSON.parse(localStorage.getItem('atlas_plano_destinos')) || ["Ansião", "Leiria", "Algarve", "Sobreda", "Abrantes"];
+var db_plano_live = atlasJSONLocal('atlas_plano_live', null);
+var db_plano_hist = atlasArrayLocal('atlas_plano_hist');
+var destinosPlano = atlasArrayLocal('atlas_plano_destinos', ["Ansião", "Leiria", "Algarve", "Sobreda", "Abrantes"]);
 
 function atlasListaConfig(chave, padrao) {
     try {
@@ -7495,7 +7503,7 @@ renderizarGestaoPlanoHistorico = function(indexPlano) {
    MÓDULO CONFERÊNCIA - PEDIDOS DA SERRA
    ========================================================== */
 
-let db_conferencia_serra = JSON.parse(localStorage.getItem('atlas_conferencia_serra')) || [];
+let db_conferencia_serra = atlasArrayLocal('atlas_conferencia_serra');
 
 if (typeof MODULOS_SISTEMA !== 'undefined' && !MODULOS_SISTEMA.some(m => m.chave === 'conferencia')) {
     MODULOS_SISTEMA.push({ chave: 'conferencia', nome: 'Conferência' });
@@ -12561,8 +12569,8 @@ window.addEventListener('load', () => {
    MÓDULO STOCK - BOBINAS E FILMES
    ========================================================== */
 
-let atlasStockBobinas = JSON.parse(localStorage.getItem('atlas_stock_bobinas')) || [];
-let atlasStockFilmes = JSON.parse(localStorage.getItem('atlas_stock_filmes')) || [];
+let atlasStockBobinas = atlasArrayLocal('atlas_stock_bobinas');
+let atlasStockFilmes = atlasArrayLocal('atlas_stock_filmes');
 
 function salvarStockAtlas() {
     localStorage.setItem('atlas_stock_bobinas', JSON.stringify(atlasStockBobinas));
