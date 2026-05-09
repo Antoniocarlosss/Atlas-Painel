@@ -9,7 +9,7 @@
     <title>Atlas Painel - Gestão</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20260509-saude-online-pendente">
+    <link rel="stylesheet" href="style.css?v=20260509-status-por-usuario">
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
@@ -117,8 +117,8 @@
             });
         })();
 
-        window.ATLAS_SISTEMA_VERSAO = '20260509-saude-online-pendente';
-        window.ATLAS_SISTEMA_BUILD = 143;
+        window.ATLAS_SISTEMA_VERSAO = '20260509-status-por-usuario';
+        window.ATLAS_SISTEMA_BUILD = 144;
         window.atlasMostrarTelaAtualizacao = function atlasMostrarTelaAtualizacao(opcoes = {}) {
             const finalizado = opcoes.finalizado === true;
             let overlay = document.getElementById('atlas-update-screen');
@@ -289,10 +289,10 @@
             Promise.allSettled([limparCaches, atualizarWorker]);
         })();
     </script>
-    <script src="script.js?v=20260509-saude-online-pendente"></script>
-    <script src="historicos-admin.js?v=20260509-saude-online-pendente"></script>
+    <script src="script.js?v=20260509-status-por-usuario"></script>
+    <script src="historicos-admin.js?v=20260509-status-por-usuario"></script>
     <script src="atlas-ajustes-fachadas.js?v=20260427-permissao-excluir"></script>
-    <script type="module" src="firebase-atlas.js?v=20260509-saude-online-pendente"></script>
+    <script type="module" src="firebase-atlas.js?v=20260509-status-por-usuario"></script>
     <script>
         if ('serviceWorker' in navigator) {
             let atlasAtualizandoPWA = false;
@@ -303,7 +303,7 @@
             });
 
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=20260509-saude-online-pendente')
+                navigator.serviceWorker.register('sw.js?v=20260509-status-por-usuario')
                     .then(reg => {
                         console.log('Atlas PWA: Ativo!');
                         reg.update();

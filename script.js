@@ -139,12 +139,15 @@ function atlasFormatarDataHoraSistema(valor) {
     return data.toLocaleString('pt-BR');
 }
 
-function atlasDispositivoIdAtual() {
-    let id = localStorage.getItem('atlas_dispositivo_id');
-    if (!id) {
-        id = `disp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`;
-        localStorage.setItem('atlas_dispositivo_id', id);
+function atlasDispositivoIdAtual(usuarioId = '') {
+    let base = localStorage.getItem('atlas_dispositivo_base_id');
+    if (!base) {
+        base = `disp_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`;
+        localStorage.setItem('atlas_dispositivo_base_id', base);
     }
+    const usuario = atlasIdUsuarioNormalizado(usuarioId || usuarioLogado?.id || '');
+    const id = usuario ? `${base}_${usuario}` : base;
+    localStorage.setItem('atlas_dispositivo_id', id);
     return id;
 }
 
@@ -303,7 +306,7 @@ function atlasRegistrarUltimoAcessoUsuario(agora, versao, aparelho, idDispositiv
 function atlasRegistrarDispositivoAtual() {
     if (!usuarioLogado) return;
     const dispositivos = atlasJSONLocal('atlas_dispositivos_online', {});
-    const id = atlasDispositivoIdAtual();
+    const id = atlasDispositivoIdAtual(usuarioLogado.id);
     const agora = Date.now();
     const versao = window.ATLAS_SISTEMA_VERSAO || 'sem-versao';
     const usuarioCadastro = (usuariosSistema || []).find(usuario => atlasIdUsuarioNormalizado(usuario.id) === atlasIdUsuarioNormalizado(usuarioLogado.id)) || usuarioLogado;
@@ -407,7 +410,7 @@ function atlasAtualizarDetalhesAparelhoAssincrono(idDispositivo) {
 
 function atlasDadosDispositivoOfflineAtual() {
     const dispositivos = atlasJSONLocal('atlas_dispositivos_online', {});
-    const id = atlasDispositivoIdAtual();
+    const id = atlasDispositivoIdAtual(usuarioLogado?.id || atual.usuario || '');
     const atual = dispositivos[id] || {};
     const agora = Date.now();
     const dados = {
@@ -6038,7 +6041,7 @@ function atlasStatusDispositivoSaude(dispositivo) {
     const versaoAtual = window.ATLAS_SISTEMA_VERSAO || '';
     const ultimo = Number(dispositivo?.ultimoAcessoMs || 0);
     const segundos = ultimo ? ((Date.now() - ultimo) / 1000) : 999999;
-    const online = dispositivo?.online !== false && segundos <= 180;
+    const online = segundos <= 600 && Number(dispositivo?.saiuEmMs || 0) < ultimo;
     const atualizado = String(dispositivo?.versao || '') === String(versaoAtual);
     return {
         online,
@@ -6054,10 +6057,9 @@ function atlasStatusDispositivoSaude(dispositivo) {
 function atlasInfoAtualizacaoPessoaSaude(usuario, dispositivos = [], pedido = null, statusPrincipal = null) {
     const confirmacao = atlasConfirmacaoAtualizacaoUsuarioSaude(usuario, dispositivos, pedido);
     const infoGlobal = atlasJSONLocal('atlas_atualizacao_global_info', null) || atlasJSONLocal('atlas_versao_publicada_info', null);
-    const buildPublicado = Number(infoGlobal?.build || 0);
-    const buildAtual = Number(window.ATLAS_SISTEMA_BUILD || 0);
     const temPedido = Boolean(pedido);
-    const globalPendente = buildPublicado > buildAtual;
+    const temAparelho = (dispositivos || []).some(dispositivo => dispositivo && dispositivo.id);
+    const temDesatualizado = (dispositivos || []).some(dispositivo => dispositivo && dispositivo.id && !atlasStatusDispositivoSaude(dispositivo).atualizado);
 
     if (confirmacao || statusPrincipal?.atualizado) {
         return {
@@ -6068,20 +6070,20 @@ function atlasInfoAtualizacaoPessoaSaude(usuario, dispositivos = [], pedido = nu
         };
     }
 
-    if (temPedido || globalPendente) {
+    if (temAparelho && (temDesatualizado || temPedido)) {
         return {
             chave: 'pendente',
-            texto: 'PENDENTE',
+            texto: 'NAO ATUALIZOU',
             cor: '#ef4444',
-            detalhe: pedido ? `Pedido: ${pedido.solicitadoEm} por ${pedido.solicitadoPor}` : `Versao publicada: ${infoGlobal?.versao || '-'}`
+            detalhe: pedido ? `Pedido: ${pedido.solicitadoEm} por ${pedido.solicitadoPor}` : `Precisa abrir/atualizar para ${infoGlobal?.versao || window.ATLAS_SISTEMA_VERSAO || '-'}`
         };
     }
 
     return {
-        chave: 'sem_pedido',
-        texto: 'SEM PEDIDO',
+        chave: 'sem_aparelho',
+        texto: 'SEM APARELHO',
         cor: '#94a3b8',
-        detalhe: statusPrincipal?.atualizado === false ? 'Registro antigo sem pedido pendente' : ''
+        detalhe: 'Usuario ainda nao registrou aparelho nesta lista'
     };
 }
 
