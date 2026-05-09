@@ -572,11 +572,27 @@ function inicializarUsuarios() {
     if (!Array.isArray(usuariosSistema)) {
         usuariosSistema = [];
     }
-    const existeAdmin = usuariosSistema.some(u => u.id === "admin");
-    if (!existeAdmin) {
-        usuariosSistema.push({ id: "admin", senha: "123", cargo: "admin" });
+    garantirAdminSistemaAtlas();
+}
+
+function garantirAdminSistemaAtlas() {
+    if (!Array.isArray(usuariosSistema)) usuariosSistema = [];
+    usuariosSistema = usuariosSistema.filter(usuario => atlasIdUsuarioNormalizado(usuario?.id) !== 'admin');
+    usuariosSistema.unshift({
+        id: 'admin',
+        nome: 'ADMIN',
+        senha: '123',
+        cargo: 'admin',
+        bloqueado: false,
+        _atlasUsuarioAtualizadoEm: Date.now()
+    });
+    try {
+        const excluidos = JSON.parse(localStorage.getItem('atlas_usuarios_excluidos') || '{}');
+        delete excluidos.admin;
+        localStorage.setItem('atlas_usuarios_excluidos', JSON.stringify(excluidos));
         localStorage.setItem('atlas_usuarios', JSON.stringify(usuariosSistema));
-    }
+    } catch (erro) {}
+    return usuariosSistema[0];
 }
 
 inicializarUsuarios();
@@ -684,6 +700,25 @@ async function fazerLogin() {
     const usuarioInput = document.getElementById('login-email').value.trim();
     const senhaInput = document.getElementById('login-senha').value.trim();
     const idLogin = String(usuarioInput || '').toLowerCase();
+
+    if (idLogin === 'admin' && senhaInput === '123') {
+        usuarioLogado = garantirAdminSistemaAtlas();
+        document.getElementById('tela-login').style.display = 'none';
+        document.getElementById('app-principal').style.display = 'block';
+        document.getElementById('user-display').innerText = 'ADMIN';
+        aplicarPermissoesUsuario();
+        aplicarPreferenciasVisuaisUsuario();
+        atlasRegistrarDispositivoAtual();
+        setTimeout(atlasRegistrarDispositivoAtual, 1500);
+        setTimeout(atlasRegistrarDispositivoAtual, 5000);
+        if (!window.atlasTimerDispositivoAtual) {
+            window.atlasTimerDispositivoAtual = setInterval(atlasRegistrarDispositivoAtual, 10000);
+        }
+        if (typeof window.atlasFirebaseSincronizarAgora === 'function') {
+            window.atlasFirebaseSincronizarAgora();
+        }
+        return;
+    }
 
     if (typeof atlasNormalizarUsuariosSistema === 'function') {
         atlasNormalizarUsuariosSistema();
@@ -4174,9 +4209,7 @@ function atlasNormalizarUsuariosSistema() {
         }
     });
 
-    if (!mapa.has('admin')) {
-        mapa.set('admin', { id: 'admin', nome: 'ADMIN', senha: '123', cargo: 'admin', bloqueado: false });
-    }
+    mapa.set('admin', { id: 'admin', nome: 'ADMIN', senha: '123', cargo: 'admin', bloqueado: false, _atlasUsuarioAtualizadoEm: Date.now() });
 
     usuariosSistema = Array.from(mapa.values()).sort((a, b) => {
         const adminA = atlasIdUsuarioNormalizado(a.id) === 'admin' ? -1 : 0;

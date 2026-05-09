@@ -53,6 +53,9 @@ function atlasFirebaseChaveSincronizada(chave) {
 }
 
 function atlasFirebaseMesclarUsuario(local, nuvem) {
+    if (String(local?.id || nuvem?.id || "").trim().toLowerCase() === "admin") {
+        return { id: "admin", nome: "ADMIN", senha: "123", cargo: "admin", bloqueado: false, _atlasUsuarioAtualizadoEm: Date.now() };
+    }
     if (!local) return nuvem;
     if (!nuvem) return local;
 
@@ -364,7 +367,11 @@ async function atlasFirebaseChecarAtualizacaoPendente(dispositivoId, usuarioId) 
 }
 
 async function atlasEnviarUsuarios() {
-    const usuarios = atlasParseJSON("atlas_usuarios", []).filter(usuario => !atlasUsuarioFoiExcluidoFirebase(usuario?.id));
+    const usuarios = atlasParseJSON("atlas_usuarios", [])
+        .filter(usuario => !atlasUsuarioFoiExcluidoFirebase(usuario?.id))
+        .map(usuario => String(usuario?.id || "").trim().toLowerCase() === "admin"
+            ? { id: "admin", nome: "ADMIN", senha: "123", cargo: "admin", bloqueado: false, _atlasUsuarioAtualizadoEm: Date.now() }
+            : usuario);
     await atlasLimparColecao("usuarios");
 
     await Promise.all(usuarios.map(usuario => {
@@ -402,9 +409,7 @@ async function atlasFirebaseBaixarUsuariosDireto() {
         mapaMesclado.set(chaveUsuario, atlasFirebaseMesclarUsuario(mapaMesclado.get(chaveUsuario), usuario));
     });
 
-    if (!mapaMesclado.has("admin")) {
-        mapaMesclado.set("admin", { id: "admin", nome: "ADMIN", senha: "123", cargo: "admin", bloqueado: false });
-    }
+    mapaMesclado.set("admin", { id: "admin", nome: "ADMIN", senha: "123", cargo: "admin", bloqueado: false, _atlasUsuarioAtualizadoEm: Date.now() });
 
     const usuariosMesclados = Array.from(mapaMesclado.values());
 

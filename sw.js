@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v130-um-card-por-usuario';
+const CACHE_NAME = 'atlas-v131-admin-recuperacao';
 const assets = [
   './',
   './index.html',
