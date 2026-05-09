@@ -457,6 +457,33 @@ window.addEventListener('atlasAtualizacaoSolicitada', (evento) => {
     alert('Existe uma atualizacao do sistema. Atualize esta pagina.');
 });
 
+function atlasChecarAtualizacaoForcadaLocal() {
+    if (!usuarioLogado) return;
+    const pedidos = atlasJSONLocal('atlas_forcar_atualizacao_usuarios', {});
+    const ids = [
+        usuarioLogado.id,
+        usuarioLogado.nome,
+        ...(Array.isArray(usuarioLogado.usuarioAliases) ? usuarioLogado.usuarioAliases : [])
+    ].map(atlasIdUsuarioNormalizado).filter(Boolean);
+    const pedido = ids.map(id => pedidos[id]).find(Boolean) || null;
+    if (!pedido) return;
+    const buildPedido = Number(pedido.build || 0);
+    const buildAtual = Number(window.ATLAS_SISTEMA_BUILD || 0);
+    if (buildPedido && buildAtual >= buildPedido) return;
+    const chave = `atlas_forcar_update_executado_${buildPedido}_${pedido.solicitadoEmMs || ''}`;
+    if (sessionStorage.getItem(chave) === '1') return;
+    sessionStorage.setItem(chave, '1');
+    if (typeof window.atlasExecutarAtualizacaoAparelho === 'function') {
+        window.atlasMostrarTelaAtualizacao?.();
+        setTimeout(() => window.atlasExecutarAtualizacaoAparelho(), 700);
+    }
+}
+
+window.addEventListener('focus', atlasChecarAtualizacaoForcadaLocal);
+window.addEventListener('online', atlasChecarAtualizacaoForcadaLocal);
+window.addEventListener('atlasDadosNuvemAtualizados', atlasChecarAtualizacaoForcadaLocal);
+setInterval(atlasChecarAtualizacaoForcadaLocal, 5000);
+
 function usuarioPodeVerModulo(chave) {
     if (!usuarioLogado) return false;
     if (chave === 'permissoes') return usuarioEhAdmin();
@@ -769,6 +796,8 @@ verificarAniversarioNoLoginAtlas(usuarioEncontrado);
 atlasRegistrarDispositivoAtual();
 setTimeout(atlasRegistrarDispositivoAtual, 1500);
 setTimeout(atlasRegistrarDispositivoAtual, 5000);
+setTimeout(atlasChecarAtualizacaoForcadaLocal, 1800);
+setTimeout(atlasChecarAtualizacaoForcadaLocal, 6000);
 if (!window.atlasTimerDispositivoAtual) {
     window.atlasTimerDispositivoAtual = setInterval(atlasRegistrarDispositivoAtual, 10000);
 }
@@ -5968,6 +5997,21 @@ async function atlasSolicitarAtualizacaoUsuarioSaude(usuarioId, nomeUsuario) {
             usuario: dispositivo.usuario || usuarioId
         }));
     });
+
+    const pedidosForcados = atlasJSONLocal('atlas_forcar_atualizacao_usuarios', {});
+    const pedidoForcado = {
+        usuario: usuarioId,
+        nome: nomeUsuario || usuarioId,
+        solicitadoPor: usuarioLogado?.id || 'admin',
+        solicitadoEmMs: Date.now(),
+        solicitadoEm: new Date().toLocaleString('pt-BR'),
+        versao: window.ATLAS_SISTEMA_VERSAO || '',
+        build: Number(window.ATLAS_SISTEMA_BUILD || 0)
+    };
+    usuariosAlvo.forEach(usuarioAlvo => {
+        pedidosForcados[atlasIdUsuarioNormalizado(usuarioAlvo)] = pedidoForcado;
+    });
+    localStorage.setItem('atlas_forcar_atualizacao_usuarios', JSON.stringify(pedidosForcados));
 
     await Promise.all(pedidos);
     const solicitacoes = atlasJSONLocal('atlas_atualizacoes_solicitadas_local', {});
