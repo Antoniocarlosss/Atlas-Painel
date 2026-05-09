@@ -635,6 +635,7 @@ if (typeof producoesDoDia !== "undefined") {
 }
 
 function voltarHome() {
+    window.atlasModuloAtual = '';
     document.getElementById('grid-home').style.display = 'grid';
     document.getElementById('conteudo-modulo').style.display = 'none';
     aplicarPermissoesUsuario();
@@ -658,6 +659,7 @@ function abrirModulo(nome) {
 
     document.getElementById('grid-home').style.display = 'none';
     document.getElementById('conteudo-modulo').style.display = 'block';
+    window.atlasModuloAtual = nome;
 
     const titulos = {
         injecao: "INJEÇÃO",
@@ -711,6 +713,32 @@ function abrirModulo(nome) {
 }
 
 }
+
+function atlasUsuarioDigitandoOuEditando() {
+    const ativo = document.activeElement;
+    const tag = String(ativo?.tagName || '').toLowerCase();
+    if (['input', 'textarea', 'select'].includes(tag)) return true;
+    const modal = document.getElementById('modal-edicao');
+    return modal && modal.style.display && modal.style.display !== 'none';
+}
+
+function atlasAtualizarTelaAposSyncNuvem() {
+    if (!usuarioLogado) return;
+
+    if (typeof aplicarPermissoesUsuario === 'function') aplicarPermissoesUsuario();
+    if (typeof aplicarPreferenciasVisuaisUsuario === 'function') aplicarPreferenciasVisuaisUsuario();
+
+    if (!window.atlasModuloAtual || atlasUsuarioDigitandoOuEditando()) return;
+
+    clearTimeout(window.atlasTimerAtualizacaoTelaNuvem);
+    window.atlasTimerAtualizacaoTelaNuvem = setTimeout(() => {
+        const modulo = window.atlasModuloAtual;
+        if (!modulo || atlasUsuarioDigitandoOuEditando()) return;
+        abrirModulo(modulo);
+    }, 350);
+}
+
+window.addEventListener('atlasDadosNuvemAtualizados', atlasAtualizarTelaAposSyncNuvem);
 
 
 /* ==========================================================================

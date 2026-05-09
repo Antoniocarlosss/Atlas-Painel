@@ -13,7 +13,8 @@ getDocsFromServer,
 collection,
 setDoc,
 deleteDoc,
-serverTimestamp
+serverTimestamp,
+onSnapshot
 
 } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-firestore.js";
 
@@ -630,6 +631,31 @@ window.atlasFirebaseStatus = {
     app: atlasFirebaseApp,
     db: atlasFirestore
 };
+
+function atlasFirebaseAplicarBackupNuvem(dados, opcoes = {}) {
+    const chaves = Object.keys(dados || {});
+    if (chaves.length === 0) return false;
+    if (!atlasFirebaseBackupPodeEntrar(dados)) return false;
+    if (Date.now() - atlasFirebaseUltimaAlteracaoLocal < 30000 && !opcoes.forcar) return false;
+
+    atlasFirebaseBloqueado = true;
+
+    chaves.forEach(chave => {
+        if (chave !== "atlas_usuarios" && typeof dados[chave] === "string") {
+            atlasLocalStorageSetItemOriginal.call(localStorage, chave, dados[chave]);
+        }
+    });
+
+    atlasFirebaseBloqueado = false;
+
+    window.dispatchEvent(new CustomEvent("atlasDadosNuvemAtualizados", {
+        detail: { chaves, origem: opcoes.origem || "firebase" }
+    }));
+
+    if (opcoes.recarregar) location.reload();
+    return true;
+}
+
 async function atlasFirebaseBaixarBackupInicial() {
     const jaBaixou = sessionStorage.getItem("atlas_firebase_backup_baixado");
     if (jaBaixou === "sim") return;
@@ -639,23 +665,8 @@ async function atlasFirebaseBaixarBackupInicial() {
     if (!snap.exists()) return;
 
     const dados = snap.data()?.dados || {};
-    const chaves = Object.keys(dados);
-
-    if (chaves.length === 0) return;
-    if (!atlasFirebaseBackupPodeEntrar(dados)) return;
-
-    atlasFirebaseBloqueado = true;
-
-    chaves.forEach(chave => {
-        if (chave !== "atlas_usuarios" && typeof dados[chave] === "string") {
-            localStorage.setItem(chave, dados[chave]);
-        }
-    });
-
-    atlasFirebaseBloqueado = false;
-
     sessionStorage.setItem("atlas_firebase_backup_baixado", "sim");
-    location.reload();
+    atlasFirebaseAplicarBackupNuvem(dados, { forcar: true, recarregar: true, origem: "backup_inicial" });
 }
 
 setTimeout(() => {
@@ -684,20 +695,7 @@ async function atlasFirebaseAtualizarSemSair() {
         if (!snap.exists()) return;
 
         const dados = snap.data()?.dados || {};
-        const chaves = Object.keys(dados);
-
-        if (chaves.length === 0) return;
-        if (!atlasFirebaseBackupPodeEntrar(dados)) return;
-
-        atlasFirebaseBloqueado = true;
-
-        chaves.forEach(chave => {
-            if (chave !== "atlas_usuarios" && typeof dados[chave] === "string") {
-                localStorage.setItem(chave, dados[chave]);
-            }
-        });
-
-        atlasFirebaseBloqueado = false;
+        atlasFirebaseAplicarBackupNuvem(dados, { origem: "polling" });
 
         if (typeof usuarioLogado !== "undefined" && usuarioLogado) {
             if (typeof aplicarPermissoesUsuario === "function") aplicarPermissoesUsuario();
@@ -711,6 +709,14 @@ async function atlasFirebaseAtualizarSemSair() {
 setInterval(() => {
     atlasFirebaseAtualizarSemSair();
 }, 15000);
+
+onSnapshot(doc(atlasFirestore, "backups_localstorage", "ultimo_backup"), snap => {
+    if (!snap.exists()) return;
+    const dados = snap.data()?.dados || {};
+    atlasFirebaseAplicarBackupNuvem(dados, { origem: "tempo_real" });
+}, erro => {
+    console.error("Erro ao ouvir atualizacoes em tempo real:", erro);
+});
 
 window.atlasFirebaseForcarAtualizacao = function() {
     return atlasFirebaseBaixarUsuariosDireto()
