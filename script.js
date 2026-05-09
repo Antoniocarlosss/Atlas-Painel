@@ -159,18 +159,90 @@ function atlasModeloProvavelApple() {
     return modelos[pontos] || `iPhone modelo nao identificado ${pontos}`;
 }
 
-function atlasNomeAparelhoAtual() {
-    const ua = navigator.userAgent || '';
-    if (/Samsung|SM-/i.test(ua)) {
-        const modelo = (ua.match(/\bSM-[A-Z0-9]+/i) || [])[0];
-        return modelo ? `Samsung ${modelo}` : `Samsung / Android${atlasTelaAtual()}`;
+function atlasMarcaModeloAndroidPorUA(ua) {
+    const texto = String(ua || '');
+    const padroes = [
+        { marca: 'Samsung', regex: /\b(SM-[A-Z0-9]+|GT-[A-Z0-9]+)\b/i },
+        { marca: 'Motorola', regex: /\b(moto [^);]+|XT\d{4,5}[^); ]*)/i },
+        { marca: 'Xiaomi', regex: /\b(Redmi [^);]+|Mi [^);]+|M\d{4}[A-Z]?|POCO [^);]+)\b/i },
+        { marca: 'Huawei', regex: /\b(Huawei [^);]+|HUAWEI [^);]+|ANE-[A-Z0-9]+|ELE-[A-Z0-9]+)\b/i },
+        { marca: 'Honor', regex: /\b(Honor [^);]+)\b/i },
+        { marca: 'OPPO', regex: /\b(OPPO [^);]+|CPH\d{4})\b/i },
+        { marca: 'Realme', regex: /\b(RMX\d{4}|realme [^);]+)\b/i },
+        { marca: 'OnePlus', regex: /\b(OnePlus [^);]+|IN\d{4}|GM\d{4})\b/i },
+        { marca: 'Vivo', regex: /\b(vivo [^);]+|V\d{4}[A-Z]?)\b/i },
+        { marca: 'Nokia', regex: /\b(Nokia [^);]+)\b/i },
+        { marca: 'LG', regex: /\b(LG-[A-Z0-9]+|LM-[A-Z0-9]+)\b/i }
+    ];
+
+    for (const padrao of padroes) {
+        const match = texto.match(padrao.regex);
+        if (match?.[1]) {
+            const modelo = match[1].trim().replace(/\s+/g, ' ');
+            return { marca: padrao.marca, modelo, nome: `${padrao.marca} ${modelo}` };
+        }
     }
-    if (/Android/i.test(ua)) return `Android${atlasTelaAtual()}`;
-    if (/iPhone/i.test(ua)) return `${atlasModeloProvavelApple()}${atlasVersaoIOS(ua)}`;
-    if (/iPad/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1)) return `iPad${atlasVersaoIOS(ua)}${atlasTelaAtual()}`;
-    if (/Windows/i.test(ua)) return 'Windows';
-    if (/Mac/i.test(ua)) return 'Mac';
-    return navigator.platform || 'Aparelho';
+
+    return { marca: 'Android', modelo: '', nome: `Android${atlasTelaAtual()}` };
+}
+
+function atlasDetalhesAparelhoBasico() {
+    const ua = navigator.userAgent || '';
+    const tela = atlasTelaAtual().trim();
+    if (/Samsung|SM-/i.test(ua)) {
+        const android = atlasMarcaModeloAndroidPorUA(ua);
+        return { tipo: 'Telemovel Android', marca: android.marca, modelo: android.modelo, sistema: 'Android', nome: android.nome, tela };
+    }
+    if (/Android/i.test(ua)) {
+        const android = atlasMarcaModeloAndroidPorUA(ua);
+        return { tipo: 'Telemovel Android', marca: android.marca, modelo: android.modelo, sistema: 'Android', nome: android.nome, tela };
+    }
+    if (/iPhone/i.test(ua)) {
+        return { tipo: 'iPhone', marca: 'Apple', modelo: atlasModeloProvavelApple(), sistema: `iOS${atlasVersaoIOS(ua).replace(' iOS', ' ')}`, nome: `${atlasModeloProvavelApple()}${atlasVersaoIOS(ua)}`, tela };
+    }
+    if (/iPad/i.test(ua) || (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1)) {
+        return { tipo: 'iPad', marca: 'Apple', modelo: 'iPad', sistema: `iPadOS${atlasVersaoIOS(ua).replace(' iOS', ' ')}`, nome: `iPad${atlasVersaoIOS(ua)}${atlasTelaAtual()}`, tela };
+    }
+    if (/Windows/i.test(ua)) return { tipo: 'Computador', marca: 'PC', modelo: 'Windows', sistema: 'Windows', nome: 'Windows', tela };
+    if (/Mac/i.test(ua)) return { tipo: 'Computador', marca: 'Apple', modelo: 'Mac', sistema: 'macOS', nome: 'Mac', tela };
+    return { tipo: 'Aparelho', marca: '', modelo: navigator.platform || '', sistema: navigator.platform || '', nome: navigator.platform || 'Aparelho', tela };
+}
+
+function atlasNomeAparelhoAtual() {
+    return atlasDetalhesAparelhoBasico().nome;
+}
+
+async function atlasDetalhesAparelhoAtual() {
+    const base = atlasDetalhesAparelhoBasico();
+    const uaData = navigator.userAgentData;
+    if (!uaData?.getHighEntropyValues) return base;
+
+    try {
+        const dados = await uaData.getHighEntropyValues(['model', 'platform', 'platformVersion']);
+        const modelo = String(dados.model || '').trim();
+        const plataforma = String(dados.platform || base.sistema || '').trim();
+        const versao = String(dados.platformVersion || '').trim();
+        if (!modelo) {
+            return {
+                ...base,
+                modelo: base.modelo || 'modelo protegido pelo navegador',
+                sistema: versao ? `${plataforma || base.sistema} ${versao}`.trim() : base.sistema
+            };
+        }
+
+        const android = atlasMarcaModeloAndroidPorUA(modelo);
+        const marca = android.marca && android.marca !== 'Android' ? android.marca : base.marca;
+        const sistema = versao ? `${plataforma || base.sistema} ${versao}`.trim() : (plataforma || base.sistema);
+        return {
+            ...base,
+            marca,
+            modelo,
+            sistema,
+            nome: `${marca && !modelo.toLowerCase().includes(String(marca).toLowerCase()) ? `${marca} ` : ''}${modelo}`.trim()
+        };
+    } catch (erro) {
+        return base;
+    }
 }
 
 function atlasRegistrarUltimoAcessoUsuario(agora, versao, aparelho, idDispositivo) {
@@ -200,7 +272,8 @@ function atlasRegistrarDispositivoAtual() {
     const usuarioCadastro = (usuariosSistema || []).find(usuario => atlasIdUsuarioNormalizado(usuario.id) === atlasIdUsuarioNormalizado(usuarioLogado.id)) || usuarioLogado;
     const usuarioId = usuarioCadastro.id || usuarioLogado.id;
     const usuarioNome = usuarioCadastro.nome || usuarioLogado.nome || usuarioId;
-    const aparelho = atlasNomeAparelhoAtual();
+    const detalhesAparelho = atlasDetalhesAparelhoBasico();
+    const aparelho = detalhesAparelho.nome;
     const usuarioAliases = Array.from(new Set([
         usuarioId,
         usuarioNome,
@@ -221,6 +294,10 @@ function atlasRegistrarDispositivoAtual() {
         usuarioAliases,
         cargo: usuarioCadastro.cargo || usuarioLogado.cargo || '',
         aparelho,
+        tipoAparelho: detalhesAparelho.tipo,
+        marcaAparelho: detalhesAparelho.marca,
+        modeloAparelho: detalhesAparelho.modelo,
+        sistemaAparelho: detalhesAparelho.sistema,
         versao,
         plataforma: navigator.platform || '',
         userAgent: navigator.userAgent || '',
@@ -234,6 +311,7 @@ function atlasRegistrarDispositivoAtual() {
     };
 
     localStorage.setItem('atlas_dispositivos_online', JSON.stringify(dispositivos));
+    atlasAtualizarDetalhesAparelhoAssincrono(id);
     if (typeof window.atlasFirebaseRegistrarDispositivo === 'function') {
         window.atlasFirebaseRegistrarDispositivo(dispositivos[id]);
     }
@@ -260,6 +338,32 @@ function atlasRegistrarDispositivoAtual() {
     }
 }
 
+function atlasAtualizarDetalhesAparelhoAssincrono(idDispositivo) {
+    if (window.atlasDetalheAparelhoPendente) return;
+    window.atlasDetalheAparelhoPendente = true;
+    atlasDetalhesAparelhoAtual()
+        .then(detalhes => {
+            const dispositivos = atlasJSONLocal('atlas_dispositivos_online', {});
+            const atual = dispositivos[idDispositivo];
+            if (!atual) return;
+
+            atual.aparelho = detalhes.nome || atual.aparelho;
+            atual.tipoAparelho = detalhes.tipo || atual.tipoAparelho || '';
+            atual.marcaAparelho = detalhes.marca || atual.marcaAparelho || '';
+            atual.modeloAparelho = detalhes.modelo || atual.modeloAparelho || '';
+            atual.sistemaAparelho = detalhes.sistema || atual.sistemaAparelho || '';
+            atual.telaAparelho = detalhes.tela || atual.telaAparelho || '';
+            dispositivos[idDispositivo] = atual;
+            localStorage.setItem('atlas_dispositivos_online', JSON.stringify(dispositivos));
+            if (typeof window.atlasFirebaseRegistrarDispositivo === 'function') {
+                window.atlasFirebaseRegistrarDispositivo(atual);
+            }
+        })
+        .finally(() => {
+            setTimeout(() => { window.atlasDetalheAparelhoPendente = false; }, 30000);
+        });
+}
+
 function atlasDadosDispositivoOfflineAtual() {
     const dispositivos = atlasJSONLocal('atlas_dispositivos_online', {});
     const id = atlasDispositivoIdAtual();
@@ -272,6 +376,10 @@ function atlasDadosDispositivoOfflineAtual() {
         nome: atual.nome || usuarioLogado?.nome || usuarioLogado?.id || '',
         cargo: atual.cargo || usuarioLogado?.cargo || '',
         aparelho: atual.aparelho || atlasNomeAparelhoAtual(),
+        tipoAparelho: atual.tipoAparelho || atlasDetalhesAparelhoBasico().tipo || '',
+        marcaAparelho: atual.marcaAparelho || atlasDetalhesAparelhoBasico().marca || '',
+        modeloAparelho: atual.modeloAparelho || atlasDetalhesAparelhoBasico().modelo || '',
+        sistemaAparelho: atual.sistemaAparelho || atlasDetalhesAparelhoBasico().sistema || '',
         versao: atual.versao || window.ATLAS_SISTEMA_VERSAO || 'sem-versao',
         plataforma: atual.plataforma || navigator.platform || '',
         userAgent: atual.userAgent || navigator.userAgent || '',
@@ -5809,6 +5917,7 @@ function atlasHTMLDispositivoSaude(dispositivo) {
     const status = atlasStatusDispositivoSaude(dispositivo);
     const dispositivoId = atlasJSStringSaude(dispositivo.id || '');
     const usuarioId = atlasJSStringSaude(dispositivo.usuario || '');
+    const descricaoAparelho = atlasDescricaoAparelhoSaude(dispositivo);
     const textoAcesso = status.online
         ? (dispositivo.ultimoAcesso || '-')
         : `Saiu: ${dispositivo.saiuEm || dispositivo.ultimoAcesso || '-'}`;
@@ -5819,8 +5928,8 @@ function atlasHTMLDispositivoSaude(dispositivo) {
                 <div style="color:#94a3b8; font-size:12px;">${atlasTextoSeguroSaude(dispositivo.nome || '')} - ${atlasTextoSeguroSaude(dispositivo.cargo || '')}</div>
             </div>
             <div>
-                <b>${atlasTextoSeguroSaude(dispositivo.aparelho || '-')}</b>
-                <div style="color:#94a3b8; font-size:12px;">${atlasTextoSeguroSaude(dispositivo.largura || 0)}x${atlasTextoSeguroSaude(dispositivo.altura || 0)}</div>
+                <b>${atlasTextoSeguroSaude(descricaoAparelho.titulo)}</b>
+                <div style="color:#94a3b8; font-size:12px;">${atlasTextoSeguroSaude(descricaoAparelho.subtitulo)}</div>
             </div>
             <div>
                 <b style="color:${status.corVersao};">Atualizacao: ${status.textoVersao}</b>
@@ -5836,6 +5945,19 @@ function atlasHTMLDispositivoSaude(dispositivo) {
             </button>
         </div>
     `;
+}
+
+function atlasDescricaoAparelhoSaude(dispositivo) {
+    const tipo = dispositivo?.tipoAparelho || '';
+    const marca = dispositivo?.marcaAparelho || '';
+    const modelo = dispositivo?.modeloAparelho || '';
+    const sistema = dispositivo?.sistemaAparelho || '';
+    const aparelho = dispositivo?.aparelho || '';
+    const tela = dispositivo?.telaAparelho || `${dispositivo?.largura || '-'}x${dispositivo?.altura || '-'}`;
+    const tituloPartes = [tipo, marca, modelo].filter(Boolean);
+    const titulo = tituloPartes.length ? tituloPartes.join(' - ') : (aparelho || 'Aparelho');
+    const subtitulo = [sistema, tela].filter(Boolean).join(' | ') || '-';
+    return { titulo, subtitulo };
 }
 
 function atlasChavePessoaSaude(valor) {
@@ -5923,6 +6045,7 @@ function atlasHTMLUsuariosSaudeSistema(dispositivos) {
             .filter(Boolean)
             .sort((a, b) => Number(b.ultimoAcessoMs || 0) - Number(a.ultimoAcessoMs || 0));
         const principal = aparelhosVisiveis[0] || null;
+        const descricaoPrincipal = principal ? atlasDescricaoAparelhoSaude(principal) : null;
         const status = principal ? atlasStatusDispositivoSaude(principal) : null;
         const bloqueado = usuario.bloqueado === true;
 
@@ -5942,8 +6065,8 @@ function atlasHTMLUsuariosSaudeSistema(dispositivos) {
                         <div style="color:#94a3b8; font-size:12px;">${principal ? atlasTextoSeguroSaude(principal.ultimoAcesso || '-') : 'Nenhum aparelho registrado'}</div>
                     </div>
                     <div>
-                        <b>${principal ? atlasTextoSeguroSaude(principal.aparelho || 'Aparelho') : 'Aparelho: -'}</b>
-                        <div style="color:#94a3b8; font-size:12px;">${principal ? `${atlasTextoSeguroSaude(principal.largura || '-')}x${atlasTextoSeguroSaude(principal.altura || '-')}` : '-'}</div>
+                        <b>${descricaoPrincipal ? atlasTextoSeguroSaude(descricaoPrincipal.titulo) : 'Aparelho: -'}</b>
+                        <div style="color:#94a3b8; font-size:12px;">${descricaoPrincipal ? atlasTextoSeguroSaude(descricaoPrincipal.subtitulo) : '-'}</div>
                     </div>
                     <div>
                         <b style="color:${status?.corVersao || '#94a3b8'};">Atualizacao: ${status?.textoVersao || '-'}</b>

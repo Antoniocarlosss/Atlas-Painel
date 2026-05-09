@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v127-status-mais-recente';
+const CACHE_NAME = 'atlas-v128-marca-modelo-aparelho';
 const assets = [
   './',
   './index.html',
