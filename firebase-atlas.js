@@ -302,14 +302,57 @@ async function atlasFirebaseSincronizarVersaoSistema() {
 
     if (!snap.exists() || atual.build >= buildNuvem) {
         await atlasSetDoc(["sistema", "versao"], atual);
+        await atlasFirebasePublicarAtualizacaoGlobal(atual);
         atlasLocalStorageSetItemOriginal.call(localStorage, "atlas_versao_publicada_info", JSON.stringify(atual));
         window.dispatchEvent(new Event("atlasVersaoPublicadaAtualizada"));
         return atual;
     }
 
     atlasLocalStorageSetItemOriginal.call(localStorage, "atlas_versao_publicada_info", JSON.stringify(nuvem));
+    await atlasFirebaseBaixarAtualizacaoGlobal();
     window.dispatchEvent(new Event("atlasVersaoPublicadaAtualizada"));
     return nuvem;
+}
+
+function atlasFirebaseSalvarAtualizacaoGlobal(info) {
+    if (!info) return;
+    atlasFirebaseBloqueado = true;
+    atlasLocalStorageSetItemOriginal.call(localStorage, "atlas_atualizacao_global_info", JSON.stringify(info));
+    atlasFirebaseBloqueado = false;
+    window.dispatchEvent(new CustomEvent("atlasAtualizacaoGlobalAtualizada", { detail: info }));
+    window.dispatchEvent(new Event("atlasVersaoPublicadaAtualizada"));
+}
+
+async function atlasFirebasePublicarAtualizacaoGlobal(info = {}) {
+    const atual = {
+        versao: info.versao || window.ATLAS_SISTEMA_VERSAO || "sem-versao",
+        build: Number(info.build || window.ATLAS_SISTEMA_BUILD || 0),
+        solicitadoPor: atlasFirebaseNomeUsuario(),
+        solicitadoEmMs: Date.now(),
+        solicitadoEm: new Date().toLocaleString("pt-BR"),
+        todosUsuarios: true,
+        pendente: true
+    };
+
+    const ref = doc(atlasFirestore, "sistema", "atualizacao_global");
+    const snap = await getDoc(ref).catch(() => null);
+    const nuvem = snap && snap.exists() ? (snap.data() || {}) : {};
+    if (Number(nuvem.build || 0) > atual.build) {
+        atlasFirebaseSalvarAtualizacaoGlobal(nuvem);
+        return nuvem;
+    }
+
+    await atlasSetDoc(["sistema", "atualizacao_global"], atual);
+    atlasFirebaseSalvarAtualizacaoGlobal(atual);
+    return atual;
+}
+
+async function atlasFirebaseBaixarAtualizacaoGlobal() {
+    const snap = await getDoc(doc(atlasFirestore, "sistema", "atualizacao_global")).catch(() => null);
+    if (!snap || !snap.exists()) return null;
+    const info = snap.data() || {};
+    atlasFirebaseSalvarAtualizacaoGlobal(info);
+    return info;
 }
 
 function atlasChavesAtualizacaoAparelho(alvo = {}) {
@@ -747,6 +790,15 @@ onSnapshot(collection(atlasFirestore, "atualizacoes_confirmadas"), snap => {
     console.error("Erro ao ouvir confirmacoes de atualizacao:", erro);
 });
 
+onSnapshot(doc(atlasFirestore, "sistema", "atualizacao_global"), snap => {
+    if (!snap.exists()) return;
+    const info = snap.data() || {};
+    atlasFirebaseSalvarAtualizacaoGlobal(info);
+    atlasFirebaseAvisarAtualizacaoPendente(info);
+}, erro => {
+    console.error("Erro ao ouvir atualizacao global:", erro);
+});
+
 localStorage.setItem = function(chave, valor) {
     const resultado = atlasLocalStorageSetItemOriginal.call(localStorage, chave, valor);
     if (!atlasFirebaseBloqueado && atlasFirebaseChaveSincronizada(chave) && chave !== ATLAS_FIREBASE_SYNC_KEY) {
@@ -964,6 +1016,13 @@ window.atlasFirebaseChecarAtualizacaoPendente = function(dispositivoId, usuarioI
 window.atlasFirebaseConfirmarAtualizacaoAparelho = function(info) {
     return atlasFirebaseConfirmarAtualizacaoAparelho(info).catch(erro => {
         console.error("Erro ao confirmar atualizacao do aparelho:", erro);
+        return null;
+    });
+};
+
+window.atlasFirebasePublicarAtualizacaoGlobal = function(info) {
+    return atlasFirebasePublicarAtualizacaoGlobal(info).catch(erro => {
+        console.error("Erro ao publicar atualizacao global:", erro);
         return null;
     });
 };

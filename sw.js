@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v140-online-update-confirmada';
+const CACHE_NAME = 'atlas-v141-atualizacao-global-ajustes';
 const assets = [
   './',
   './index.html',

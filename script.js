@@ -499,6 +499,8 @@ function atlasConfirmarAtualizacaoAplicadaLocal(dispositivoId, usuarioId, versao
     const buildAtual = Number(window.ATLAS_SISTEMA_BUILD || 0);
     const pedidos = [
         atlasJSONLocal('atlas_atualizacao_pendente_info', null),
+        atlasJSONLocal('atlas_atualizacao_global_info', null),
+        atlasJSONLocal('atlas_versao_publicada_info', null),
         ...Object.values(atlasJSONLocal('atlas_forcar_atualizacao_usuarios', {}))
     ].filter(Boolean);
 
@@ -566,10 +568,29 @@ function atlasChecarAtualizacaoForcadaLocal() {
     }
 }
 
+function atlasChecarAtualizacaoGlobalLocal() {
+    const info = atlasJSONLocal('atlas_atualizacao_global_info', null) || atlasJSONLocal('atlas_versao_publicada_info', null);
+    if (!info) return;
+    const buildPublicado = Number(info.build || 0);
+    const buildAtual = Number(window.ATLAS_SISTEMA_BUILD || 0);
+    if (!buildPublicado || buildPublicado <= buildAtual) {
+        atlasConfirmarAtualizacaoAplicadaLocal(localStorage.getItem('atlas_dispositivo_id') || '', usuarioLogado?.id || '', window.ATLAS_SISTEMA_VERSAO || '');
+        return;
+    }
+    if (typeof window.atlasMostrarAvisoAtualizacaoDisponivel === 'function') {
+        window.atlasMostrarAvisoAtualizacaoDisponivel(info);
+    }
+}
+
 window.addEventListener('focus', atlasChecarAtualizacaoForcadaLocal);
 window.addEventListener('online', atlasChecarAtualizacaoForcadaLocal);
 window.addEventListener('atlasDadosNuvemAtualizados', atlasChecarAtualizacaoForcadaLocal);
+window.addEventListener('focus', atlasChecarAtualizacaoGlobalLocal);
+window.addEventListener('online', atlasChecarAtualizacaoGlobalLocal);
+window.addEventListener('atlasAtualizacaoGlobalAtualizada', atlasChecarAtualizacaoGlobalLocal);
+window.addEventListener('atlasVersaoPublicadaAtualizada', atlasChecarAtualizacaoGlobalLocal);
 setInterval(atlasChecarAtualizacaoForcadaLocal, 5000);
+setInterval(atlasChecarAtualizacaoGlobalLocal, 7000);
 
 function usuarioPodeVerModulo(chave) {
     if (!usuarioLogado) return false;
@@ -5685,6 +5706,8 @@ function abrirAjustesUsuario() {
         </div>
 
         <div style="display:flex; flex-direction:column; gap:15px; max-width:900px; margin:0 auto;">
+            ${atlasHTMLStatusAtualizacaoUsuario()}
+
             <div style="background:#1e293b; border:1px solid #334155; border-radius:12px; padding:20px;">
                 <h3 style="margin-top:0; margin-bottom:15px;">Conta</h3>
                 <div style="font-size:13px; color:#94a3b8; margin-bottom:15px;">
@@ -5733,6 +5756,49 @@ function abrirAjustesUsuario() {
                     CONFIRMAR MÓDULOS
                 </button>
             </div>
+        </div>
+    `;
+}
+
+function atlasInfoAtualizacaoUsuario() {
+    const local = {
+        versao: window.ATLAS_SISTEMA_VERSAO || 'sem-versao',
+        build: Number(window.ATLAS_SISTEMA_BUILD || 0)
+    };
+    const publicada = atlasJSONLocal('atlas_atualizacao_global_info', null)
+        || atlasJSONLocal('atlas_versao_publicada_info', null)
+        || local;
+    const buildPublicado = Number(publicada.build || 0);
+    const pendente = buildPublicado > local.build;
+    return {
+        local,
+        publicada,
+        pendente,
+        texto: pendente ? 'ATUALIZACAO PENDENTE' : 'SISTEMA ATUALIZADO',
+        cor: pendente ? '#f59e0b' : '#22c55e'
+    };
+}
+
+function atlasHTMLStatusAtualizacaoUsuario() {
+    const info = atlasInfoAtualizacaoUsuario();
+    return `
+        <div style="background:#1e293b; border:1px solid ${info.pendente ? '#f59e0b' : '#22c55e'}; border-left:5px solid ${info.cor}; border-radius:12px; padding:20px;">
+            <h3 style="margin-top:0; margin-bottom:10px;">Atualizacao do sistema</h3>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; color:#bfdbfe; margin-bottom:12px;">
+                <div>Status: <b style="color:${info.cor};">${info.texto}</b></div>
+                <div>Sua versao: <b>${atlasTextoSeguroSaude(info.local.versao)}</b></div>
+                <div>Versao publicada: <b>${atlasTextoSeguroSaude(info.publicada.versao || '-')}</b></div>
+                <div>Publicada em: <b>${atlasTextoSeguroSaude(info.publicada.solicitadoEm || info.publicada.publicadaEm || '-')}</b></div>
+            </div>
+            ${info.pendente ? `
+                <button onclick="window.atlasExecutarAtualizacaoAparelho && window.atlasExecutarAtualizacaoAparelho()" style="width:100%; background:#10b981; color:white; border:none; padding:13px; border-radius:8px; font-weight:900; cursor:pointer;">
+                    ATUALIZAR AGORA
+                </button>
+            ` : `
+                <button onclick="atlasChecarAtualizacaoGlobalLocal(); alert('Sistema verificado. Voce esta na versao atual.')" style="width:100%; background:#2563eb; color:white; border:none; padding:13px; border-radius:8px; font-weight:900; cursor:pointer;">
+                    VERIFICAR ATUALIZACAO
+                </button>
+            `}
         </div>
     `;
 }
@@ -5983,6 +6049,7 @@ async function abrirSaudeSistemaAtlas() {
 
         <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:12px; margin-bottom:14px;">
             <button onclick="atlasForcarAtualizacaoAparelhoAtlas()" style="padding:15px; border:none; border-radius:10px; background:#2563eb; color:white; font-weight:900; cursor:pointer;">FORCAR ATUALIZACAO NESTE APARELHO</button>
+            <button onclick="atlasForcarAtualizacaoTodosUsuarios()" style="padding:15px; border:none; border-radius:10px; background:#7c3aed; color:white; font-weight:900; cursor:pointer;">AVISAR ATUALIZACAO PARA TODOS</button>
             <button onclick="atlasSincronizarSaudeSistema()" style="padding:15px; border:none; border-radius:10px; background:#10b981; color:white; font-weight:900; cursor:pointer;">SINCRONIZAR AGORA</button>
             <button onclick="atlasLimparCacheSaudeSistema()" style="padding:15px; border:none; border-radius:10px; background:#991b1b; color:white; font-weight:900; cursor:pointer;">LIMPAR CACHE DESTE APARELHO</button>
         </div>
@@ -6435,6 +6502,21 @@ async function atlasForcarAtualizacaoAparelhoAtlas() {
         await Promise.all(regs.map(reg => reg.update().catch(() => null)));
     }
     setTimeout(() => location.reload(), 900);
+}
+
+async function atlasForcarAtualizacaoTodosUsuarios() {
+    if (!usuarioEhAdmin()) return alert('Apenas ADMIN pode avisar todos os usuarios.');
+    if (typeof window.atlasFirebasePublicarAtualizacaoGlobal !== 'function') {
+        return alert('Firebase ainda esta carregando. Clique em sincronizar e tente novamente.');
+    }
+
+    await window.atlasFirebasePublicarAtualizacaoGlobal({
+        versao: window.ATLAS_SISTEMA_VERSAO || 'sem-versao',
+        build: Number(window.ATLAS_SISTEMA_BUILD || 0)
+    });
+
+    alert('Atualizacao enviada para todos. Cada usuario vai ver o aviso ao abrir ou sincronizar o sistema.');
+    atlasAtualizarSaudeSistemaAberta();
 }
 
 async function atlasLimparCachesAtlas() {

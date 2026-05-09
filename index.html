@@ -9,7 +9,7 @@
     <title>Atlas Painel - Gestão</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20260509-online-update-confirmada">
+    <link rel="stylesheet" href="style.css?v=20260509-atualizacao-global-ajustes">
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
@@ -117,8 +117,8 @@
             });
         })();
 
-        window.ATLAS_SISTEMA_VERSAO = '20260509-online-update-confirmada';
-        window.ATLAS_SISTEMA_BUILD = 140;
+        window.ATLAS_SISTEMA_VERSAO = '20260509-atualizacao-global-ajustes';
+        window.ATLAS_SISTEMA_BUILD = 141;
         window.atlasMostrarTelaAtualizacao = function atlasMostrarTelaAtualizacao(opcoes = {}) {
             const finalizado = opcoes.finalizado === true;
             let overlay = document.getElementById('atlas-update-screen');
@@ -242,22 +242,27 @@
 
         window.atlasChecarAvisoVersaoPublicada = function atlasChecarAvisoVersaoPublicada() {
             let info = null;
+            let global = null;
             try {
                 info = JSON.parse(localStorage.getItem('atlas_versao_publicada_info') || 'null');
+                global = JSON.parse(localStorage.getItem('atlas_atualizacao_global_info') || 'null');
             } catch (erro) {
                 info = null;
+                global = null;
             }
-            const buildPublicado = Number(info?.build || 0);
+            const buildPublicado = Math.max(Number(info?.build || 0), Number(global?.build || 0));
             const buildAtual = Number(window.ATLAS_SISTEMA_BUILD || 0);
             if (buildPublicado > buildAtual) {
+                const aviso = Number(global?.build || 0) >= Number(info?.build || 0) ? global : info;
                 try {
-                    if (localStorage.getItem(window.atlasChaveAvisoAtualizacao(info)) === '1') return;
+                    if (localStorage.getItem(window.atlasChaveAvisoAtualizacao(aviso)) === '1') return;
                 } catch (erro) {}
-                window.atlasMostrarAvisoAtualizacaoDisponivel(info);
+                window.atlasMostrarAvisoAtualizacaoDisponivel(aviso);
             }
         };
 
         window.addEventListener('atlasVersaoPublicadaAtualizada', window.atlasChecarAvisoVersaoPublicada);
+        window.addEventListener('atlasAtualizacaoGlobalAtualizada', window.atlasChecarAvisoVersaoPublicada);
         window.addEventListener('load', () => setTimeout(window.atlasChecarAvisoVersaoPublicada, 2500));
 
         (function prepararAtualizacaoAtlas() {
@@ -284,10 +289,10 @@
             Promise.allSettled([limparCaches, atualizarWorker]);
         })();
     </script>
-    <script src="script.js?v=20260509-online-update-confirmada"></script>
-    <script src="historicos-admin.js?v=20260509-online-update-confirmada"></script>
+    <script src="script.js?v=20260509-atualizacao-global-ajustes"></script>
+    <script src="historicos-admin.js?v=20260509-atualizacao-global-ajustes"></script>
     <script src="atlas-ajustes-fachadas.js?v=20260427-permissao-excluir"></script>
-    <script type="module" src="firebase-atlas.js?v=20260509-online-update-confirmada"></script>
+    <script type="module" src="firebase-atlas.js?v=20260509-atualizacao-global-ajustes"></script>
     <script>
         if ('serviceWorker' in navigator) {
             let atlasAtualizandoPWA = false;
@@ -298,7 +303,7 @@
             });
 
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=20260509-online-update-confirmada')
+                navigator.serviceWorker.register('sw.js?v=20260509-atualizacao-global-ajustes')
                     .then(reg => {
                         console.log('Atlas PWA: Ativo!');
                         reg.update();
