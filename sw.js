@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v126-botao-atualizar-usuario';
+const CACHE_NAME = 'atlas-v127-status-mais-recente';
 const assets = [
   './',
   './index.html',

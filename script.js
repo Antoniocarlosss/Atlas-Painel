@@ -5768,6 +5768,43 @@ async function atlasSolicitarAtualizacaoDispositivo(dispositivoId, usuarioId) {
     alert('Pedido de atualizacao enviado. Quando esse aparelho sincronizar, o usuario vai receber o aviso para atualizar.');
 }
 
+async function atlasSolicitarAtualizacaoUsuarioSaude(usuarioId, nomeUsuario) {
+    if (!usuarioEhAdmin()) return alert('Apenas ADMIN pode pedir atualizacao.');
+    if (typeof window.atlasFirebaseSolicitarAtualizacaoAparelho !== 'function') {
+        return alert('Firebase ainda esta carregando. Clique em sincronizar e tente novamente.');
+    }
+
+    const usuario = (usuariosSistema || []).find(u => atlasIdUsuarioNormalizado(u.id) === atlasIdUsuarioNormalizado(usuarioId))
+        || { id: usuarioId, nome: nomeUsuario };
+    const dispositivos = Object.values(atlasJSONLocal('atlas_dispositivos_online', {}))
+        .filter(dispositivo => atlasDispositivoPertenceAoUsuario(dispositivo, usuario));
+    const pedidos = [];
+    const usuariosAlvo = Array.from(new Set([
+        usuarioId,
+        nomeUsuario,
+        usuario?.id,
+        usuario?.nome,
+        ...dispositivos.flatMap(dispositivo => [
+            dispositivo.usuario,
+            dispositivo.nome,
+            ...(Array.isArray(dispositivo.usuarioAliases) ? dispositivo.usuarioAliases : [])
+        ])
+    ].filter(Boolean).map(valor => String(valor).trim())));
+
+    usuariosAlvo.forEach(usuarioAlvo => {
+        pedidos.push(window.atlasFirebaseSolicitarAtualizacaoAparelho({ usuario: usuarioAlvo }));
+    });
+    dispositivos.forEach(dispositivo => {
+        pedidos.push(window.atlasFirebaseSolicitarAtualizacaoAparelho({
+            dispositivoId: dispositivo.id,
+            usuario: dispositivo.usuario || usuarioId
+        }));
+    });
+
+    await Promise.all(pedidos);
+    alert(`Pedido de atualizacao enviado para ${usuariosAlvo.length} identificador(es) e ${dispositivos.length} aparelho(s) deste usuario.`);
+}
+
 function atlasHTMLDispositivoSaude(dispositivo) {
     const status = atlasStatusDispositivoSaude(dispositivo);
     const dispositivoId = atlasJSStringSaude(dispositivo.id || '');
@@ -5882,8 +5919,10 @@ function atlasHTMLUsuariosSaudeSistema(dispositivos) {
             .sort((a, b) => Number(b.ultimoAcessoMs || 0) - Number(a.ultimoAcessoMs || 0));
         aparelhos.forEach(dispositivo => dispositivosUsados.add(dispositivo.id));
         const acessoUsuario = atlasDispositivoVirtualUsuarioSaude(usuario);
-        const principal = aparelhos[0] || acessoUsuario;
-        const aparelhosVisiveis = aparelhos.length ? aparelhos : (acessoUsuario ? [acessoUsuario] : []);
+        const aparelhosVisiveis = [...aparelhos, acessoUsuario]
+            .filter(Boolean)
+            .sort((a, b) => Number(b.ultimoAcessoMs || 0) - Number(a.ultimoAcessoMs || 0));
+        const principal = aparelhosVisiveis[0] || null;
         const status = principal ? atlasStatusDispositivoSaude(principal) : null;
         const bloqueado = usuario.bloqueado === true;
 
@@ -5911,8 +5950,8 @@ function atlasHTMLUsuariosSaudeSistema(dispositivos) {
                         <div style="color:#94a3b8; font-size:12px; overflow-wrap:anywhere;">${principal ? atlasTextoSeguroSaude(principal.versao || '-') : '-'}</div>
                     </div>
                     <div>
-                        ${principal && principal.id ? `
-                            <button onclick="atlasSolicitarAtualizacaoDispositivo('${atlasJSStringSaude(principal.id || '')}', '${atlasJSStringSaude(usuario.id || '')}')"
+                        ${principal ? `
+                            <button onclick="atlasSolicitarAtualizacaoUsuarioSaude('${atlasJSStringSaude(usuario.id || '')}', '${atlasJSStringSaude(usuario.nome || '')}')"
                                 style="width:100%; padding:12px; border:none; border-radius:8px; background:#2563eb; color:white; font-weight:900; cursor:pointer;">
                                 FORCAR ATUALIZACAO
                             </button>
