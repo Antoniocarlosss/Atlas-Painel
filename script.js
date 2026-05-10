@@ -6101,13 +6101,19 @@ function atlasSerraAnotacaoRender(registro = null) {
                         <input id="serra-anotacao-foto" type="file" accept="image/*" capture="environment" onchange="atlasSerraAnotacaoLerFoto(event)">
                         <div class="serra-anotacao-foto-acoes">
                             <label for="serra-anotacao-foto" class="serra2-btn azul">Tirar foto / escolher imagem</label>
+                            <button class="serra2-btn verde" onclick="atlasSerraAnotacaoExecutarOCR()">Ler OCR da foto</button>
                             <button class="serra2-btn cinza" onclick="atlasSerraAnotacaoRemoverFoto()">Remover foto</button>
                         </div>
+                        <div id="serra-anotacao-ocr-status" class="serra-anotacao-ocr-status">OCR: aguardando foto.</div>
                     </div>
                     <div class="serra-anotacao-preview">
                         ${r.foto ? `<img src="${r.foto}" alt="Foto da anotacao">` : `<span>Nenhuma foto anexada.</span>`}
                     </div>
                 </div>
+                <details class="serra-anotacao-ocr-box">
+                    <summary>Texto lido pelo OCR</summary>
+                    <textarea id="serra-anotacao-ocr-texto" readonly>${atlasTextoSeguroSaude(r.ocrTexto || '')}</textarea>
+                </details>
             </section>
 
             <section class="serra2-painel">
@@ -6176,7 +6182,145 @@ function atlasSerraAnotacaoLerFoto(evento) {
 function atlasSerraAnotacaoRemoverFoto() {
     const r = atlasSerraAnotacaoColetarDados();
     r.foto = '';
+    r.ocrTexto = '';
     atlasSerraAnotacaoRender(r);
+}
+
+function atlasSerraAnotacaoSetOCRStatus(texto, tipo = '') {
+    const alvo = document.getElementById('serra-anotacao-ocr-status');
+    if (!alvo) return;
+    alvo.textContent = texto;
+    alvo.className = `serra-anotacao-ocr-status ${tipo}`;
+}
+
+function atlasSerraAnotacaoNormalizarTextoOCR(texto) {
+    return String(texto || '')
+        .replace(/[|]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function atlasSerraAnotacaoDataISO(valor) {
+    const texto = String(valor || '');
+    let m = texto.match(/\b(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})\b/);
+    if (m) {
+        const ano = m[3].length === 2 ? `20${m[3]}` : m[3];
+        return `${ano}-${String(m[2]).padStart(2, '0')}-${String(m[1]).padStart(2, '0')}`;
+    }
+    m = texto.match(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/);
+    if (m) return `${m[1]}-${String(m[2]).padStart(2, '0')}-${String(m[3]).padStart(2, '0')}`;
+    return '';
+}
+
+function atlasSerraAnotacaoExtrairOCR(textoOriginal) {
+    const texto = atlasSerraAnotacaoNormalizarTextoOCR(textoOriginal);
+    const linhasOriginais = String(textoOriginal || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const achados = { linhas: [] };
+
+    achados.data = atlasSerraAnotacaoDataISO(texto);
+
+    const qualidade = texto.match(/\b(P1|P2|PPC|DESCARTE)\b/i);
+    if (qualidade) {
+        const q = qualidade[1].toUpperCase();
+        achados.qualidade = q === 'DESCARTE' ? 'Descarte' : q;
+    }
+
+    const esp = texto.match(/(?:esp(?:essura)?\.?\s*)?(\d{2,3}(?:[,.]\d+)?)\s*mm\b/i);
+    if (esp) achados.espessura = `${esp[1].replace(',', '.')} mm`;
+
+    const total = texto.match(/(?:total|metros|metragem)[^\d]{0,20}(\d+(?:[,.]\d+)?)\s*m\b/i)
+        || texto.match(/\b(\d+(?:[,.]\d+)?)\s*(?:m|metros)\b/i);
+    if (total) achados.totalMetros = total[1].replace(',', '.');
+
+    const tipoPadroes = [
+        /fachada\s+oculta/i,
+        /fachada\s+vis[ií]vel/i,
+        /telha\s+canudo/i,
+        /5\s*ondas/i,
+        /ondulado/i,
+        /liso/i,
+        /telha/i,
+        /fachada/i
+    ];
+    const tipo = tipoPadroes.map(rx => texto.match(rx)?.[0]).find(Boolean);
+    if (tipo) achados.tipoPainel = tipo.replace(/\s+/g, ' ').toUpperCase();
+
+    const rals = [];
+    const ralContexto = [...texto.matchAll(/\bRAL\s*(SUPERIOR|SUP|INFERIOR|INF)?\D{0,12}(\d{3,4})\b/gi)];
+    ralContexto.forEach(match => {
+        const lado = String(match[1] || '').toLowerCase();
+        const valor = match[2];
+        if (/sup|superior/.test(lado)) achados.ralSuperior = valor;
+        else if (/inf|inferior/.test(lado)) achados.ralInferior = valor;
+        rals.push(valor);
+    });
+    [...texto.matchAll(/\b(10\d{2}|[1-9]\d{3})\b/g)].forEach(match => {
+        if (!rals.includes(match[1])) rals.push(match[1]);
+    });
+    if (!achados.ralSuperior && rals[0]) achados.ralSuperior = rals[0];
+    if (!achados.ralInferior && rals[1]) achados.ralInferior = rals[1];
+
+    linhasOriginais.forEach(linha => {
+        const medida = linha.match(/\b(\d{3,5})\s*(?:mm)?\b/i);
+        if (!medida) return;
+        const quantidade = linha.match(/\b(?:qtd|qt|quantidade)?\s*(\d{1,3})\s*(?:x|un|und)?\b/i);
+        const pedido = linha.match(/\b(?:ped(?:ido)?|op|obra)\D{0,8}([a-z0-9.-]{2,})\b/i);
+        const ral = linha.match(/\b(?:RAL\s*)?(\d{3,4})\b/i);
+        achados.linhas.push({
+            quantidade: quantidade?.[1] || '1',
+            medidaMm: medida[1],
+            pedido: pedido?.[1] || '',
+            cliente: '',
+            ral: ral?.[1] && ral[1] !== medida[1] ? ral[1] : '',
+            observacao: linha
+        });
+    });
+
+    return achados;
+}
+
+function atlasSerraAnotacaoAplicarOCR(achados, texto) {
+    const r = atlasSerraAnotacaoColetarDados();
+    if (achados.data) r.data = achados.data;
+    if (achados.tipoPainel) r.tipoPainel = achados.tipoPainel;
+    if (achados.espessura) r.espessura = achados.espessura;
+    if (achados.ralSuperior) r.ralSuperior = achados.ralSuperior;
+    if (achados.ralInferior) r.ralInferior = achados.ralInferior;
+    if (achados.totalMetros) r.totalMetros = achados.totalMetros;
+    if (achados.qualidade) r.qualidade = achados.qualidade;
+    if (Array.isArray(achados.linhas) && achados.linhas.length) {
+        r.linhas = achados.linhas;
+    }
+    r.ocrTexto = texto;
+    window.atlasSerraAnotacaoAtual = r;
+    atlasSerraAnotacaoRender(r);
+    atlasSerraAnotacaoSetOCRStatus('OCR concluido. Confira e corrija antes de salvar.', 'ok');
+}
+
+async function atlasSerraAnotacaoExecutarOCR() {
+    const r = atlasSerraAnotacaoColetarDados();
+    if (!r.foto) return alert('Anexe uma foto antes de usar o OCR.');
+    if (!window.Tesseract?.recognize) {
+        return alert('Biblioteca OCR ainda nao carregou. Verifique a internet e tente novamente.');
+    }
+
+    try {
+        atlasSerraAnotacaoSetOCRStatus('OCR lendo imagem... 0%', 'carregando');
+        const resultado = await Tesseract.recognize(r.foto, 'por+eng', {
+            logger: info => {
+                if (info.status === 'recognizing text') {
+                    atlasSerraAnotacaoSetOCRStatus(`OCR lendo imagem... ${Math.round((info.progress || 0) * 100)}%`, 'carregando');
+                }
+            }
+        });
+        const texto = resultado?.data?.text || '';
+        const achados = atlasSerraAnotacaoExtrairOCR(texto);
+        atlasSerraAnotacaoAplicarOCR(achados, texto);
+    } catch (erro) {
+        console.error('Erro OCR:', erro);
+        atlasSerraAnotacaoSetOCRStatus('OCR falhou. A imagem pode estar escura ou a biblioteca nao carregou.', 'erro');
+        alert('Nao foi possivel ler a imagem. Pode preencher manualmente ou tentar outra foto.');
+    }
 }
 
 function atlasSerraAnotacaoAdicionarLinha() {
