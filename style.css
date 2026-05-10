@@ -1389,11 +1389,164 @@ table {
     padding: 14px;
 }
 
+.serra-anotacao-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 12px;
+    color: #fff;
+}
+
+.serra-anotacao-foto-grid {
+    display: grid;
+    grid-template-columns: minmax(220px, .8fr) minmax(260px, 1.2fr);
+    gap: 14px;
+    align-items: start;
+}
+
+.serra-anotacao-foto-grid input[type="file"] {
+    display: none;
+}
+
+.serra-anotacao-foto-acoes {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.serra-anotacao-foto-acoes label {
+    text-align: center;
+}
+
+.serra-anotacao-preview {
+    min-height: 220px;
+    background: #0f172a;
+    border: 1px dashed #475569;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    color: #94a3b8;
+}
+
+.serra-anotacao-preview img {
+    width: 100%;
+    max-height: 420px;
+    object-fit: contain;
+}
+
+.serra-anotacao-campos {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+    gap: 12px;
+}
+
+.serra-anotacao-campos label {
+    color: #bfdbfe;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.serra-anotacao-campos input,
+.serra-anotacao-campos select,
+.serra-anotacao-campos textarea,
+.serra-anotacao-linha input {
+    width: 100%;
+    margin-top: 5px;
+    background: #0f172a;
+    color: #fff;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.serra-anotacao-campos textarea {
+    min-height: 90px;
+    resize: vertical;
+}
+
+.serra-anotacao-campos .span-2 {
+    grid-column: 1 / -1;
+}
+
+.serra-anotacao-linhas {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.serra-anotacao-linha {
+    display: grid;
+    grid-template-columns: .6fr .9fr 1fr 1.2fr .8fr 1.4fr auto;
+    gap: 8px;
+    align-items: center;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-left: 5px solid #2563eb;
+    border-radius: 10px;
+    padding: 10px;
+}
+
+.serra-anotacao-linha button,
+.serra-anotacao-card-hist button {
+    border: none;
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: #fff;
+    font-weight: 900;
+    cursor: pointer;
+    background: #7f1d1d;
+}
+
+.serra-anotacao-grupo {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 8px;
+    margin-bottom: 10px;
+}
+
+.serra-anotacao-grupo summary {
+    cursor: pointer;
+    color: #fff;
+    font-weight: 900;
+}
+
+.serra-anotacao-card-hist {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: center;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-left: 5px solid #10b981;
+    border-radius: 10px;
+    padding: 12px;
+    margin: 8px 0;
+}
+
+.serra-anotacao-card-hist span {
+    display: block;
+    color: #94a3b8;
+    font-size: 13px;
+}
+
+.serra-anotacao-card-hist button:first-child {
+    background: #2563eb;
+}
+
 @media (max-width: 720px) {
     .serra2-topo,
-    .serra2-item {
+    .serra2-item,
+    .serra-anotacao-card-hist {
         align-items: stretch;
         flex-direction: column;
+    }
+
+    .serra-anotacao-foto-grid,
+    .serra-anotacao-linha {
+        grid-template-columns: 1fr;
     }
 
     .serra2-campos.pedido {

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v146-serra2-otimizador';
+const CACHE_NAME = 'atlas-v147-serra-anotacao';
 const assets = [
   './',
   './index.html',

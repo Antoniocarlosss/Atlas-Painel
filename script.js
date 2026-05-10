@@ -8,6 +8,7 @@ const MODULOS_SISTEMA = [
     { chave: 'injecao', nome: 'Injeção' },
     { chave: 'bobines', nome: 'Bobines' },
     { chave: 'serra', nome: 'Serra' },
+    { chave: 'serra_anotacao', nome: 'Serra - Anotacao' },
     { chave: 'serra2', nome: 'Serra 2' },
     { chave: 'embalagem', nome: 'Embalagem' },
     { chave: 'plano', nome: 'Plano' },
@@ -48,7 +49,7 @@ function obterModulosPermissoesAtlas() {
 
 function obterPreferenciasBaseCargo(cargoInformado) {
     const cargo = normalizarCargoUsuario(cargoInformado);
-    const basicos = ['injecao', 'bobines', 'serra', 'serra2', 'embalagem', 'plano', 'config'];
+    const basicos = ['injecao', 'bobines', 'serra', 'serra_anotacao', 'serra2', 'embalagem', 'plano', 'config'];
     const restritos = ['gestao', 'conferencia', 'stock', 'lixeira', 'pesquisa_encomenda', 'lembretes', 'auditoria'];
     const supervisorTotal = [...basicos, ...restritos];
     const modulosVisiveis = cargo === 'admin'
@@ -999,6 +1000,7 @@ function abrirModulo(nome) {
         injecao: "INJEÇÃO",
         bobines: "BOBINES",
         serra: "SERRA",
+        serra_anotacao: "SERRA - LEITURA DE ANOTACAO",
         serra2: "SERRA 2",
         embalagem: "EMBALAGEM",
         plano: "PLANO",
@@ -1024,6 +1026,9 @@ function abrirModulo(nome) {
     } 
     else if (nome === 'serra') {
         renderizarMenuSerra();
+    }
+    else if (nome === 'serra_anotacao') {
+        atlasSerraAnotacaoRender();
     }
     else if (nome === 'serra2') {
         renderizarSerra2();
@@ -6040,6 +6045,311 @@ function atlasJSStringSaude(valor) {
         .replace(/\\/g, '\\\\')
         .replace(/'/g, "\\'")
         .replace(/\r?\n/g, ' ');
+}
+
+/* ==========================================================
+   SERRA - LEITURA DE ANOTACAO (SEM OCR)
+   ========================================================== */
+
+const ATLAS_SERRA_ANOTACAO_KEY = 'atlas_serra_anotacao_hist';
+
+function atlasSerraAnotacaoHist() {
+    return atlasArrayLocal(ATLAS_SERRA_ANOTACAO_KEY, []);
+}
+
+function atlasSerraAnotacaoSalvarHist(lista) {
+    localStorage.setItem(ATLAS_SERRA_ANOTACAO_KEY, JSON.stringify(lista || []));
+}
+
+function atlasSerraAnotacaoNovo() {
+    return {
+        id: Date.now(),
+        data: new Date().toISOString().slice(0, 10),
+        tipoPainel: '',
+        espessura: '',
+        ralSuperior: '',
+        ralInferior: '',
+        totalMetros: '',
+        qualidade: 'P1',
+        observacoes: '',
+        foto: '',
+        linhas: [],
+        operador: usuarioLogado?.id || 'SISTEMA',
+        criadoEm: new Date().toLocaleString('pt-BR')
+    };
+}
+
+function atlasSerraAnotacaoRender(registro = null) {
+    window.atlasSerraAnotacaoAtual = registro || atlasSerraAnotacaoNovo();
+    const render = document.getElementById('render-modulo');
+    if (!render) return;
+    const r = window.atlasSerraAnotacaoAtual;
+    render.innerHTML = `
+        <div class="serra-anotacao-wrap">
+            <div class="serra2-topo">
+                <div>
+                    <h2>Serra - Leitura de Anotacao</h2>
+                    <p>Primeira versao funcional para anexar foto e digitar os dados manualmente.</p>
+                </div>
+                <button onclick="atlasSerraAnotacaoHistorico()">Historico</button>
+            </div>
+
+            <section class="serra2-painel">
+                <h3>Foto da anotacao</h3>
+                <div class="serra-anotacao-foto-grid">
+                    <div>
+                        <input id="serra-anotacao-foto" type="file" accept="image/*" capture="environment" onchange="atlasSerraAnotacaoLerFoto(event)">
+                        <div class="serra-anotacao-foto-acoes">
+                            <label for="serra-anotacao-foto" class="serra2-btn azul">Tirar foto / escolher imagem</label>
+                            <button class="serra2-btn cinza" onclick="atlasSerraAnotacaoRemoverFoto()">Remover foto</button>
+                        </div>
+                    </div>
+                    <div class="serra-anotacao-preview">
+                        ${r.foto ? `<img src="${r.foto}" alt="Foto da anotacao">` : `<span>Nenhuma foto anexada.</span>`}
+                    </div>
+                </div>
+            </section>
+
+            <section class="serra2-painel">
+                <h3>Dados gerais</h3>
+                <div class="serra-anotacao-campos">
+                    <label>Data <input id="sa-data" type="date" value="${atlasTextoSeguroSaude(r.data)}"></label>
+                    <label>Tipo de painel <input id="sa-tipo" value="${atlasTextoSeguroSaude(r.tipoPainel)}"></label>
+                    <label>Espessura <input id="sa-espessura" value="${atlasTextoSeguroSaude(r.espessura)}"></label>
+                    <label>RAL superior <input id="sa-ral-sup" value="${atlasTextoSeguroSaude(r.ralSuperior)}"></label>
+                    <label>RAL inferior <input id="sa-ral-inf" value="${atlasTextoSeguroSaude(r.ralInferior)}"></label>
+                    <label>Total de metros <input id="sa-total" inputmode="decimal" value="${atlasTextoSeguroSaude(r.totalMetros)}"></label>
+                    <label>Qualidade
+                        <select id="sa-qualidade">
+                            ${['P1', 'P2', 'PPC', 'Descarte'].map(q => `<option value="${q}" ${r.qualidade === q ? 'selected' : ''}>${q}</option>`).join('')}
+                        </select>
+                    </label>
+                    <label class="span-2">Observacoes <textarea id="sa-obs">${atlasTextoSeguroSaude(r.observacoes)}</textarea></label>
+                </div>
+            </section>
+
+            <section class="serra2-painel">
+                <div class="serra2-linha-titulo">
+                    <h3>Linhas de corte</h3>
+                    <button onclick="atlasSerraAnotacaoAdicionarLinha()">Adicionar linha</button>
+                </div>
+                <div id="serra-anotacao-linhas" class="serra-anotacao-linhas"></div>
+            </section>
+
+            <div class="serra2-acoes">
+                <button class="serra2-btn verde" onclick="atlasSerraAnotacaoSalvar()">Salvar relatorio</button>
+                <button class="serra2-btn azul" onclick="atlasSerraAnotacaoGerarPDF()">Gerar PDF</button>
+                <button class="serra2-btn cinza" onclick="atlasSerraAnotacaoRender()">Novo</button>
+            </div>
+        </div>
+    `;
+    atlasSerraAnotacaoRenderLinhas();
+}
+
+function atlasSerraAnotacaoColetarDados() {
+    const r = window.atlasSerraAnotacaoAtual || atlasSerraAnotacaoNovo();
+    r.data = document.getElementById('sa-data')?.value || r.data;
+    r.tipoPainel = document.getElementById('sa-tipo')?.value.trim() || '';
+    r.espessura = document.getElementById('sa-espessura')?.value.trim() || '';
+    r.ralSuperior = document.getElementById('sa-ral-sup')?.value.trim() || '';
+    r.ralInferior = document.getElementById('sa-ral-inf')?.value.trim() || '';
+    r.totalMetros = document.getElementById('sa-total')?.value.trim() || '';
+    r.qualidade = document.getElementById('sa-qualidade')?.value || 'P1';
+    r.observacoes = document.getElementById('sa-obs')?.value.trim() || '';
+    r.atualizadoEm = new Date().toLocaleString('pt-BR');
+    window.atlasSerraAnotacaoAtual = r;
+    return r;
+}
+
+function atlasSerraAnotacaoLerFoto(evento) {
+    const arquivo = evento?.target?.files?.[0];
+    if (!arquivo) return;
+    const leitor = new FileReader();
+    leitor.onload = () => {
+        const r = atlasSerraAnotacaoColetarDados();
+        r.foto = leitor.result;
+        atlasSerraAnotacaoRender(r);
+    };
+    leitor.readAsDataURL(arquivo);
+}
+
+function atlasSerraAnotacaoRemoverFoto() {
+    const r = atlasSerraAnotacaoColetarDados();
+    r.foto = '';
+    atlasSerraAnotacaoRender(r);
+}
+
+function atlasSerraAnotacaoAdicionarLinha() {
+    const r = atlasSerraAnotacaoColetarDados();
+    r.linhas = r.linhas || [];
+    r.linhas.push({ quantidade: '', medidaMm: '', pedido: '', cliente: '', ral: '', observacao: '' });
+    atlasSerraAnotacaoRenderLinhas();
+}
+
+function atlasSerraAnotacaoRenderLinhas() {
+    const alvo = document.getElementById('serra-anotacao-linhas');
+    if (!alvo) return;
+    const r = window.atlasSerraAnotacaoAtual || atlasSerraAnotacaoNovo();
+    r.linhas = r.linhas || [];
+    alvo.innerHTML = r.linhas.length ? r.linhas.map((linha, index) => `
+        <div class="serra-anotacao-linha">
+            <input value="${atlasTextoSeguroSaude(linha.quantidade)}" placeholder="Qtd" inputmode="numeric" onchange="atlasSerraAnotacaoAtualizarLinha(${index}, 'quantidade', this.value)">
+            <input value="${atlasTextoSeguroSaude(linha.medidaMm)}" placeholder="Medida mm" inputmode="numeric" onchange="atlasSerraAnotacaoAtualizarLinha(${index}, 'medidaMm', this.value)">
+            <input value="${atlasTextoSeguroSaude(linha.pedido)}" placeholder="Pedido" onchange="atlasSerraAnotacaoAtualizarLinha(${index}, 'pedido', this.value)">
+            <input value="${atlasTextoSeguroSaude(linha.cliente)}" placeholder="Cliente" onchange="atlasSerraAnotacaoAtualizarLinha(${index}, 'cliente', this.value)">
+            <input value="${atlasTextoSeguroSaude(linha.ral)}" placeholder="RAL" onchange="atlasSerraAnotacaoAtualizarLinha(${index}, 'ral', this.value)">
+            <input value="${atlasTextoSeguroSaude(linha.observacao)}" placeholder="Observacao" onchange="atlasSerraAnotacaoAtualizarLinha(${index}, 'observacao', this.value)">
+            <button onclick="atlasSerraAnotacaoRemoverLinha(${index})">X</button>
+        </div>
+    `).join('') : '<div class="serra2-vazio">Nenhuma linha adicionada.</div>';
+}
+
+function atlasSerraAnotacaoAtualizarLinha(index, campo, valor) {
+    const r = window.atlasSerraAnotacaoAtual || atlasSerraAnotacaoNovo();
+    r.linhas[index] = r.linhas[index] || {};
+    r.linhas[index][campo] = valor;
+}
+
+function atlasSerraAnotacaoRemoverLinha(index) {
+    const r = window.atlasSerraAnotacaoAtual || atlasSerraAnotacaoNovo();
+    r.linhas.splice(index, 1);
+    atlasSerraAnotacaoRenderLinhas();
+}
+
+function atlasSerraAnotacaoSalvar() {
+    const r = atlasSerraAnotacaoColetarDados();
+    if (!r.data) return alert('Informe a data.');
+    const hist = atlasSerraAnotacaoHist();
+    const idx = hist.findIndex(item => item.id === r.id);
+    if (idx >= 0) hist[idx] = r;
+    else hist.unshift(r);
+    atlasSerraAnotacaoSalvarHist(hist);
+    if (typeof window.atlasFirebaseSincronizarAgora === 'function') window.atlasFirebaseSincronizarAgora();
+    alert('Relatorio da anotacao salvo.');
+}
+
+function atlasSerraAnotacaoHistorico() {
+    const render = document.getElementById('render-modulo');
+    const hist = atlasSerraAnotacaoHist();
+    const grupos = {};
+    hist.forEach((item, index) => {
+        const data = item.data || '';
+        const [ano = 'sem ano', mes = 'sem mes', dia = 'sem dia'] = data.split('-');
+        grupos[ano] ||= {};
+        grupos[ano][mes] ||= {};
+        grupos[ano][mes][dia] ||= [];
+        grupos[ano][mes][dia].push({ item, index });
+    });
+    render.innerHTML = `
+        <div class="serra-anotacao-wrap">
+            <div class="serra2-topo">
+                <div>
+                    <h2>Historico - Leitura de Anotacao</h2>
+                    <p>Registros salvos no navegador.</p>
+                </div>
+                <button onclick="atlasSerraAnotacaoRender()">Novo relatorio</button>
+            </div>
+            <div class="serra-anotacao-historico">
+                ${Object.keys(grupos).sort((a, b) => b.localeCompare(a)).map(ano => `
+                    <details class="serra-anotacao-grupo">
+                        <summary>Ano ${atlasTextoSeguroSaude(ano)}</summary>
+                        ${Object.keys(grupos[ano]).sort((a, b) => b.localeCompare(a)).map(mes => `
+                            <details class="serra-anotacao-grupo">
+                                <summary>Mes ${atlasTextoSeguroSaude(mes)}</summary>
+                                ${Object.keys(grupos[ano][mes]).sort((a, b) => b.localeCompare(a)).map(dia => `
+                                    <details class="serra-anotacao-grupo">
+                                        <summary>Dia ${atlasTextoSeguroSaude(dia)}</summary>
+                                        ${grupos[ano][mes][dia].map(({ item, index }) => `
+                                            <div class="serra-anotacao-card-hist">
+                                                <div>
+                                                    <b>${atlasTextoSeguroSaude(item.tipoPainel || 'Sem tipo')} ${atlasTextoSeguroSaude(item.espessura || '')}</b>
+                                                    <span>${atlasTextoSeguroSaude(item.qualidade || '')} | ${atlasTextoSeguroSaude(item.totalMetros || '0')} m | ${atlasTextoSeguroSaude(item.criadoEm || '')}</span>
+                                                </div>
+                                                <div>
+                                                    <button onclick="atlasSerraAnotacaoAbrir(${index})">ABRIR</button>
+                                                    <button onclick="atlasSerraAnotacaoExcluir(${index})">X</button>
+                                                </div>
+                                            </div>
+                                        `).join('')}
+                                    </details>
+                                `).join('')}
+                            </details>
+                        `).join('')}
+                    </details>
+                `).join('') || '<div class="serra2-vazio">Nenhum historico salvo.</div>'}
+            </div>
+        </div>
+    `;
+}
+
+function atlasSerraAnotacaoAbrir(index) {
+    const item = atlasSerraAnotacaoHist()[index];
+    if (!item) return;
+    atlasSerraAnotacaoRender(JSON.parse(JSON.stringify(item)));
+}
+
+function atlasSerraAnotacaoExcluir(index) {
+    if (!confirm('Excluir este relatorio?')) return;
+    const hist = atlasSerraAnotacaoHist();
+    hist.splice(index, 1);
+    atlasSerraAnotacaoSalvarHist(hist);
+    atlasSerraAnotacaoHistorico();
+}
+
+function atlasSerraAnotacaoGerarPDF() {
+    const r = atlasSerraAnotacaoColetarDados();
+    const html = `
+        <html>
+        <head>
+            <title>Serra - Leitura de Anotacao</title>
+            <style>
+                body { font-family: Arial, sans-serif; color:#111; padding:24px; }
+                .topo { border-bottom:4px solid #111; padding-bottom:12px; margin-bottom:16px; }
+                .grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:14px; }
+                .box, .foto, table { border:1px solid #111; }
+                .box { padding:8px; }
+                .box span { display:block; font-size:11px; color:#555; }
+                .foto { padding:8px; margin-bottom:14px; text-align:center; }
+                .foto img { max-width:100%; max-height:420px; object-fit:contain; }
+                table { width:100%; border-collapse:collapse; }
+                th, td { border:1px solid #111; padding:7px; font-size:12px; }
+                th { background:#eee; }
+                .obs { margin-top:12px; border:1px solid #111; padding:10px; }
+                .no-print { margin-top:16px; }
+                @media print { .no-print { display:none; } body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+            </style>
+        </head>
+        <body>
+            <div class="topo">
+                <h1>Serra - Leitura de Anotacao</h1>
+                <div>Operador: ${atlasTextoSeguroSaude(r.operador || '')} | Criado em: ${atlasTextoSeguroSaude(r.criadoEm || '')}</div>
+            </div>
+            <div class="grid">
+                <div class="box"><span>Data</span><b>${atlasTextoSeguroSaude(r.data)}</b></div>
+                <div class="box"><span>Tipo painel</span><b>${atlasTextoSeguroSaude(r.tipoPainel)}</b></div>
+                <div class="box"><span>Espessura</span><b>${atlasTextoSeguroSaude(r.espessura)}</b></div>
+                <div class="box"><span>Qualidade</span><b>${atlasTextoSeguroSaude(r.qualidade)}</b></div>
+                <div class="box"><span>RAL superior</span><b>${atlasTextoSeguroSaude(r.ralSuperior)}</b></div>
+                <div class="box"><span>RAL inferior</span><b>${atlasTextoSeguroSaude(r.ralInferior)}</b></div>
+                <div class="box"><span>Total metros</span><b>${atlasTextoSeguroSaude(r.totalMetros)}</b></div>
+            </div>
+            <div class="foto">${r.foto ? `<img src="${r.foto}">` : 'Sem foto anexada.'}</div>
+            <table>
+                <thead>
+                    <tr><th>Qtd</th><th>Medida mm</th><th>Pedido</th><th>Cliente</th><th>RAL</th><th>Observacao</th></tr>
+                </thead>
+                <tbody>
+                    ${(r.linhas || []).map(l => `<tr><td>${atlasTextoSeguroSaude(l.quantidade)}</td><td>${atlasTextoSeguroSaude(l.medidaMm)}</td><td>${atlasTextoSeguroSaude(l.pedido)}</td><td>${atlasTextoSeguroSaude(l.cliente)}</td><td>${atlasTextoSeguroSaude(l.ral)}</td><td>${atlasTextoSeguroSaude(l.observacao)}</td></tr>`).join('') || '<tr><td colspan="6">Sem linhas.</td></tr>'}
+                </tbody>
+            </table>
+            <div class="obs"><b>Observacoes:</b><br>${atlasTextoSeguroSaude(r.observacoes || '-')}</div>
+            <div class="no-print"><button onclick="window.print()">IMPRIMIR / GUARDAR PDF</button></div>
+        </body>
+        </html>
+    `;
+    const janela = window.open('', '_blank');
+    janela.document.write(html);
+    janela.document.close();
 }
 
 /* ==========================================================
