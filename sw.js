@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v145-ajustes-fechados';
+const CACHE_NAME = 'atlas-v146-serra2-otimizador';
 const assets = [
   './',
   './index.html',

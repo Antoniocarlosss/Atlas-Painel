@@ -8,6 +8,7 @@ const MODULOS_SISTEMA = [
     { chave: 'injecao', nome: 'Injeção' },
     { chave: 'bobines', nome: 'Bobines' },
     { chave: 'serra', nome: 'Serra' },
+    { chave: 'serra2', nome: 'Serra 2' },
     { chave: 'embalagem', nome: 'Embalagem' },
     { chave: 'plano', nome: 'Plano' },
     { chave: 'stock', nome: 'Stock' },
@@ -47,7 +48,7 @@ function obterModulosPermissoesAtlas() {
 
 function obterPreferenciasBaseCargo(cargoInformado) {
     const cargo = normalizarCargoUsuario(cargoInformado);
-    const basicos = ['injecao', 'bobines', 'serra', 'embalagem', 'plano', 'config'];
+    const basicos = ['injecao', 'bobines', 'serra', 'serra2', 'embalagem', 'plano', 'config'];
     const restritos = ['gestao', 'conferencia', 'stock', 'lixeira', 'pesquisa_encomenda', 'lembretes', 'auditoria'];
     const supervisorTotal = [...basicos, ...restritos];
     const modulosVisiveis = cargo === 'admin'
@@ -998,6 +999,7 @@ function abrirModulo(nome) {
         injecao: "INJEÇÃO",
         bobines: "BOBINES",
         serra: "SERRA",
+        serra2: "SERRA 2",
         embalagem: "EMBALAGEM",
         plano: "PLANO",
         stock: "STOCK",
@@ -1022,6 +1024,9 @@ function abrirModulo(nome) {
     } 
     else if (nome === 'serra') {
         renderizarMenuSerra();
+    }
+    else if (nome === 'serra2') {
+        renderizarSerra2();
     }
     else if (nome === 'embalagem') {
         renderizarMenuEmbalagem();
@@ -6035,6 +6040,404 @@ function atlasJSStringSaude(valor) {
         .replace(/\\/g, '\\\\')
         .replace(/'/g, "\\'")
         .replace(/\r?\n/g, ' ');
+}
+
+/* ==========================================================
+   SERRA 2 - OTIMIZADOR DE CORTE
+   ========================================================== */
+
+const ATLAS_SERRA2_PLANOS_KEY = 'atlas_serra2_planos';
+
+function atlasSerra2Planos() {
+    return atlasArrayLocal(ATLAS_SERRA2_PLANOS_KEY, []);
+}
+
+function atlasSerra2SalvarPlanos(planos) {
+    localStorage.setItem(ATLAS_SERRA2_PLANOS_KEY, JSON.stringify(planos || []));
+}
+
+function atlasSerra2Numero(valor) {
+    return Number(String(valor || '').replace(',', '.')) || 0;
+}
+
+function atlasSerra2MoedaMetro(valor) {
+    return `${Number(valor || 0).toFixed(2).replace('.', ',')} m`;
+}
+
+function renderizarSerra2() {
+    const render = document.getElementById('render-modulo');
+    if (!render) return;
+    const hoje = new Date().toISOString().slice(0, 10);
+    render.innerHTML = `
+        <div class="serra2-wrap">
+            <div class="serra2-topo">
+                <div>
+                    <h2>Otimizacao de corte - Serra 2</h2>
+                    <p>Monte pedidos, calcule o melhor aproveitamento das chapas e guarde o plano.</p>
+                </div>
+                <button onclick="atlasSerra2MostrarHistorico()">Historico</button>
+            </div>
+
+            <div class="serra2-grid">
+                <section class="serra2-painel">
+                    <h3>Chapas disponiveis</h3>
+                    <div class="serra2-campos">
+                        <label>Quantidade de chapas
+                            <input id="serra2-qtd-chapas" type="number" min="1" value="1">
+                        </label>
+                        <label>Comprimento de cada chapa (m)
+                            <input id="serra2-comp-chapa" inputmode="decimal" value="8">
+                        </label>
+                        <label>Data do plano
+                            <input id="serra2-data" type="date" value="${hoje}">
+                        </label>
+                    </div>
+                </section>
+
+                <section class="serra2-painel">
+                    <h3>Novo pedido</h3>
+                    <div class="serra2-campos pedido">
+                        <input id="serra2-pedido-numero" placeholder="Numero do pedido">
+                        <input id="serra2-pedido-cliente" placeholder="Cliente opcional">
+                        <input id="serra2-pedido-qtd" type="number" min="1" value="1" placeholder="Qtd">
+                        <input id="serra2-pedido-medida" inputmode="decimal" placeholder="Medida em metros">
+                    </div>
+                    <button class="serra2-btn verde" onclick="atlasSerra2AdicionarPedido()">Adicionar pedido</button>
+                </section>
+            </div>
+
+            <section class="serra2-painel">
+                <div class="serra2-linha-titulo">
+                    <h3>Pedidos</h3>
+                    <button onclick="atlasSerra2LimparPedidos()">Limpar</button>
+                </div>
+                <div id="serra2-pedidos" class="serra2-lista"></div>
+            </section>
+
+            <div class="serra2-acoes">
+                <button class="serra2-btn azul" onclick="atlasSerra2Calcular()">Calcular melhor combinacao</button>
+                <button class="serra2-btn cinza" onclick="atlasSerra2CarregarExemplo()">Exemplo</button>
+            </div>
+
+            <section id="serra2-resultado" class="serra2-resultado"></section>
+        </div>
+    `;
+    window.atlasSerra2PedidosTemp = window.atlasSerra2PedidosTemp || [];
+    atlasSerra2RenderPedidos();
+}
+
+function atlasSerra2AdicionarPedido() {
+    const quantidade = Math.floor(atlasSerra2Numero(document.getElementById('serra2-pedido-qtd')?.value));
+    const medida = atlasSerra2Numero(document.getElementById('serra2-pedido-medida')?.value);
+    const pedido = String(document.getElementById('serra2-pedido-numero')?.value || '').trim();
+    const cliente = String(document.getElementById('serra2-pedido-cliente')?.value || '').trim();
+    if (!quantidade || quantidade < 1) return alert('Informe a quantidade.');
+    if (!medida || medida <= 0) return alert('Informe a medida em metros.');
+    if (!pedido) return alert('Informe o numero do pedido.');
+    window.atlasSerra2PedidosTemp = window.atlasSerra2PedidosTemp || [];
+    window.atlasSerra2PedidosTemp.push({
+        id: Date.now() + Math.random(),
+        quantidade,
+        medida,
+        pedido,
+        cliente
+    });
+    ['serra2-pedido-numero', 'serra2-pedido-cliente', 'serra2-pedido-medida'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    document.getElementById('serra2-pedido-qtd').value = '1';
+    atlasSerra2RenderPedidos();
+}
+
+function atlasSerra2RenderPedidos() {
+    const alvo = document.getElementById('serra2-pedidos');
+    if (!alvo) return;
+    const pedidos = window.atlasSerra2PedidosTemp || [];
+    alvo.innerHTML = pedidos.length ? pedidos.map((item, index) => `
+        <div class="serra2-item">
+            <div>
+                <b>${atlasTextoSeguroSaude(item.quantidade)}x ${atlasTextoSeguroSaude(atlasSerra2MoedaMetro(item.medida))}</b>
+                <span>Pedido ${atlasTextoSeguroSaude(item.pedido)}${item.cliente ? ` - ${atlasTextoSeguroSaude(item.cliente)}` : ''}</span>
+            </div>
+            <button onclick="atlasSerra2RemoverPedido(${index})">X</button>
+        </div>
+    `).join('') : '<div class="serra2-vazio">Nenhum pedido adicionado.</div>';
+}
+
+function atlasSerra2RemoverPedido(index) {
+    window.atlasSerra2PedidosTemp.splice(index, 1);
+    atlasSerra2RenderPedidos();
+}
+
+function atlasSerra2LimparPedidos() {
+    if (!confirm('Limpar pedidos inseridos?')) return;
+    window.atlasSerra2PedidosTemp = [];
+    atlasSerra2RenderPedidos();
+    const res = document.getElementById('serra2-resultado');
+    if (res) res.innerHTML = '';
+}
+
+function atlasSerra2CarregarExemplo() {
+    window.atlasSerra2PedidosTemp = [
+        { id: 1, quantidade: 1, medida: 5.6, pedido: '1001', cliente: 'Cliente A' },
+        { id: 2, quantidade: 1, medida: 4.1, pedido: '1002', cliente: 'Cliente B' },
+        { id: 3, quantidade: 1, medida: 2.85, pedido: '1003', cliente: 'Cliente C' },
+        { id: 4, quantidade: 2, medida: 1.2, pedido: '1004', cliente: '' }
+    ];
+    document.getElementById('serra2-qtd-chapas').value = '3';
+    document.getElementById('serra2-comp-chapa').value = '8';
+    atlasSerra2RenderPedidos();
+}
+
+function atlasSerra2Otimizar(qtdChapas, comprimentoChapa, pedidos) {
+    const cortes = [];
+    pedidos.forEach(item => {
+        for (let i = 0; i < item.quantidade; i++) {
+            cortes.push({
+                medida: Number(item.medida),
+                pedido: item.pedido,
+                cliente: item.cliente || '',
+                origemId: item.id
+            });
+        }
+    });
+    cortes.sort((a, b) => b.medida - a.medida);
+
+    const chapas = Array.from({ length: qtdChapas }, (_, index) => ({
+        numero: index + 1,
+        cortes: [],
+        usado: 0,
+        sobra: comprimentoChapa,
+        sobraStock: false
+    }));
+    const naoAlocados = [];
+
+    cortes.forEach(corte => {
+        let melhor = null;
+        chapas.forEach(chapa => {
+            const sobraDepois = chapa.sobra - corte.medida;
+            if (sobraDepois < -0.0001) return;
+            if (!melhor || sobraDepois < melhor.sobraDepois) {
+                melhor = { chapa, sobraDepois };
+            }
+        });
+        if (!melhor) {
+            naoAlocados.push(corte);
+            return;
+        }
+        melhor.chapa.cortes.push(corte);
+        melhor.chapa.usado = Number((melhor.chapa.usado + corte.medida).toFixed(3));
+        melhor.chapa.sobra = Number((comprimentoChapa - melhor.chapa.usado).toFixed(3));
+    });
+
+    const usadas = chapas.filter(chapa => chapa.cortes.length);
+    return { chapas, usadas, naoAlocados };
+}
+
+function atlasSerra2Calcular() {
+    const qtdChapas = Math.floor(atlasSerra2Numero(document.getElementById('serra2-qtd-chapas')?.value));
+    const comprimentoChapa = atlasSerra2Numero(document.getElementById('serra2-comp-chapa')?.value);
+    const pedidos = window.atlasSerra2PedidosTemp || [];
+    if (!qtdChapas || qtdChapas < 1) return alert('Informe a quantidade de chapas disponiveis.');
+    if (!comprimentoChapa || comprimentoChapa <= 0) return alert('Informe o comprimento de cada chapa.');
+    if (!pedidos.length) return alert('Adicione pelo menos um pedido.');
+
+    const resultado = atlasSerra2Otimizar(qtdChapas, comprimentoChapa, pedidos);
+    const plano = {
+        id: Date.now(),
+        data: document.getElementById('serra2-data')?.value || new Date().toISOString().slice(0, 10),
+        operador: usuarioLogado?.id || 'SISTEMA',
+        qtdChapas,
+        comprimentoChapa,
+        pedidos: JSON.parse(JSON.stringify(pedidos)),
+        chapas: resultado.chapas,
+        naoAlocados: resultado.naoAlocados,
+        criadoEm: new Date().toLocaleString('pt-BR')
+    };
+    window.atlasSerra2PlanoAtual = plano;
+    atlasSerra2RenderResultado(plano);
+}
+
+function atlasSerra2Totais(plano) {
+    const totalDisponivel = Number(plano.qtdChapas || 0) * Number(plano.comprimentoChapa || 0);
+    const chapasUsadas = (plano.chapas || []).filter(chapa => (chapa.cortes || []).length);
+    const totalUsado = chapasUsadas.reduce((soma, chapa) => soma + Number(chapa.usado || 0), 0);
+    return {
+        totalDisponivel,
+        totalUsado,
+        sobraTotal: totalDisponivel - totalUsado,
+        chapasUsadas: chapasUsadas.length,
+        chapasRestantes: Math.max(0, Number(plano.qtdChapas || 0) - chapasUsadas.length)
+    };
+}
+
+function atlasSerra2RenderResultado(plano) {
+    const alvo = document.getElementById('serra2-resultado');
+    if (!alvo) return;
+    const totais = atlasSerra2Totais(plano);
+    const usadas = (plano.chapas || []).filter(chapa => (chapa.cortes || []).length);
+    alvo.innerHTML = `
+        <div class="serra2-resumo">
+            <div><span>Total disponivel</span><b>${atlasSerra2MoedaMetro(totais.totalDisponivel)}</b></div>
+            <div><span>Total usado</span><b>${atlasSerra2MoedaMetro(totais.totalUsado)}</b></div>
+            <div><span>Sobra total</span><b>${atlasSerra2MoedaMetro(totais.sobraTotal)}</b></div>
+            <div><span>Chapas usadas</span><b>${totais.chapasUsadas}</b></div>
+            <div><span>Chapas restantes</span><b>${totais.chapasRestantes}</b></div>
+        </div>
+
+        <div class="serra2-chapas">
+            ${usadas.map(chapa => `
+                <div class="serra2-chapa">
+                    <div class="serra2-chapa-head">
+                        <b>Chapa ${chapa.numero}</b>
+                        <label><input type="checkbox" ${chapa.sobraStock ? 'checked' : ''} onchange="atlasSerra2MarcarSobraStock(${chapa.numero}, this.checked)"> sobra para stock</label>
+                    </div>
+                    <div class="serra2-cortes">
+                        ${chapa.cortes.map(corte => `
+                            <span>${atlasSerra2MoedaMetro(corte.medida)}<small>Ped. ${atlasTextoSeguroSaude(corte.pedido)}${corte.cliente ? ` - ${atlasTextoSeguroSaude(corte.cliente)}` : ''}</small></span>
+                        `).join('')}
+                    </div>
+                    <div class="serra2-sobra">Sobra: <b>${atlasSerra2MoedaMetro(chapa.sobra)}</b></div>
+                </div>
+            `).join('')}
+        </div>
+
+        ${plano.naoAlocados?.length ? `
+            <div class="serra2-alerta">
+                <b>Cortes sem chapa suficiente:</b>
+                ${plano.naoAlocados.map(c => `${atlasSerra2MoedaMetro(c.medida)} pedido ${atlasTextoSeguroSaude(c.pedido)}`).join(', ')}
+            </div>
+        ` : ''}
+
+        <div class="serra2-acoes">
+            <button class="serra2-btn verde" onclick="atlasSerra2GuardarPlano()">Guardar plano</button>
+            <button class="serra2-btn azul" onclick="atlasSerra2GerarPDF()">Gerar PDF</button>
+        </div>
+    `;
+}
+
+function atlasSerra2MarcarSobraStock(numeroChapa, marcado) {
+    const plano = window.atlasSerra2PlanoAtual;
+    if (!plano) return;
+    const chapa = (plano.chapas || []).find(item => Number(item.numero) === Number(numeroChapa));
+    if (chapa) chapa.sobraStock = marcado === true;
+}
+
+function atlasSerra2GuardarPlano() {
+    const plano = window.atlasSerra2PlanoAtual;
+    if (!plano) return alert('Calcule um plano antes de guardar.');
+    const planos = atlasSerra2Planos();
+    const idx = planos.findIndex(item => item.id === plano.id);
+    if (idx >= 0) planos[idx] = plano;
+    else planos.unshift(plano);
+    atlasSerra2SalvarPlanos(planos.slice(0, 80));
+    if (typeof window.atlasFirebaseSincronizarAgora === 'function') window.atlasFirebaseSincronizarAgora();
+    alert('Plano da Serra 2 guardado.');
+}
+
+function atlasSerra2MostrarHistorico() {
+    const render = document.getElementById('render-modulo');
+    const planos = atlasSerra2Planos();
+    render.innerHTML = `
+        <div class="serra2-wrap">
+            <div class="serra2-topo">
+                <div>
+                    <h2>Historico - Serra 2</h2>
+                    <p>Planos de corte guardados no navegador.</p>
+                </div>
+                <button onclick="renderizarSerra2()">Novo plano</button>
+            </div>
+            <div class="serra2-lista">
+                ${planos.length ? planos.map((plano, index) => {
+                    const totais = atlasSerra2Totais(plano);
+                    return `
+                        <div class="serra2-item historico">
+                            <div>
+                                <b>${atlasTextoSeguroSaude(plano.data)} - ${totais.chapasUsadas} chapa(s)</b>
+                                <span>${atlasSerra2MoedaMetro(totais.totalUsado)} usado | sobra ${atlasSerra2MoedaMetro(totais.sobraTotal)} | ${atlasTextoSeguroSaude(plano.criadoEm || '')}</span>
+                            </div>
+                            <div>
+                                <button onclick="atlasSerra2AbrirPlano(${index})">ABRIR</button>
+                                <button onclick="atlasSerra2ExcluirPlano(${index})">X</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('') : '<div class="serra2-vazio">Nenhum plano guardado.</div>'}
+            </div>
+        </div>
+    `;
+}
+
+function atlasSerra2AbrirPlano(index) {
+    const plano = atlasSerra2Planos()[index];
+    if (!plano) return;
+    renderizarSerra2();
+    window.atlasSerra2PlanoAtual = plano;
+    window.atlasSerra2PedidosTemp = plano.pedidos || [];
+    document.getElementById('serra2-qtd-chapas').value = plano.qtdChapas || 1;
+    document.getElementById('serra2-comp-chapa').value = plano.comprimentoChapa || 8;
+    document.getElementById('serra2-data').value = plano.data || new Date().toISOString().slice(0, 10);
+    atlasSerra2RenderPedidos();
+    atlasSerra2RenderResultado(plano);
+}
+
+function atlasSerra2ExcluirPlano(index) {
+    if (!confirm('Excluir este plano da Serra 2?')) return;
+    const planos = atlasSerra2Planos();
+    planos.splice(index, 1);
+    atlasSerra2SalvarPlanos(planos);
+    atlasSerra2MostrarHistorico();
+}
+
+function atlasSerra2GerarPDF() {
+    const plano = window.atlasSerra2PlanoAtual;
+    if (!plano) return alert('Calcule um plano antes de gerar PDF.');
+    const totais = atlasSerra2Totais(plano);
+    const usadas = (plano.chapas || []).filter(chapa => (chapa.cortes || []).length);
+    const html = `
+        <html>
+        <head>
+            <title>Plano Serra 2</title>
+            <style>
+                body { font-family: Arial, sans-serif; color:#111; padding:24px; }
+                h1 { margin:0 0 6px; }
+                .topo { border-bottom:4px solid #111; padding-bottom:12px; margin-bottom:18px; }
+                .resumo { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin-bottom:18px; }
+                .resumo div, .chapa, .alerta { border:1px solid #111; padding:10px; }
+                .resumo span { display:block; font-size:11px; color:#555; }
+                .chapa { margin-bottom:10px; }
+                .corte { display:inline-block; border:1px solid #777; padding:6px; margin:4px; }
+                .no-print { margin-top:18px; }
+                @media print { .no-print { display:none; } body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+            </style>
+        </head>
+        <body>
+            <div class="topo">
+                <h1>Plano de corte - Serra 2</h1>
+                <div>Data: ${atlasTextoSeguroSaude(plano.data)} | Operador: ${atlasTextoSeguroSaude(plano.operador || '')}</div>
+            </div>
+            <div class="resumo">
+                <div><span>Total disponivel</span><b>${atlasSerra2MoedaMetro(totais.totalDisponivel)}</b></div>
+                <div><span>Total usado</span><b>${atlasSerra2MoedaMetro(totais.totalUsado)}</b></div>
+                <div><span>Sobra total</span><b>${atlasSerra2MoedaMetro(totais.sobraTotal)}</b></div>
+                <div><span>Chapas usadas</span><b>${totais.chapasUsadas}</b></div>
+                <div><span>Chapas restantes</span><b>${totais.chapasRestantes}</b></div>
+            </div>
+            ${usadas.map(chapa => `
+                <div class="chapa">
+                    <h3>Chapa ${chapa.numero} - sobra ${atlasSerra2MoedaMetro(chapa.sobra)}${chapa.sobraStock ? ' - stock' : ''}</h3>
+                    ${(chapa.cortes || []).map(corte => `<span class="corte">${atlasSerra2MoedaMetro(corte.medida)} | Pedido ${atlasTextoSeguroSaude(corte.pedido)}${corte.cliente ? ` | ${atlasTextoSeguroSaude(corte.cliente)}` : ''}</span>`).join('')}
+                </div>
+            `).join('')}
+            ${plano.naoAlocados?.length ? `<div class="alerta"><b>Sem chapa suficiente:</b> ${plano.naoAlocados.map(c => `${atlasSerra2MoedaMetro(c.medida)} pedido ${atlasTextoSeguroSaude(c.pedido)}`).join(', ')}</div>` : ''}
+            <div class="no-print"><button onclick="window.print()">IMPRIMIR / GUARDAR PDF</button></div>
+        </body>
+        </html>
+    `;
+    const janela = window.open('', '_blank');
+    janela.document.write(html);
+    janela.document.close();
 }
 
 function atlasStatusDispositivoSaude(dispositivo) {

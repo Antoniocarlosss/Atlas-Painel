@@ -1195,6 +1195,217 @@ table {
     display: none !important;
 }
 
+.serra2-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 12px;
+    color: #fff;
+}
+
+.serra2-topo,
+.serra2-painel,
+.serra2-resultado {
+    background: #1e293b;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 16px;
+}
+
+.serra2-topo {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.serra2-topo h2,
+.serra2-painel h3 {
+    margin: 0 0 8px;
+}
+
+.serra2-topo p {
+    margin: 0;
+    color: #94a3b8;
+}
+
+.serra2-grid,
+.serra2-campos {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+}
+
+.serra2-campos.pedido {
+    grid-template-columns: 1.2fr 1.4fr .7fr .9fr;
+}
+
+.serra2-wrap input {
+    width: 100%;
+    background: #0f172a;
+    color: #fff;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.serra2-wrap label {
+    color: #bfdbfe;
+    font-weight: 800;
+    font-size: 13px;
+}
+
+.serra2-btn,
+.serra2-topo button,
+.serra2-linha-titulo button,
+.serra2-item button {
+    border: none;
+    border-radius: 8px;
+    padding: 12px 14px;
+    color: #fff;
+    font-weight: 900;
+    cursor: pointer;
+    background: #334155;
+}
+
+.serra2-btn.verde { background: #10b981; }
+.serra2-btn.azul { background: #2563eb; }
+.serra2-btn.cinza { background: #475569; }
+
+.serra2-acoes,
+.serra2-linha-titulo {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+}
+
+.serra2-lista,
+.serra2-chapas {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.serra2-item,
+.serra2-chapa {
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-left: 5px solid #2563eb;
+    border-radius: 10px;
+    padding: 12px;
+}
+
+.serra2-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+}
+
+.serra2-item span {
+    display: block;
+    color: #94a3b8;
+    font-size: 13px;
+    margin-top: 3px;
+}
+
+.serra2-resumo {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+.serra2-resumo div {
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.serra2-resumo span {
+    display: block;
+    color: #93c5fd;
+    font-size: 12px;
+}
+
+.serra2-resumo b {
+    color: #22c55e;
+    font-size: 20px;
+}
+
+.serra2-chapa-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+}
+
+.serra2-cortes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.serra2-cortes span {
+    background: #172554;
+    border: 1px solid #3b82f6;
+    border-radius: 8px;
+    padding: 8px 10px;
+    color: #fff;
+    font-weight: 900;
+}
+
+.serra2-cortes small {
+    display: block;
+    color: #bfdbfe;
+    font-size: 11px;
+    margin-top: 2px;
+}
+
+.serra2-sobra {
+    margin-top: 10px;
+    color: #fbbf24;
+}
+
+.serra2-alerta {
+    margin-top: 12px;
+    background: #451a1a;
+    border: 1px solid #ef4444;
+    border-radius: 8px;
+    padding: 12px;
+    color: #fecaca;
+}
+
+.serra2-vazio {
+    color: #94a3b8;
+    background: #0f172a;
+    border: 1px dashed #334155;
+    border-radius: 8px;
+    padding: 14px;
+}
+
+@media (max-width: 720px) {
+    .serra2-topo,
+    .serra2-item {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .serra2-campos.pedido {
+        grid-template-columns: 1fr;
+    }
+
+    .serra2-acoes .serra2-btn,
+    .serra2-topo button {
+        width: 100%;
+    }
+}
+
 .atlas-ajuste-lista {
     display: flex;
     flex-direction: column;
