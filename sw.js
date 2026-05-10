@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v148-serra-anotacao-ocr';
+const CACHE_NAME = 'atlas-v149-ocr-relatorio-preview';
 const assets = [
   './',
   './index.html',

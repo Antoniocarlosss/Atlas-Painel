@@ -1084,6 +1084,90 @@ function atlasAtualizarTelaAposSyncNuvem() {
 window.addEventListener('atlasDadosNuvemAtualizados', atlasAtualizarTelaAposSyncNuvem);
 
 
+function atlasSelecionarOpcaoPorTexto(selectId, texto) {
+    const select = document.getElementById(selectId);
+    if (!select || !texto) return;
+    const alvo = String(texto).toLowerCase();
+    const opcao = Array.from(select.options).find(opt => {
+        const valor = String(opt.value || opt.textContent || '').toLowerCase();
+        return valor.includes(alvo) || alvo.includes(valor);
+    });
+    if (opcao) select.value = opcao.value;
+}
+
+async function atlasOCRReconhecerArquivo(arquivo, statusId) {
+    if (!arquivo) throw new Error('Sem arquivo.');
+    if (!window.Tesseract?.recognize) throw new Error('OCR indisponivel.');
+    const status = document.getElementById(statusId);
+    if (status) status.textContent = 'OCR lendo imagem... 0%';
+    const resultado = await Tesseract.recognize(arquivo, 'por+eng', {
+        logger: info => {
+            if (status && info.status === 'recognizing text') {
+                status.textContent = `OCR lendo imagem... ${Math.round((info.progress || 0) * 100)}%`;
+            }
+        }
+    });
+    return resultado?.data?.text || '';
+}
+
+async function atlasInjecaoLerOCR(evento) {
+    const status = document.getElementById('inj-ocr-status');
+    try {
+        const texto = await atlasOCRReconhecerArquivo(evento?.target?.files?.[0], 'inj-ocr-status');
+        const achados = atlasSerraAnotacaoExtrairOCR(texto);
+        if (achados.data) document.getElementById('data-producao').value = achados.data;
+        if (achados.tipoPainel) atlasSelecionarOpcaoPorTexto('inj-painel', achados.tipoPainel);
+        if (achados.espessura) {
+            const esp = String(achados.espessura).match(/\d+/)?.[0];
+            if (esp) document.getElementById('inj-esp').value = esp;
+        }
+        if (achados.ralSuperior || achados.ralInferior) atlasSelecionarOpcaoPorTexto('inj-ral', achados.ralSuperior || achados.ralInferior);
+        if (achados.totalMetros) document.getElementById('prod-metros').value = achados.totalMetros;
+        atualizarEspumaInjecaoPadrao();
+        if (status) status.textContent = 'OCR concluido. Confira os campos antes de adicionar/salvar.';
+    } catch (erro) {
+        console.error('OCR Injecao:', erro);
+        if (status) status.textContent = 'OCR falhou. Preencha manualmente ou tente outra foto.';
+        alert('Nao foi possivel ler a imagem da Injecao.');
+    }
+}
+
+function atlasInjecaoRelatorioAtual(modulo) {
+    const dataInput = document.getElementById('data-producao').value;
+    const d = new Date(dataInput + "T12:00:00");
+    return {
+        modulo,
+        data: d.toLocaleDateString('pt-br'),
+        operador: document.getElementById('user-display').innerText,
+        itens: [...producoesDoDia]
+    };
+}
+
+function atlasInjecaoPreviewFinalizar(modulo) {
+    if (!producoesDoDia.length) return alert('Adicione itens antes de finalizar.');
+    const rel = atlasInjecaoRelatorioAtual(modulo);
+    const janela = window.open('', '_blank');
+    janela.document.write(`
+        <html><head><title>Previa Relatorio Injecao</title>
+        <style>
+            body{font-family:Arial,sans-serif;padding:22px;color:#111}
+            .topo{border-bottom:4px solid #111;padding-bottom:12px;margin-bottom:16px}
+            table{width:100%;border-collapse:collapse} th,td{border:1px solid #111;padding:7px;font-size:12px} th{background:#eee}
+            .no-print{margin-top:18px;display:flex;gap:10px} button{padding:12px 16px;font-weight:bold}
+            @media print{.no-print{display:none}}
+        </style></head><body>
+            <div class="topo"><h1>Previa - Relatorio Injecao</h1><div>Data: ${atlasTextoSeguroSaude(rel.data)} | Operador: ${atlasTextoSeguroSaude(rel.operador)}</div></div>
+            <table><thead><tr><th>Painel</th><th>Esp.</th><th>RAL</th><th>Metros</th><th>Vel.</th><th>Quimicos</th></tr></thead>
+            <tbody>${rel.itens.map(item => `<tr><td>${atlasTextoSeguroSaude(item.pir ? 'PIR - ' : '')}${atlasTextoSeguroSaude(item.nome)}</td><td>${atlasTextoSeguroSaude(item.esp)} mm</td><td>${atlasTextoSeguroSaude(item.ral || '')}</td><td>${atlasTextoSeguroSaude(item.metros)}</td><td>${atlasTextoSeguroSaude(item.vel || '')}</td><td>POL ${atlasTextoSeguroSaude(item.pol || 0)} | MDI ${atlasTextoSeguroSaude(item.mdi || 0)} | PEN ${atlasTextoSeguroSaude(item.pen || 0)}</td></tr>`).join('')}</tbody></table>
+            <div class="no-print">
+                <button onclick="window.print()">IMPRIMIR / PDF</button>
+                <button onclick="window.opener.finalizarTurno('${modulo}'); window.close()">CONFIRMAR E SALVAR</button>
+            </div>
+        </body></html>
+    `);
+    janela.document.close();
+}
+
 /* ==========================================================================
    SEÇÃO: INJEÇÃO (ORIGINAL)
    ========================================================================== */
@@ -1094,7 +1178,16 @@ let producoesDoDia = []; // Deve ficar no topo do script
         <div style="padding: 15px;">
             <label style="font-size:12px; color:#94a3b8;">DATA DA PRODUÇÃO</label>
             <input type="date" id="data-producao" value="${hoje}" style="width:100%; padding:12px; background:#020617; color:white; border:1px solid #334155; border-radius:8px; margin-bottom:15px;">
-            
+
+            <div class="atlas-ocr-relatorio">
+                <div>
+                    <b>Leitura por foto</b>
+                    <span id="inj-ocr-status">Anexe uma foto para tentar preencher o relatorio.</span>
+                </div>
+                <input id="inj-ocr-foto" type="file" accept="image/*" capture="environment" onchange="atlasInjecaoLerOCR(event)">
+                <label for="inj-ocr-foto">Tirar foto / escolher anotacao</label>
+            </div>
+
             <label style="font-size:12px; color:#94a3b8;">TIPO DE PAINEL</label>
             <select id="inj-painel" onchange="atualizarEspumaInjecaoPadrao()" style="width:100%; padding:12px; background:#020617; color:white; border:1px solid #334155; border-radius:8px; margin-bottom:15px;">
                 ${opcoesTipoPainelHTML()}
@@ -1165,7 +1258,7 @@ let producoesDoDia = []; // Deve ficar no topo do script
 
             <button onclick="salvarNaLista()" class="btn-primary btn-add-lista">ADICIONAR À LISTA</button>
             <div id="lista-temp" style="margin-top:15px;"></div>
-            <button id="btn-finalizar" onclick="finalizarTurno('${modulo}')" class="btn-primary btn-finish-dia" style="display:none;">SALVAR RELATÓRIO DO DIA</button>
+            <button id="btn-finalizar" onclick="atlasInjecaoPreviewFinalizar('${modulo}')" class="btn-primary btn-finish-dia" style="display:none;">VER PDF E CONFIRMAR</button>
         </div>`;
     atualizarEspumaInjecaoPadrao();
     adicionarLinhaDensidadeInjecao();
@@ -3361,6 +3454,15 @@ function iniciarInterfaceCorteSerra() {
             <input type="hidden" id="h-data-rel-serra" value="${dataEscolhida}">
         </div>
 
+        <div class="atlas-ocr-relatorio">
+            <div>
+                <b>Leitura por foto</b>
+                <span id="serra-ocr-status">Anexe uma foto para tentar criar as linhas do relatorio.</span>
+            </div>
+            <input id="serra-ocr-foto" type="file" accept="image/*" capture="environment" onchange="atlasSerraLerOCR(event)">
+            <label for="serra-ocr-foto">Tirar foto / escolher anotacao</label>
+        </div>
+
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px;">
             <button id="btn-s-ped-serra" onclick="setModoCorteSerra('pedido')" style="background:#3b82f6; color:white; border:none; padding:10px; border-radius:6px; font-weight:bold;">PEDIDO</button>
             <button id="btn-s-stk-serra" onclick="setModoCorteSerra('stock')" style="background:#1e293b; color:white; border:none; padding:10px; border-radius:6px; font-weight:bold;">STOCK</button>
@@ -3371,7 +3473,7 @@ function iniciarInterfaceCorteSerra() {
 
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:15px;">
             <button onclick="exibirSetupSerra()" style="background:#3b82f6; color:white; border:none; padding:15px; border-radius:8px; font-weight:bold;">MUDAR PAINEL</button>
-            <button onclick="fecharDiaSerra()" style="background:#E31C24; color:white; border:none; padding:15px; border-radius:8px; font-weight:bold;">FECHAR DIA</button>
+            <button onclick="atlasSerraPreviewFecharDia()" style="background:#E31C24; color:white; border:none; padding:15px; border-radius:8px; font-weight:bold;">VER PDF E CONFIRMAR</button>
         </div>
     `;
 
@@ -3453,6 +3555,138 @@ function addLinhaSerra(modo) {
     metrosInput.value = "";
     const ped = document.getElementById('s-ped-serra');
     if (ped) ped.value = "";
+}
+
+function atlasSerraNumeroOCR(valor) {
+    const texto = String(valor || '').replace(',', '.');
+    const numero = parseFloat(texto.match(/\d+(?:\.\d+)?/)?.[0] || '');
+    return Number.isFinite(numero) ? numero : 0;
+}
+
+async function atlasSerraLerOCR(evento) {
+    const status = document.getElementById('serra-ocr-status');
+    try {
+        const texto = await atlasOCRReconhecerArquivo(evento?.target?.files?.[0], 'serra-ocr-status');
+        const achados = atlasSerraAnotacaoExtrairOCR(texto);
+        const linhas = Array.isArray(achados.linhas) ? achados.linhas : [];
+        let adicionados = 0;
+
+        if (achados.data && document.getElementById('h-data-rel-serra')) {
+            document.getElementById('h-data-rel-serra').value = achados.data;
+        }
+
+        const tipo = document.getElementById('h-tipo-serra')?.value || achados.tipoPainel || 'Painel';
+        const esp = document.getElementById('h-esp-serra')?.value || atlasSerraNumeroOCR(achados.espessura) || '0';
+        const ralSuperior = achados.ralSuperior || document.getElementById('s-ral-s-serra')?.value || '9010';
+        const ralInferior = achados.ralInferior || document.getElementById('s-ral-i-serra')?.value || achados.ralSuperior || '3009';
+
+        linhas.forEach(linha => {
+            const medidaBruta = atlasSerraNumeroOCR(linha.medidaMm);
+            const metros = medidaBruta > 50 ? medidaBruta / 1000 : medidaBruta;
+            if (!metros || metros <= 0) return;
+
+            db_serra_live.push({
+                tipo,
+                esp,
+                ralS: linha.ral || ralSuperior,
+                ralI: ralInferior,
+                metros,
+                qtd: parseInt(linha.quantidade, 10) || 1,
+                desc: linha.pedido ? `PED: ${linha.pedido}` : `STOCK: ${achados.qualidade || 'P1'}`,
+                obsOcr: linha.observacao || ''
+            });
+            adicionados++;
+        });
+
+        if (!adicionados && achados.totalMetros) {
+            const metros = atlasSerraNumeroOCR(achados.totalMetros);
+            if (metros > 0) {
+                db_serra_live.push({
+                    tipo,
+                    esp,
+                    ralS: ralSuperior,
+                    ralI: ralInferior,
+                    metros,
+                    qtd: 1,
+                    desc: `STOCK: ${achados.qualidade || 'OCR'}`
+                });
+                adicionados++;
+            }
+        }
+
+        localStorage.setItem('atlas_serra_live', JSON.stringify(db_serra_live));
+        atualizarTabelaSerra();
+        if (status) status.textContent = adicionados
+            ? `OCR concluiu e criou ${adicionados} linha(s). Confira antes de salvar.`
+            : 'OCR concluiu, mas nao encontrou cortes claros. Preencha manualmente.';
+    } catch (erro) {
+        console.error('OCR Serra:', erro);
+        if (status) status.textContent = 'OCR falhou. Preencha manualmente ou tente outra foto.';
+        alert('Nao foi possivel ler a imagem da Serra.');
+    }
+}
+
+function atlasSerraRelatorioAtual() {
+    const seletorData = document.getElementById('h-data-rel-serra')?.value || '';
+    let dataFinal, dia, mes, ano;
+
+    if (seletorData) {
+        const partes = seletorData.split('-');
+        ano = partes[0];
+        mes = partes[1];
+        dia = partes[2];
+        dataFinal = `${dia}/${mes}/${ano}`;
+    } else {
+        const hoje = new Date();
+        dataFinal = hoje.toLocaleDateString('pt-BR');
+        dia = String(hoje.getDate()).padStart(2, '0');
+        mes = String(hoje.getMonth() + 1).padStart(2, '0');
+        ano = hoje.getFullYear();
+    }
+
+    return {
+        data: dataFinal,
+        dia,
+        mes: parseInt(mes, 10),
+        ano,
+        operador: document.getElementById('user-display')?.innerText || 'OP. SERRA',
+        itens: [...db_serra_live],
+        totalGeral: db_serra_live.reduce((acc, cur) => acc + ((parseFloat(cur.metros) || 0) * (parseInt(cur.qtd, 10) || 1)), 0).toFixed(2)
+    };
+}
+
+function atlasSerraPreviewFecharDia() {
+    if (db_serra_live.length === 0) return alert('Adicione itens antes de fechar!');
+    const rel = atlasSerraRelatorioAtual();
+    const janela = window.open('', '_blank');
+    if (!janela) return alert('O navegador bloqueou a previa. Permita pop-ups para ver o PDF antes de salvar.');
+
+    janela.document.write(`
+        <html><head><title>Previa Relatorio Serra</title>
+        <style>
+            body{font-family:Arial,sans-serif;padding:22px;color:#111}
+            .topo{border-bottom:4px solid #111;padding-bottom:12px;margin-bottom:16px}
+            .resumo{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}
+            .resumo div{border:1px solid #111;padding:10px}
+            table{width:100%;border-collapse:collapse} th,td{border:1px solid #111;padding:7px;font-size:12px} th{background:#eee}
+            .no-print{margin-top:18px;display:flex;gap:10px} button{padding:12px 16px;font-weight:bold}
+            @media print{.no-print{display:none}}
+        </style></head><body>
+            <div class="topo"><h1>Previa - Relatorio Serra</h1><div>Data: ${atlasTextoSeguroSaude(rel.data)} | Operador: ${atlasTextoSeguroSaude(rel.operador)}</div></div>
+            <div class="resumo"><div><b>Total</b><br>${atlasTextoSeguroSaude(rel.totalGeral)} m</div><div><b>Linhas</b><br>${rel.itens.length}</div><div><b>Status</b><br>Aguardando confirmacao</div></div>
+            <table><thead><tr><th>Tipo</th><th>Esp.</th><th>RAL sup.</th><th>RAL inf.</th><th>Qtd</th><th>Medida</th><th>Total</th><th>Pedido/Stock</th></tr></thead>
+            <tbody>${rel.itens.map(item => {
+                const qtd = parseInt(item.qtd, 10) || 1;
+                const metros = parseFloat(item.metros) || 0;
+                return `<tr><td>${atlasTextoSeguroSaude(item.tipo || '')}</td><td>${atlasTextoSeguroSaude(item.esp || '')} mm</td><td>${atlasTextoSeguroSaude(item.ralS || '')}</td><td>${atlasTextoSeguroSaude(item.ralI || '')}</td><td>${qtd}</td><td>${metros.toFixed(2)} m</td><td>${(qtd * metros).toFixed(2)} m</td><td>${atlasTextoSeguroSaude(item.desc || '')}</td></tr>`;
+            }).join('')}</tbody></table>
+            <div class="no-print">
+                <button onclick="window.print()">IMPRIMIR / PDF</button>
+                <button onclick="window.opener.fecharDiaSerra(); window.close()">CONFIRMAR E SALVAR</button>
+            </div>
+        </body></html>
+    `);
+    janela.document.close();
 }
 
 function atualizarTabelaSerra() {

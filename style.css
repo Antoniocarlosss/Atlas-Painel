@@ -1195,6 +1195,47 @@ table {
     display: none !important;
 }
 
+.atlas-ocr-relatorio {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 10px;
+    align-items: center;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-left: 5px solid #f59e0b;
+    border-radius: 10px;
+    padding: 12px;
+    margin-bottom: 15px;
+    color: #fff;
+}
+
+.atlas-ocr-relatorio b {
+    display: block;
+    font-size: 15px;
+}
+
+.atlas-ocr-relatorio span {
+    display: block;
+    color: #94a3b8;
+    font-size: 12px;
+    font-weight: 800;
+    margin-top: 3px;
+}
+
+.atlas-ocr-relatorio input[type="file"] {
+    display: none;
+}
+
+.atlas-ocr-relatorio label {
+    background: #2563eb;
+    color: #fff;
+    border-radius: 8px;
+    padding: 11px 14px;
+    font-weight: 900;
+    cursor: pointer;
+    text-align: center;
+}
+
 .serra2-wrap {
     display: flex;
     flex-direction: column;
@@ -1587,6 +1628,10 @@ table {
 }
 
 @media (max-width: 720px) {
+    .atlas-ocr-relatorio {
+        grid-template-columns: 1fr;
+    }
+
     .serra2-topo,
     .serra2-item,
     .serra-anotacao-card-hist {
