@@ -10675,7 +10675,7 @@ document.addEventListener('click', function(evento) {
         const id = chave.replace(/[^a-z0-9_]/gi, '_');
         const automatico = listasNumericasAtlas.has(chave);
         return `
-            <details class="atlas-ajuste-pasta" ${titulo.includes('Clientes') ? 'open' : ''}>
+            <details class="atlas-ajuste-pasta">
                 <summary>
                     <span>${atlasConfigSeguro(titulo)}</span>
                     <small>${automatico ? 'ordem crescente' : 'toque para abrir'}</small>

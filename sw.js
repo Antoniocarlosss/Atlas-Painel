@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v144-status-por-usuario';
+const CACHE_NAME = 'atlas-v145-ajustes-fechados';
 const assets = [
   './',
   './index.html',

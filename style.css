@@ -1191,6 +1191,10 @@ table {
     font-weight: 800;
 }
 
+.atlas-ajuste-pasta:not([open]) > :not(summary) {
+    display: none !important;
+}
+
 .atlas-ajuste-lista {
     display: flex;
     flex-direction: column;
