@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v149-ocr-relatorio-preview';
+const CACHE_NAME = 'atlas-v150-sem-midias';
 const assets = [
   './',
   './index.html',

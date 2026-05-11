@@ -9,7 +9,6 @@ const MODULOS_SISTEMA = [
     { chave: 'bobines', nome: 'Bobines' },
     { chave: 'serra', nome: 'Serra' },
     { chave: 'serra_anotacao', nome: 'Serra - Anotacao' },
-    { chave: 'serra2', nome: 'Serra 2' },
     { chave: 'embalagem', nome: 'Embalagem' },
     { chave: 'plano', nome: 'Plano' },
     { chave: 'stock', nome: 'Stock' },
@@ -49,7 +48,7 @@ function obterModulosPermissoesAtlas() {
 
 function obterPreferenciasBaseCargo(cargoInformado) {
     const cargo = normalizarCargoUsuario(cargoInformado);
-    const basicos = ['injecao', 'bobines', 'serra', 'serra_anotacao', 'serra2', 'embalagem', 'plano', 'config'];
+    const basicos = ['injecao', 'bobines', 'serra', 'serra_anotacao', 'embalagem', 'plano', 'config'];
     const restritos = ['gestao', 'conferencia', 'stock', 'lixeira', 'pesquisa_encomenda', 'lembretes', 'auditoria'];
     const supervisorTotal = [...basicos, ...restritos];
     const modulosVisiveis = cargo === 'admin'
@@ -1001,7 +1000,6 @@ function abrirModulo(nome) {
         bobines: "BOBINES",
         serra: "SERRA",
         serra_anotacao: "SERRA - LEITURA DE ANOTACAO",
-        serra2: "SERRA 2",
         embalagem: "EMBALAGEM",
         plano: "PLANO",
         stock: "STOCK",
@@ -1029,9 +1027,6 @@ function abrirModulo(nome) {
     }
     else if (nome === 'serra_anotacao') {
         atlasSerraAnotacaoRender();
-    }
-    else if (nome === 'serra2') {
-        renderizarSerra2();
     }
     else if (nome === 'embalagem') {
         renderizarMenuEmbalagem();
@@ -1095,43 +1090,6 @@ function atlasSelecionarOpcaoPorTexto(selectId, texto) {
     if (opcao) select.value = opcao.value;
 }
 
-async function atlasOCRReconhecerArquivo(arquivo, statusId) {
-    if (!arquivo) throw new Error('Sem arquivo.');
-    if (!window.Tesseract?.recognize) throw new Error('OCR indisponivel.');
-    const status = document.getElementById(statusId);
-    if (status) status.textContent = 'OCR lendo imagem... 0%';
-    const resultado = await Tesseract.recognize(arquivo, 'por+eng', {
-        logger: info => {
-            if (status && info.status === 'recognizing text') {
-                status.textContent = `OCR lendo imagem... ${Math.round((info.progress || 0) * 100)}%`;
-            }
-        }
-    });
-    return resultado?.data?.text || '';
-}
-
-async function atlasInjecaoLerOCR(evento) {
-    const status = document.getElementById('inj-ocr-status');
-    try {
-        const texto = await atlasOCRReconhecerArquivo(evento?.target?.files?.[0], 'inj-ocr-status');
-        const achados = atlasSerraAnotacaoExtrairOCR(texto);
-        if (achados.data) document.getElementById('data-producao').value = achados.data;
-        if (achados.tipoPainel) atlasSelecionarOpcaoPorTexto('inj-painel', achados.tipoPainel);
-        if (achados.espessura) {
-            const esp = String(achados.espessura).match(/\d+/)?.[0];
-            if (esp) document.getElementById('inj-esp').value = esp;
-        }
-        if (achados.ralSuperior || achados.ralInferior) atlasSelecionarOpcaoPorTexto('inj-ral', achados.ralSuperior || achados.ralInferior);
-        if (achados.totalMetros) document.getElementById('prod-metros').value = achados.totalMetros;
-        atualizarEspumaInjecaoPadrao();
-        if (status) status.textContent = 'OCR concluido. Confira os campos antes de adicionar/salvar.';
-    } catch (erro) {
-        console.error('OCR Injecao:', erro);
-        if (status) status.textContent = 'OCR falhou. Preencha manualmente ou tente outra foto.';
-        alert('Nao foi possivel ler a imagem da Injecao.');
-    }
-}
-
 function atlasInjecaoRelatorioAtual(modulo) {
     const dataInput = document.getElementById('data-producao').value;
     const d = new Date(dataInput + "T12:00:00");
@@ -1178,17 +1136,7 @@ let producoesDoDia = []; // Deve ficar no topo do script
         <div style="padding: 15px;">
             <label style="font-size:12px; color:#94a3b8;">DATA DA PRODUÇÃO</label>
             <input type="date" id="data-producao" value="${hoje}" style="width:100%; padding:12px; background:#020617; color:white; border:1px solid #334155; border-radius:8px; margin-bottom:15px;">
-
-            <div class="atlas-ocr-relatorio">
-                <div>
-                    <b>Leitura por foto</b>
-                    <span id="inj-ocr-status">Anexe uma foto para tentar preencher o relatorio.</span>
-                </div>
-                <input id="inj-ocr-foto" type="file" accept="image/*" capture="environment" onchange="atlasInjecaoLerOCR(event)">
-                <label for="inj-ocr-foto">Tirar foto / escolher anotacao</label>
-            </div>
-
-            <label style="font-size:12px; color:#94a3b8;">TIPO DE PAINEL</label>
+<label style="font-size:12px; color:#94a3b8;">TIPO DE PAINEL</label>
             <select id="inj-painel" onchange="atualizarEspumaInjecaoPadrao()" style="width:100%; padding:12px; background:#020617; color:white; border:1px solid #334155; border-radius:8px; margin-bottom:15px;">
                 ${opcoesTipoPainelHTML()}
             </select>
@@ -2741,7 +2689,6 @@ function deletarHistoricoBobine(index) {
 // Mantenha suas funções de renderizarNovoRelatorio, atualizarLista, adicionarAoLancamento e as calculadoras EXATAMENTE como você já tem.
 // Apenas certifique-se de que a função fecharDia e a gerarPDF_Bobines estejam como abaixo:
 
-// --- VERSÃO ATUALIZADA COM TEMA ESCURO (ESTILO SEGUNDA IMAGEM) ---
 function gerarPDF_Bobines(dadosEncoded) {
     const rel = JSON.parse(decodeURIComponent(dadosEncoded));
     const janela = window.open('', '_blank');
@@ -2830,10 +2777,7 @@ function gerarPDF_Bobines(dadosEncoded) {
                 </table>`;
         }
         conteudoGeral += `</div>`;
-    });
-
-    // Estrutura HTML do Documento (Visual da Imagem 2)
-    janela.document.write(`
+    });    janela.document.write(`
         <!DOCTYPE html>
         <html>
         <head>
@@ -3453,17 +3397,7 @@ function iniciarInterfaceCorteSerra() {
             <input type="hidden" id="h-esp-serra" value="${esp}">
             <input type="hidden" id="h-data-rel-serra" value="${dataEscolhida}">
         </div>
-
-        <div class="atlas-ocr-relatorio">
-            <div>
-                <b>Leitura por foto</b>
-                <span id="serra-ocr-status">Anexe uma foto para tentar criar as linhas do relatorio.</span>
-            </div>
-            <input id="serra-ocr-foto" type="file" accept="image/*" capture="environment" onchange="atlasSerraLerOCR(event)">
-            <label for="serra-ocr-foto">Tirar foto / escolher anotacao</label>
-        </div>
-
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px;">
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:15px;">
             <button id="btn-s-ped-serra" onclick="setModoCorteSerra('pedido')" style="background:#3b82f6; color:white; border:none; padding:10px; border-radius:6px; font-weight:bold;">PEDIDO</button>
             <button id="btn-s-stk-serra" onclick="setModoCorteSerra('stock')" style="background:#1e293b; color:white; border:none; padding:10px; border-radius:6px; font-weight:bold;">STOCK</button>
         </div>
@@ -3557,74 +3491,6 @@ function addLinhaSerra(modo) {
     if (ped) ped.value = "";
 }
 
-function atlasSerraNumeroOCR(valor) {
-    const texto = String(valor || '').replace(',', '.');
-    const numero = parseFloat(texto.match(/\d+(?:\.\d+)?/)?.[0] || '');
-    return Number.isFinite(numero) ? numero : 0;
-}
-
-async function atlasSerraLerOCR(evento) {
-    const status = document.getElementById('serra-ocr-status');
-    try {
-        const texto = await atlasOCRReconhecerArquivo(evento?.target?.files?.[0], 'serra-ocr-status');
-        const achados = atlasSerraAnotacaoExtrairOCR(texto);
-        const linhas = Array.isArray(achados.linhas) ? achados.linhas : [];
-        let adicionados = 0;
-
-        if (achados.data && document.getElementById('h-data-rel-serra')) {
-            document.getElementById('h-data-rel-serra').value = achados.data;
-        }
-
-        const tipo = document.getElementById('h-tipo-serra')?.value || achados.tipoPainel || 'Painel';
-        const esp = document.getElementById('h-esp-serra')?.value || atlasSerraNumeroOCR(achados.espessura) || '0';
-        const ralSuperior = achados.ralSuperior || document.getElementById('s-ral-s-serra')?.value || '9010';
-        const ralInferior = achados.ralInferior || document.getElementById('s-ral-i-serra')?.value || achados.ralSuperior || '3009';
-
-        linhas.forEach(linha => {
-            const medidaBruta = atlasSerraNumeroOCR(linha.medidaMm);
-            const metros = medidaBruta > 50 ? medidaBruta / 1000 : medidaBruta;
-            if (!metros || metros <= 0) return;
-
-            db_serra_live.push({
-                tipo,
-                esp,
-                ralS: linha.ral || ralSuperior,
-                ralI: ralInferior,
-                metros,
-                qtd: parseInt(linha.quantidade, 10) || 1,
-                desc: linha.pedido ? `PED: ${linha.pedido}` : `STOCK: ${achados.qualidade || 'P1'}`,
-                obsOcr: linha.observacao || ''
-            });
-            adicionados++;
-        });
-
-        if (!adicionados && achados.totalMetros) {
-            const metros = atlasSerraNumeroOCR(achados.totalMetros);
-            if (metros > 0) {
-                db_serra_live.push({
-                    tipo,
-                    esp,
-                    ralS: ralSuperior,
-                    ralI: ralInferior,
-                    metros,
-                    qtd: 1,
-                    desc: `STOCK: ${achados.qualidade || 'OCR'}`
-                });
-                adicionados++;
-            }
-        }
-
-        localStorage.setItem('atlas_serra_live', JSON.stringify(db_serra_live));
-        atualizarTabelaSerra();
-        if (status) status.textContent = adicionados
-            ? `OCR concluiu e criou ${adicionados} linha(s). Confira antes de salvar.`
-            : 'OCR concluiu, mas nao encontrou cortes claros. Preencha manualmente.';
-    } catch (erro) {
-        console.error('OCR Serra:', erro);
-        if (status) status.textContent = 'OCR falhou. Preencha manualmente ou tente outra foto.';
-        alert('Nao foi possivel ler a imagem da Serra.');
-    }
-}
 
 function atlasSerraRelatorioAtual() {
     const seletorData = document.getElementById('h-data-rel-serra')?.value || '';
@@ -6282,7 +6148,7 @@ function atlasJSStringSaude(valor) {
 }
 
 /* ==========================================================
-   SERRA - LEITURA DE ANOTACAO (SEM OCR)
+   SERRA - ANOTACAO MANUAL
    ========================================================== */
 
 const ATLAS_SERRA_ANOTACAO_KEY = 'atlas_serra_anotacao_hist';
@@ -6306,7 +6172,6 @@ function atlasSerraAnotacaoNovo() {
         totalMetros: '',
         qualidade: 'P1',
         observacoes: '',
-        foto: '',
         linhas: [],
         operador: usuarioLogado?.id || 'SISTEMA',
         criadoEm: new Date().toLocaleString('pt-BR')
@@ -6320,37 +6185,14 @@ function atlasSerraAnotacaoRender(registro = null) {
     const r = window.atlasSerraAnotacaoAtual;
     render.innerHTML = `
         <div class="serra-anotacao-wrap">
-            <div class="serra2-topo">
+            <div class="atlas-form-topo">
                 <div>
                     <h2>Serra - Leitura de Anotacao</h2>
-                    <p>Primeira versao funcional para anexar foto e digitar os dados manualmente.</p>
+                    <p>Registro manual dos dados da anotacao.</p>
                 </div>
                 <button onclick="atlasSerraAnotacaoHistorico()">Historico</button>
             </div>
-
-            <section class="serra2-painel">
-                <h3>Foto da anotacao</h3>
-                <div class="serra-anotacao-foto-grid">
-                    <div>
-                        <input id="serra-anotacao-foto" type="file" accept="image/*" capture="environment" onchange="atlasSerraAnotacaoLerFoto(event)">
-                        <div class="serra-anotacao-foto-acoes">
-                            <label for="serra-anotacao-foto" class="serra2-btn azul">Tirar foto / escolher imagem</label>
-                            <button class="serra2-btn verde" onclick="atlasSerraAnotacaoExecutarOCR()">Ler OCR da foto</button>
-                            <button class="serra2-btn cinza" onclick="atlasSerraAnotacaoRemoverFoto()">Remover foto</button>
-                        </div>
-                        <div id="serra-anotacao-ocr-status" class="serra-anotacao-ocr-status">OCR: aguardando foto.</div>
-                    </div>
-                    <div class="serra-anotacao-preview">
-                        ${r.foto ? `<img src="${r.foto}" alt="Foto da anotacao">` : `<span>Nenhuma foto anexada.</span>`}
-                    </div>
-                </div>
-                <details class="serra-anotacao-ocr-box">
-                    <summary>Texto lido pelo OCR</summary>
-                    <textarea id="serra-anotacao-ocr-texto" readonly>${atlasTextoSeguroSaude(r.ocrTexto || '')}</textarea>
-                </details>
-            </section>
-
-            <section class="serra2-painel">
+<section class="atlas-form-painel">
                 <h3>Dados gerais</h3>
                 <div class="serra-anotacao-campos">
                     <label>Data <input id="sa-data" type="date" value="${atlasTextoSeguroSaude(r.data)}"></label>
@@ -6368,18 +6210,18 @@ function atlasSerraAnotacaoRender(registro = null) {
                 </div>
             </section>
 
-            <section class="serra2-painel">
-                <div class="serra2-linha-titulo">
+            <section class="atlas-form-painel">
+                <div class="atlas-form-linha-titulo">
                     <h3>Linhas de corte</h3>
                     <button onclick="atlasSerraAnotacaoAdicionarLinha()">Adicionar linha</button>
                 </div>
                 <div id="serra-anotacao-linhas" class="serra-anotacao-linhas"></div>
             </section>
 
-            <div class="serra2-acoes">
-                <button class="serra2-btn verde" onclick="atlasSerraAnotacaoSalvar()">Salvar relatorio</button>
-                <button class="serra2-btn azul" onclick="atlasSerraAnotacaoGerarPDF()">Gerar PDF</button>
-                <button class="serra2-btn cinza" onclick="atlasSerraAnotacaoRender()">Novo</button>
+            <div class="atlas-form-acoes">
+                <button class="atlas-form-btn verde" onclick="atlasSerraAnotacaoSalvar()">Salvar relatorio</button>
+                <button class="atlas-form-btn azul" onclick="atlasSerraAnotacaoGerarPDF()">Gerar PDF</button>
+                <button class="atlas-form-btn cinza" onclick="atlasSerraAnotacaoRender()">Novo</button>
             </div>
         </div>
     `;
@@ -6401,161 +6243,8 @@ function atlasSerraAnotacaoColetarDados() {
     return r;
 }
 
-function atlasSerraAnotacaoLerFoto(evento) {
-    const arquivo = evento?.target?.files?.[0];
-    if (!arquivo) return;
-    const leitor = new FileReader();
-    leitor.onload = () => {
-        const r = atlasSerraAnotacaoColetarDados();
-        r.foto = leitor.result;
-        atlasSerraAnotacaoRender(r);
-    };
-    leitor.readAsDataURL(arquivo);
-}
 
-function atlasSerraAnotacaoRemoverFoto() {
-    const r = atlasSerraAnotacaoColetarDados();
-    r.foto = '';
-    r.ocrTexto = '';
-    atlasSerraAnotacaoRender(r);
-}
 
-function atlasSerraAnotacaoSetOCRStatus(texto, tipo = '') {
-    const alvo = document.getElementById('serra-anotacao-ocr-status');
-    if (!alvo) return;
-    alvo.textContent = texto;
-    alvo.className = `serra-anotacao-ocr-status ${tipo}`;
-}
-
-function atlasSerraAnotacaoNormalizarTextoOCR(texto) {
-    return String(texto || '')
-        .replace(/[|]/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-}
-
-function atlasSerraAnotacaoDataISO(valor) {
-    const texto = String(valor || '');
-    let m = texto.match(/\b(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})\b/);
-    if (m) {
-        const ano = m[3].length === 2 ? `20${m[3]}` : m[3];
-        return `${ano}-${String(m[2]).padStart(2, '0')}-${String(m[1]).padStart(2, '0')}`;
-    }
-    m = texto.match(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/);
-    if (m) return `${m[1]}-${String(m[2]).padStart(2, '0')}-${String(m[3]).padStart(2, '0')}`;
-    return '';
-}
-
-function atlasSerraAnotacaoExtrairOCR(textoOriginal) {
-    const texto = atlasSerraAnotacaoNormalizarTextoOCR(textoOriginal);
-    const linhasOriginais = String(textoOriginal || '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-    const achados = { linhas: [] };
-
-    achados.data = atlasSerraAnotacaoDataISO(texto);
-
-    const qualidade = texto.match(/\b(P1|P2|PPC|DESCARTE)\b/i);
-    if (qualidade) {
-        const q = qualidade[1].toUpperCase();
-        achados.qualidade = q === 'DESCARTE' ? 'Descarte' : q;
-    }
-
-    const esp = texto.match(/(?:esp(?:essura)?\.?\s*)?(\d{2,3}(?:[,.]\d+)?)\s*mm\b/i);
-    if (esp) achados.espessura = `${esp[1].replace(',', '.')} mm`;
-
-    const total = texto.match(/(?:total|metros|metragem)[^\d]{0,20}(\d+(?:[,.]\d+)?)\s*m\b/i)
-        || texto.match(/\b(\d+(?:[,.]\d+)?)\s*(?:m|metros)\b/i);
-    if (total) achados.totalMetros = total[1].replace(',', '.');
-
-    const tipoPadroes = [
-        /fachada\s+oculta/i,
-        /fachada\s+vis[ií]vel/i,
-        /telha\s+canudo/i,
-        /5\s*ondas/i,
-        /ondulado/i,
-        /liso/i,
-        /telha/i,
-        /fachada/i
-    ];
-    const tipo = tipoPadroes.map(rx => texto.match(rx)?.[0]).find(Boolean);
-    if (tipo) achados.tipoPainel = tipo.replace(/\s+/g, ' ').toUpperCase();
-
-    const rals = [];
-    const ralContexto = [...texto.matchAll(/\bRAL\s*(SUPERIOR|SUP|INFERIOR|INF)?\D{0,12}(\d{3,4})\b/gi)];
-    ralContexto.forEach(match => {
-        const lado = String(match[1] || '').toLowerCase();
-        const valor = match[2];
-        if (/sup|superior/.test(lado)) achados.ralSuperior = valor;
-        else if (/inf|inferior/.test(lado)) achados.ralInferior = valor;
-        rals.push(valor);
-    });
-    [...texto.matchAll(/\b(10\d{2}|[1-9]\d{3})\b/g)].forEach(match => {
-        if (!rals.includes(match[1])) rals.push(match[1]);
-    });
-    if (!achados.ralSuperior && rals[0]) achados.ralSuperior = rals[0];
-    if (!achados.ralInferior && rals[1]) achados.ralInferior = rals[1];
-
-    linhasOriginais.forEach(linha => {
-        const medida = linha.match(/\b(\d{3,5})\s*(?:mm)?\b/i);
-        if (!medida) return;
-        const quantidade = linha.match(/\b(?:qtd|qt|quantidade)?\s*(\d{1,3})\s*(?:x|un|und)?\b/i);
-        const pedido = linha.match(/\b(?:ped(?:ido)?|op|obra)\D{0,8}([a-z0-9.-]{2,})\b/i);
-        const ral = linha.match(/\b(?:RAL\s*)?(\d{3,4})\b/i);
-        achados.linhas.push({
-            quantidade: quantidade?.[1] || '1',
-            medidaMm: medida[1],
-            pedido: pedido?.[1] || '',
-            cliente: '',
-            ral: ral?.[1] && ral[1] !== medida[1] ? ral[1] : '',
-            observacao: linha
-        });
-    });
-
-    return achados;
-}
-
-function atlasSerraAnotacaoAplicarOCR(achados, texto) {
-    const r = atlasSerraAnotacaoColetarDados();
-    if (achados.data) r.data = achados.data;
-    if (achados.tipoPainel) r.tipoPainel = achados.tipoPainel;
-    if (achados.espessura) r.espessura = achados.espessura;
-    if (achados.ralSuperior) r.ralSuperior = achados.ralSuperior;
-    if (achados.ralInferior) r.ralInferior = achados.ralInferior;
-    if (achados.totalMetros) r.totalMetros = achados.totalMetros;
-    if (achados.qualidade) r.qualidade = achados.qualidade;
-    if (Array.isArray(achados.linhas) && achados.linhas.length) {
-        r.linhas = achados.linhas;
-    }
-    r.ocrTexto = texto;
-    window.atlasSerraAnotacaoAtual = r;
-    atlasSerraAnotacaoRender(r);
-    atlasSerraAnotacaoSetOCRStatus('OCR concluido. Confira e corrija antes de salvar.', 'ok');
-}
-
-async function atlasSerraAnotacaoExecutarOCR() {
-    const r = atlasSerraAnotacaoColetarDados();
-    if (!r.foto) return alert('Anexe uma foto antes de usar o OCR.');
-    if (!window.Tesseract?.recognize) {
-        return alert('Biblioteca OCR ainda nao carregou. Verifique a internet e tente novamente.');
-    }
-
-    try {
-        atlasSerraAnotacaoSetOCRStatus('OCR lendo imagem... 0%', 'carregando');
-        const resultado = await Tesseract.recognize(r.foto, 'por+eng', {
-            logger: info => {
-                if (info.status === 'recognizing text') {
-                    atlasSerraAnotacaoSetOCRStatus(`OCR lendo imagem... ${Math.round((info.progress || 0) * 100)}%`, 'carregando');
-                }
-            }
-        });
-        const texto = resultado?.data?.text || '';
-        const achados = atlasSerraAnotacaoExtrairOCR(texto);
-        atlasSerraAnotacaoAplicarOCR(achados, texto);
-    } catch (erro) {
-        console.error('Erro OCR:', erro);
-        atlasSerraAnotacaoSetOCRStatus('OCR falhou. A imagem pode estar escura ou a biblioteca nao carregou.', 'erro');
-        alert('Nao foi possivel ler a imagem. Pode preencher manualmente ou tentar outra foto.');
-    }
-}
 
 function atlasSerraAnotacaoAdicionarLinha() {
     const r = atlasSerraAnotacaoColetarDados();
@@ -6579,7 +6268,7 @@ function atlasSerraAnotacaoRenderLinhas() {
             <input value="${atlasTextoSeguroSaude(linha.observacao)}" placeholder="Observacao" onchange="atlasSerraAnotacaoAtualizarLinha(${index}, 'observacao', this.value)">
             <button onclick="atlasSerraAnotacaoRemoverLinha(${index})">X</button>
         </div>
-    `).join('') : '<div class="serra2-vazio">Nenhuma linha adicionada.</div>';
+    `).join('') : '<div class="atlas-form-vazio">Nenhuma linha adicionada.</div>';
 }
 
 function atlasSerraAnotacaoAtualizarLinha(index, campo, valor) {
@@ -6620,7 +6309,7 @@ function atlasSerraAnotacaoHistorico() {
     });
     render.innerHTML = `
         <div class="serra-anotacao-wrap">
-            <div class="serra2-topo">
+            <div class="atlas-form-topo">
                 <div>
                     <h2>Historico - Leitura de Anotacao</h2>
                     <p>Registros salvos no navegador.</p>
@@ -6654,7 +6343,7 @@ function atlasSerraAnotacaoHistorico() {
                             </details>
                         `).join('')}
                     </details>
-                `).join('') || '<div class="serra2-vazio">Nenhum historico salvo.</div>'}
+                `).join('') || '<div class="atlas-form-vazio">Nenhum historico salvo.</div>'}
             </div>
         </div>
     `;
@@ -6684,11 +6373,9 @@ function atlasSerraAnotacaoGerarPDF() {
                 body { font-family: Arial, sans-serif; color:#111; padding:24px; }
                 .topo { border-bottom:4px solid #111; padding-bottom:12px; margin-bottom:16px; }
                 .grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:14px; }
-                .box, .foto, table { border:1px solid #111; }
+                .box, table { border:1px solid #111; }
                 .box { padding:8px; }
                 .box span { display:block; font-size:11px; color:#555; }
-                .foto { padding:8px; margin-bottom:14px; text-align:center; }
-                .foto img { max-width:100%; max-height:420px; object-fit:contain; }
                 table { width:100%; border-collapse:collapse; }
                 th, td { border:1px solid #111; padding:7px; font-size:12px; }
                 th { background:#eee; }
@@ -6711,7 +6398,6 @@ function atlasSerraAnotacaoGerarPDF() {
                 <div class="box"><span>RAL inferior</span><b>${atlasTextoSeguroSaude(r.ralInferior)}</b></div>
                 <div class="box"><span>Total metros</span><b>${atlasTextoSeguroSaude(r.totalMetros)}</b></div>
             </div>
-            <div class="foto">${r.foto ? `<img src="${r.foto}">` : 'Sem foto anexada.'}</div>
             <table>
                 <thead>
                     <tr><th>Qtd</th><th>Medida mm</th><th>Pedido</th><th>Cliente</th><th>RAL</th><th>Observacao</th></tr>
@@ -6721,404 +6407,6 @@ function atlasSerraAnotacaoGerarPDF() {
                 </tbody>
             </table>
             <div class="obs"><b>Observacoes:</b><br>${atlasTextoSeguroSaude(r.observacoes || '-')}</div>
-            <div class="no-print"><button onclick="window.print()">IMPRIMIR / GUARDAR PDF</button></div>
-        </body>
-        </html>
-    `;
-    const janela = window.open('', '_blank');
-    janela.document.write(html);
-    janela.document.close();
-}
-
-/* ==========================================================
-   SERRA 2 - OTIMIZADOR DE CORTE
-   ========================================================== */
-
-const ATLAS_SERRA2_PLANOS_KEY = 'atlas_serra2_planos';
-
-function atlasSerra2Planos() {
-    return atlasArrayLocal(ATLAS_SERRA2_PLANOS_KEY, []);
-}
-
-function atlasSerra2SalvarPlanos(planos) {
-    localStorage.setItem(ATLAS_SERRA2_PLANOS_KEY, JSON.stringify(planos || []));
-}
-
-function atlasSerra2Numero(valor) {
-    return Number(String(valor || '').replace(',', '.')) || 0;
-}
-
-function atlasSerra2MoedaMetro(valor) {
-    return `${Number(valor || 0).toFixed(2).replace('.', ',')} m`;
-}
-
-function renderizarSerra2() {
-    const render = document.getElementById('render-modulo');
-    if (!render) return;
-    const hoje = new Date().toISOString().slice(0, 10);
-    render.innerHTML = `
-        <div class="serra2-wrap">
-            <div class="serra2-topo">
-                <div>
-                    <h2>Otimizacao de corte - Serra 2</h2>
-                    <p>Monte pedidos, calcule o melhor aproveitamento das chapas e guarde o plano.</p>
-                </div>
-                <button onclick="atlasSerra2MostrarHistorico()">Historico</button>
-            </div>
-
-            <div class="serra2-grid">
-                <section class="serra2-painel">
-                    <h3>Chapas disponiveis</h3>
-                    <div class="serra2-campos">
-                        <label>Quantidade de chapas
-                            <input id="serra2-qtd-chapas" type="number" min="1" value="1">
-                        </label>
-                        <label>Comprimento de cada chapa (m)
-                            <input id="serra2-comp-chapa" inputmode="decimal" value="8">
-                        </label>
-                        <label>Data do plano
-                            <input id="serra2-data" type="date" value="${hoje}">
-                        </label>
-                    </div>
-                </section>
-
-                <section class="serra2-painel">
-                    <h3>Novo pedido</h3>
-                    <div class="serra2-campos pedido">
-                        <input id="serra2-pedido-numero" placeholder="Numero do pedido">
-                        <input id="serra2-pedido-cliente" placeholder="Cliente opcional">
-                        <input id="serra2-pedido-qtd" type="number" min="1" value="1" placeholder="Qtd">
-                        <input id="serra2-pedido-medida" inputmode="decimal" placeholder="Medida em metros">
-                    </div>
-                    <button class="serra2-btn verde" onclick="atlasSerra2AdicionarPedido()">Adicionar pedido</button>
-                </section>
-            </div>
-
-            <section class="serra2-painel">
-                <div class="serra2-linha-titulo">
-                    <h3>Pedidos</h3>
-                    <button onclick="atlasSerra2LimparPedidos()">Limpar</button>
-                </div>
-                <div id="serra2-pedidos" class="serra2-lista"></div>
-            </section>
-
-            <div class="serra2-acoes">
-                <button class="serra2-btn azul" onclick="atlasSerra2Calcular()">Calcular melhor combinacao</button>
-                <button class="serra2-btn cinza" onclick="atlasSerra2CarregarExemplo()">Exemplo</button>
-            </div>
-
-            <section id="serra2-resultado" class="serra2-resultado"></section>
-        </div>
-    `;
-    window.atlasSerra2PedidosTemp = window.atlasSerra2PedidosTemp || [];
-    atlasSerra2RenderPedidos();
-}
-
-function atlasSerra2AdicionarPedido() {
-    const quantidade = Math.floor(atlasSerra2Numero(document.getElementById('serra2-pedido-qtd')?.value));
-    const medida = atlasSerra2Numero(document.getElementById('serra2-pedido-medida')?.value);
-    const pedido = String(document.getElementById('serra2-pedido-numero')?.value || '').trim();
-    const cliente = String(document.getElementById('serra2-pedido-cliente')?.value || '').trim();
-    if (!quantidade || quantidade < 1) return alert('Informe a quantidade.');
-    if (!medida || medida <= 0) return alert('Informe a medida em metros.');
-    if (!pedido) return alert('Informe o numero do pedido.');
-    window.atlasSerra2PedidosTemp = window.atlasSerra2PedidosTemp || [];
-    window.atlasSerra2PedidosTemp.push({
-        id: Date.now() + Math.random(),
-        quantidade,
-        medida,
-        pedido,
-        cliente
-    });
-    ['serra2-pedido-numero', 'serra2-pedido-cliente', 'serra2-pedido-medida'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.value = '';
-    });
-    document.getElementById('serra2-pedido-qtd').value = '1';
-    atlasSerra2RenderPedidos();
-}
-
-function atlasSerra2RenderPedidos() {
-    const alvo = document.getElementById('serra2-pedidos');
-    if (!alvo) return;
-    const pedidos = window.atlasSerra2PedidosTemp || [];
-    alvo.innerHTML = pedidos.length ? pedidos.map((item, index) => `
-        <div class="serra2-item">
-            <div>
-                <b>${atlasTextoSeguroSaude(item.quantidade)}x ${atlasTextoSeguroSaude(atlasSerra2MoedaMetro(item.medida))}</b>
-                <span>Pedido ${atlasTextoSeguroSaude(item.pedido)}${item.cliente ? ` - ${atlasTextoSeguroSaude(item.cliente)}` : ''}</span>
-            </div>
-            <button onclick="atlasSerra2RemoverPedido(${index})">X</button>
-        </div>
-    `).join('') : '<div class="serra2-vazio">Nenhum pedido adicionado.</div>';
-}
-
-function atlasSerra2RemoverPedido(index) {
-    window.atlasSerra2PedidosTemp.splice(index, 1);
-    atlasSerra2RenderPedidos();
-}
-
-function atlasSerra2LimparPedidos() {
-    if (!confirm('Limpar pedidos inseridos?')) return;
-    window.atlasSerra2PedidosTemp = [];
-    atlasSerra2RenderPedidos();
-    const res = document.getElementById('serra2-resultado');
-    if (res) res.innerHTML = '';
-}
-
-function atlasSerra2CarregarExemplo() {
-    window.atlasSerra2PedidosTemp = [
-        { id: 1, quantidade: 1, medida: 5.6, pedido: '1001', cliente: 'Cliente A' },
-        { id: 2, quantidade: 1, medida: 4.1, pedido: '1002', cliente: 'Cliente B' },
-        { id: 3, quantidade: 1, medida: 2.85, pedido: '1003', cliente: 'Cliente C' },
-        { id: 4, quantidade: 2, medida: 1.2, pedido: '1004', cliente: '' }
-    ];
-    document.getElementById('serra2-qtd-chapas').value = '3';
-    document.getElementById('serra2-comp-chapa').value = '8';
-    atlasSerra2RenderPedidos();
-}
-
-function atlasSerra2Otimizar(qtdChapas, comprimentoChapa, pedidos) {
-    const cortes = [];
-    pedidos.forEach(item => {
-        for (let i = 0; i < item.quantidade; i++) {
-            cortes.push({
-                medida: Number(item.medida),
-                pedido: item.pedido,
-                cliente: item.cliente || '',
-                origemId: item.id
-            });
-        }
-    });
-    cortes.sort((a, b) => b.medida - a.medida);
-
-    const chapas = Array.from({ length: qtdChapas }, (_, index) => ({
-        numero: index + 1,
-        cortes: [],
-        usado: 0,
-        sobra: comprimentoChapa,
-        sobraStock: false
-    }));
-    const naoAlocados = [];
-
-    cortes.forEach(corte => {
-        let melhor = null;
-        chapas.forEach(chapa => {
-            const sobraDepois = chapa.sobra - corte.medida;
-            if (sobraDepois < -0.0001) return;
-            if (!melhor || sobraDepois < melhor.sobraDepois) {
-                melhor = { chapa, sobraDepois };
-            }
-        });
-        if (!melhor) {
-            naoAlocados.push(corte);
-            return;
-        }
-        melhor.chapa.cortes.push(corte);
-        melhor.chapa.usado = Number((melhor.chapa.usado + corte.medida).toFixed(3));
-        melhor.chapa.sobra = Number((comprimentoChapa - melhor.chapa.usado).toFixed(3));
-    });
-
-    const usadas = chapas.filter(chapa => chapa.cortes.length);
-    return { chapas, usadas, naoAlocados };
-}
-
-function atlasSerra2Calcular() {
-    const qtdChapas = Math.floor(atlasSerra2Numero(document.getElementById('serra2-qtd-chapas')?.value));
-    const comprimentoChapa = atlasSerra2Numero(document.getElementById('serra2-comp-chapa')?.value);
-    const pedidos = window.atlasSerra2PedidosTemp || [];
-    if (!qtdChapas || qtdChapas < 1) return alert('Informe a quantidade de chapas disponiveis.');
-    if (!comprimentoChapa || comprimentoChapa <= 0) return alert('Informe o comprimento de cada chapa.');
-    if (!pedidos.length) return alert('Adicione pelo menos um pedido.');
-
-    const resultado = atlasSerra2Otimizar(qtdChapas, comprimentoChapa, pedidos);
-    const plano = {
-        id: Date.now(),
-        data: document.getElementById('serra2-data')?.value || new Date().toISOString().slice(0, 10),
-        operador: usuarioLogado?.id || 'SISTEMA',
-        qtdChapas,
-        comprimentoChapa,
-        pedidos: JSON.parse(JSON.stringify(pedidos)),
-        chapas: resultado.chapas,
-        naoAlocados: resultado.naoAlocados,
-        criadoEm: new Date().toLocaleString('pt-BR')
-    };
-    window.atlasSerra2PlanoAtual = plano;
-    atlasSerra2RenderResultado(plano);
-}
-
-function atlasSerra2Totais(plano) {
-    const totalDisponivel = Number(plano.qtdChapas || 0) * Number(plano.comprimentoChapa || 0);
-    const chapasUsadas = (plano.chapas || []).filter(chapa => (chapa.cortes || []).length);
-    const totalUsado = chapasUsadas.reduce((soma, chapa) => soma + Number(chapa.usado || 0), 0);
-    return {
-        totalDisponivel,
-        totalUsado,
-        sobraTotal: totalDisponivel - totalUsado,
-        chapasUsadas: chapasUsadas.length,
-        chapasRestantes: Math.max(0, Number(plano.qtdChapas || 0) - chapasUsadas.length)
-    };
-}
-
-function atlasSerra2RenderResultado(plano) {
-    const alvo = document.getElementById('serra2-resultado');
-    if (!alvo) return;
-    const totais = atlasSerra2Totais(plano);
-    const usadas = (plano.chapas || []).filter(chapa => (chapa.cortes || []).length);
-    alvo.innerHTML = `
-        <div class="serra2-resumo">
-            <div><span>Total disponivel</span><b>${atlasSerra2MoedaMetro(totais.totalDisponivel)}</b></div>
-            <div><span>Total usado</span><b>${atlasSerra2MoedaMetro(totais.totalUsado)}</b></div>
-            <div><span>Sobra total</span><b>${atlasSerra2MoedaMetro(totais.sobraTotal)}</b></div>
-            <div><span>Chapas usadas</span><b>${totais.chapasUsadas}</b></div>
-            <div><span>Chapas restantes</span><b>${totais.chapasRestantes}</b></div>
-        </div>
-
-        <div class="serra2-chapas">
-            ${usadas.map(chapa => `
-                <div class="serra2-chapa">
-                    <div class="serra2-chapa-head">
-                        <b>Chapa ${chapa.numero}</b>
-                        <label><input type="checkbox" ${chapa.sobraStock ? 'checked' : ''} onchange="atlasSerra2MarcarSobraStock(${chapa.numero}, this.checked)"> sobra para stock</label>
-                    </div>
-                    <div class="serra2-cortes">
-                        ${chapa.cortes.map(corte => `
-                            <span>${atlasSerra2MoedaMetro(corte.medida)}<small>Ped. ${atlasTextoSeguroSaude(corte.pedido)}${corte.cliente ? ` - ${atlasTextoSeguroSaude(corte.cliente)}` : ''}</small></span>
-                        `).join('')}
-                    </div>
-                    <div class="serra2-sobra">Sobra: <b>${atlasSerra2MoedaMetro(chapa.sobra)}</b></div>
-                </div>
-            `).join('')}
-        </div>
-
-        ${plano.naoAlocados?.length ? `
-            <div class="serra2-alerta">
-                <b>Cortes sem chapa suficiente:</b>
-                ${plano.naoAlocados.map(c => `${atlasSerra2MoedaMetro(c.medida)} pedido ${atlasTextoSeguroSaude(c.pedido)}`).join(', ')}
-            </div>
-        ` : ''}
-
-        <div class="serra2-acoes">
-            <button class="serra2-btn verde" onclick="atlasSerra2GuardarPlano()">Guardar plano</button>
-            <button class="serra2-btn azul" onclick="atlasSerra2GerarPDF()">Gerar PDF</button>
-        </div>
-    `;
-}
-
-function atlasSerra2MarcarSobraStock(numeroChapa, marcado) {
-    const plano = window.atlasSerra2PlanoAtual;
-    if (!plano) return;
-    const chapa = (plano.chapas || []).find(item => Number(item.numero) === Number(numeroChapa));
-    if (chapa) chapa.sobraStock = marcado === true;
-}
-
-function atlasSerra2GuardarPlano() {
-    const plano = window.atlasSerra2PlanoAtual;
-    if (!plano) return alert('Calcule um plano antes de guardar.');
-    const planos = atlasSerra2Planos();
-    const idx = planos.findIndex(item => item.id === plano.id);
-    if (idx >= 0) planos[idx] = plano;
-    else planos.unshift(plano);
-    atlasSerra2SalvarPlanos(planos.slice(0, 80));
-    if (typeof window.atlasFirebaseSincronizarAgora === 'function') window.atlasFirebaseSincronizarAgora();
-    alert('Plano da Serra 2 guardado.');
-}
-
-function atlasSerra2MostrarHistorico() {
-    const render = document.getElementById('render-modulo');
-    const planos = atlasSerra2Planos();
-    render.innerHTML = `
-        <div class="serra2-wrap">
-            <div class="serra2-topo">
-                <div>
-                    <h2>Historico - Serra 2</h2>
-                    <p>Planos de corte guardados no navegador.</p>
-                </div>
-                <button onclick="renderizarSerra2()">Novo plano</button>
-            </div>
-            <div class="serra2-lista">
-                ${planos.length ? planos.map((plano, index) => {
-                    const totais = atlasSerra2Totais(plano);
-                    return `
-                        <div class="serra2-item historico">
-                            <div>
-                                <b>${atlasTextoSeguroSaude(plano.data)} - ${totais.chapasUsadas} chapa(s)</b>
-                                <span>${atlasSerra2MoedaMetro(totais.totalUsado)} usado | sobra ${atlasSerra2MoedaMetro(totais.sobraTotal)} | ${atlasTextoSeguroSaude(plano.criadoEm || '')}</span>
-                            </div>
-                            <div>
-                                <button onclick="atlasSerra2AbrirPlano(${index})">ABRIR</button>
-                                <button onclick="atlasSerra2ExcluirPlano(${index})">X</button>
-                            </div>
-                        </div>
-                    `;
-                }).join('') : '<div class="serra2-vazio">Nenhum plano guardado.</div>'}
-            </div>
-        </div>
-    `;
-}
-
-function atlasSerra2AbrirPlano(index) {
-    const plano = atlasSerra2Planos()[index];
-    if (!plano) return;
-    renderizarSerra2();
-    window.atlasSerra2PlanoAtual = plano;
-    window.atlasSerra2PedidosTemp = plano.pedidos || [];
-    document.getElementById('serra2-qtd-chapas').value = plano.qtdChapas || 1;
-    document.getElementById('serra2-comp-chapa').value = plano.comprimentoChapa || 8;
-    document.getElementById('serra2-data').value = plano.data || new Date().toISOString().slice(0, 10);
-    atlasSerra2RenderPedidos();
-    atlasSerra2RenderResultado(plano);
-}
-
-function atlasSerra2ExcluirPlano(index) {
-    if (!confirm('Excluir este plano da Serra 2?')) return;
-    const planos = atlasSerra2Planos();
-    planos.splice(index, 1);
-    atlasSerra2SalvarPlanos(planos);
-    atlasSerra2MostrarHistorico();
-}
-
-function atlasSerra2GerarPDF() {
-    const plano = window.atlasSerra2PlanoAtual;
-    if (!plano) return alert('Calcule um plano antes de gerar PDF.');
-    const totais = atlasSerra2Totais(plano);
-    const usadas = (plano.chapas || []).filter(chapa => (chapa.cortes || []).length);
-    const html = `
-        <html>
-        <head>
-            <title>Plano Serra 2</title>
-            <style>
-                body { font-family: Arial, sans-serif; color:#111; padding:24px; }
-                h1 { margin:0 0 6px; }
-                .topo { border-bottom:4px solid #111; padding-bottom:12px; margin-bottom:18px; }
-                .resumo { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin-bottom:18px; }
-                .resumo div, .chapa, .alerta { border:1px solid #111; padding:10px; }
-                .resumo span { display:block; font-size:11px; color:#555; }
-                .chapa { margin-bottom:10px; }
-                .corte { display:inline-block; border:1px solid #777; padding:6px; margin:4px; }
-                .no-print { margin-top:18px; }
-                @media print { .no-print { display:none; } body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
-            </style>
-        </head>
-        <body>
-            <div class="topo">
-                <h1>Plano de corte - Serra 2</h1>
-                <div>Data: ${atlasTextoSeguroSaude(plano.data)} | Operador: ${atlasTextoSeguroSaude(plano.operador || '')}</div>
-            </div>
-            <div class="resumo">
-                <div><span>Total disponivel</span><b>${atlasSerra2MoedaMetro(totais.totalDisponivel)}</b></div>
-                <div><span>Total usado</span><b>${atlasSerra2MoedaMetro(totais.totalUsado)}</b></div>
-                <div><span>Sobra total</span><b>${atlasSerra2MoedaMetro(totais.sobraTotal)}</b></div>
-                <div><span>Chapas usadas</span><b>${totais.chapasUsadas}</b></div>
-                <div><span>Chapas restantes</span><b>${totais.chapasRestantes}</b></div>
-            </div>
-            ${usadas.map(chapa => `
-                <div class="chapa">
-                    <h3>Chapa ${chapa.numero} - sobra ${atlasSerra2MoedaMetro(chapa.sobra)}${chapa.sobraStock ? ' - stock' : ''}</h3>
-                    ${(chapa.cortes || []).map(corte => `<span class="corte">${atlasSerra2MoedaMetro(corte.medida)} | Pedido ${atlasTextoSeguroSaude(corte.pedido)}${corte.cliente ? ` | ${atlasTextoSeguroSaude(corte.cliente)}` : ''}</span>`).join('')}
-                </div>
-            `).join('')}
-            ${plano.naoAlocados?.length ? `<div class="alerta"><b>Sem chapa suficiente:</b> ${plano.naoAlocados.map(c => `${atlasSerra2MoedaMetro(c.medida)} pedido ${atlasTextoSeguroSaude(c.pedido)}`).join(', ')}</div>` : ''}
             <div class="no-print"><button onclick="window.print()">IMPRIMIR / GUARDAR PDF</button></div>
         </body>
         </html>

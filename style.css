@@ -1195,48 +1195,8 @@ table {
     display: none !important;
 }
 
-.atlas-ocr-relatorio {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 10px;
-    align-items: center;
-    background: #0f172a;
-    border: 1px solid #334155;
-    border-left: 5px solid #f59e0b;
-    border-radius: 10px;
-    padding: 12px;
-    margin-bottom: 15px;
-    color: #fff;
-}
 
-.atlas-ocr-relatorio b {
-    display: block;
-    font-size: 15px;
-}
-
-.atlas-ocr-relatorio span {
-    display: block;
-    color: #94a3b8;
-    font-size: 12px;
-    font-weight: 800;
-    margin-top: 3px;
-}
-
-.atlas-ocr-relatorio input[type="file"] {
-    display: none;
-}
-
-.atlas-ocr-relatorio label {
-    background: #2563eb;
-    color: #fff;
-    border-radius: 8px;
-    padding: 11px 14px;
-    font-weight: 900;
-    cursor: pointer;
-    text-align: center;
-}
-
-.serra2-wrap {
+.atlas-form-wrap {
     display: flex;
     flex-direction: column;
     gap: 16px;
@@ -1244,44 +1204,44 @@ table {
     color: #fff;
 }
 
-.serra2-topo,
-.serra2-painel,
-.serra2-resultado {
+.atlas-form-topo,
+.atlas-form-painel,
+.atlas-form-resultado {
     background: #1e293b;
     border: 1px solid #334155;
     border-radius: 10px;
     padding: 16px;
 }
 
-.serra2-topo {
+.atlas-form-topo {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
 }
 
-.serra2-topo h2,
-.serra2-painel h3 {
+.atlas-form-topo h2,
+.atlas-form-painel h3 {
     margin: 0 0 8px;
 }
 
-.serra2-topo p {
+.atlas-form-topo p {
     margin: 0;
     color: #94a3b8;
 }
 
-.serra2-grid,
-.serra2-campos {
+.atlas-form-grid,
+.atlas-form-campos {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 12px;
 }
 
-.serra2-campos.pedido {
+.atlas-form-campos.pedido {
     grid-template-columns: 1.2fr 1.4fr .7fr .9fr;
 }
 
-.serra2-wrap input {
+.atlas-form-wrap input {
     width: 100%;
     background: #0f172a;
     color: #fff;
@@ -1290,16 +1250,16 @@ table {
     padding: 12px;
 }
 
-.serra2-wrap label {
+.atlas-form-wrap label {
     color: #bfdbfe;
     font-weight: 800;
     font-size: 13px;
 }
 
-.serra2-btn,
-.serra2-topo button,
-.serra2-linha-titulo button,
-.serra2-item button {
+.atlas-form-btn,
+.atlas-form-topo button,
+.atlas-form-linha-titulo button,
+.atlas-form-item button {
     border: none;
     border-radius: 8px;
     padding: 12px 14px;
@@ -1309,12 +1269,12 @@ table {
     background: #334155;
 }
 
-.serra2-btn.verde { background: #10b981; }
-.serra2-btn.azul { background: #2563eb; }
-.serra2-btn.cinza { background: #475569; }
+.atlas-form-btn.verde { background: #10b981; }
+.atlas-form-btn.azul { background: #2563eb; }
+.atlas-form-btn.cinza { background: #475569; }
 
-.serra2-acoes,
-.serra2-linha-titulo {
+.atlas-form-acoes,
+.atlas-form-linha-titulo {
     display: flex;
     gap: 10px;
     align-items: center;
@@ -1322,15 +1282,15 @@ table {
     flex-wrap: wrap;
 }
 
-.serra2-lista,
-.serra2-chapas {
+.atlas-form-lista,
+.atlas-form-chapas {
     display: flex;
     flex-direction: column;
     gap: 10px;
 }
 
-.serra2-item,
-.serra2-chapa {
+.atlas-form-item,
+.atlas-form-chapa {
     background: #0f172a;
     border: 1px solid #334155;
     border-left: 5px solid #2563eb;
@@ -1338,46 +1298,46 @@ table {
     padding: 12px;
 }
 
-.serra2-item {
+.atlas-form-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 10px;
 }
 
-.serra2-item span {
+.atlas-form-item span {
     display: block;
     color: #94a3b8;
     font-size: 13px;
     margin-top: 3px;
 }
 
-.serra2-resumo {
+.atlas-form-resumo {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(145px, 1fr));
     gap: 10px;
     margin-bottom: 14px;
 }
 
-.serra2-resumo div {
+.atlas-form-resumo div {
     background: #0f172a;
     border: 1px solid #334155;
     border-radius: 8px;
     padding: 12px;
 }
 
-.serra2-resumo span {
+.atlas-form-resumo span {
     display: block;
     color: #93c5fd;
     font-size: 12px;
 }
 
-.serra2-resumo b {
+.atlas-form-resumo b {
     color: #22c55e;
     font-size: 20px;
 }
 
-.serra2-chapa-head {
+.atlas-form-chapa-head {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -1386,13 +1346,13 @@ table {
     flex-wrap: wrap;
 }
 
-.serra2-cortes {
+.atlas-form-cortes {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
 }
 
-.serra2-cortes span {
+.atlas-form-cortes span {
     background: #172554;
     border: 1px solid #3b82f6;
     border-radius: 8px;
@@ -1401,19 +1361,19 @@ table {
     font-weight: 900;
 }
 
-.serra2-cortes small {
+.atlas-form-cortes small {
     display: block;
     color: #bfdbfe;
     font-size: 11px;
     margin-top: 2px;
 }
 
-.serra2-sobra {
+.atlas-form-sobra {
     margin-top: 10px;
     color: #fbbf24;
 }
 
-.serra2-alerta {
+.atlas-form-alerta {
     margin-top: 12px;
     background: #451a1a;
     border: 1px solid #ef4444;
@@ -1422,7 +1382,7 @@ table {
     color: #fecaca;
 }
 
-.serra2-vazio {
+.atlas-form-vazio {
     color: #94a3b8;
     background: #0f172a;
     border: 1px dashed #334155;
@@ -1438,26 +1398,6 @@ table {
     color: #fff;
 }
 
-.serra-anotacao-foto-grid {
-    display: grid;
-    grid-template-columns: minmax(220px, .8fr) minmax(260px, 1.2fr);
-    gap: 14px;
-    align-items: start;
-}
-
-.serra-anotacao-foto-grid input[type="file"] {
-    display: none;
-}
-
-.serra-anotacao-foto-acoes {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-
-.serra-anotacao-foto-acoes label {
-    text-align: center;
-}
 
 .serra-anotacao-preview {
     min-height: 220px;
@@ -1477,55 +1417,6 @@ table {
     object-fit: contain;
 }
 
-.serra-anotacao-ocr-status {
-    margin-top: 10px;
-    background: #0f172a;
-    border: 1px solid #334155;
-    border-radius: 8px;
-    padding: 10px;
-    color: #94a3b8;
-    font-weight: 800;
-}
-
-.serra-anotacao-ocr-status.carregando {
-    color: #fbbf24;
-    border-color: #f59e0b;
-}
-
-.serra-anotacao-ocr-status.ok {
-    color: #22c55e;
-    border-color: #22c55e;
-}
-
-.serra-anotacao-ocr-status.erro {
-    color: #fecaca;
-    border-color: #ef4444;
-}
-
-.serra-anotacao-ocr-box {
-    margin-top: 12px;
-    background: #0f172a;
-    border: 1px solid #334155;
-    border-radius: 10px;
-    padding: 10px;
-}
-
-.serra-anotacao-ocr-box summary {
-    cursor: pointer;
-    color: #bfdbfe;
-    font-weight: 900;
-}
-
-.serra-anotacao-ocr-box textarea {
-    width: 100%;
-    min-height: 130px;
-    margin-top: 8px;
-    background: #020617;
-    color: #dbeafe;
-    border: 1px solid #334155;
-    border-radius: 8px;
-    padding: 10px;
-}
 
 .serra-anotacao-campos {
     display: grid;
@@ -1628,28 +1519,23 @@ table {
 }
 
 @media (max-width: 720px) {
-    .atlas-ocr-relatorio {
-        grid-template-columns: 1fr;
-    }
 
-    .serra2-topo,
-    .serra2-item,
+    .atlas-form-topo,
+    .atlas-form-item,
     .serra-anotacao-card-hist {
         align-items: stretch;
         flex-direction: column;
     }
-
-    .serra-anotacao-foto-grid,
     .serra-anotacao-linha {
         grid-template-columns: 1fr;
     }
 
-    .serra2-campos.pedido {
+    .atlas-form-campos.pedido {
         grid-template-columns: 1fr;
     }
 
-    .serra2-acoes .serra2-btn,
-    .serra2-topo button {
+    .atlas-form-acoes .atlas-form-btn,
+    .atlas-form-topo button {
         width: 100%;
     }
 }
