@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v150-sem-midias';
+const CACHE_NAME = 'atlas-v151-limpo';
 const assets = [
   './',
   './index.html',

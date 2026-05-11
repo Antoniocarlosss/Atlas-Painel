@@ -9,7 +9,7 @@
     <title>Atlas Painel - Gestão</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20260511-sem-midias">
+    <link rel="stylesheet" href="style.css?v=20260511-build-151-limpo">
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
@@ -64,7 +64,6 @@
     <div class="card" onclick="abrirModulo('injecao')"><i class="fas fa-microchip"></i><span>Injeção</span></div>
     <div class="card" onclick="abrirModulo('bobines')"><i class="fas fa-compact-disc"></i><span>Bobines</span></div>
     <div class="card" onclick="abrirModulo('serra')"><i class="fas fa-layer-group"></i><span>Serra</span></div>
-    <div class="card" onclick="abrirModulo('serra_anotacao')"><i class="fas fa-clipboard-list"></i><span>Serra Anotação</span></div>
     <div class="card" onclick="abrirModulo('embalagem')"><i class="fas fa-boxes-packing"></i><span>Embalagem</span></div>
     <div id="card-gestao" class="card" onclick="abrirModulo('gestao')"><i class="fas fa-chart-line"></i><span>Gestão</span></div>
     <div class="card" onclick="abrirModulo('config')"><i class="fas fa-gears"></i><span>Ajustes</span></div>
@@ -118,8 +117,8 @@
             });
         })();
 
-        window.ATLAS_SISTEMA_VERSAO = '20260511-sem-midias';
-        window.ATLAS_SISTEMA_BUILD = 150;
+        window.ATLAS_SISTEMA_VERSAO = '20260511-build-151-limpo';
+        window.ATLAS_SISTEMA_BUILD = 151;
         window.atlasMostrarTelaAtualizacao = function atlasMostrarTelaAtualizacao(opcoes = {}) {
             const finalizado = opcoes.finalizado === true;
             let overlay = document.getElementById('atlas-update-screen');
@@ -290,10 +289,10 @@
             Promise.allSettled([limparCaches, atualizarWorker]);
         })();
     </script>
-    <script src="script.js?v=20260511-sem-midias"></script>
-    <script src="historicos-admin.js?v=20260511-sem-midias"></script>
+    <script src="script.js?v=20260511-build-151-limpo"></script>
+    <script src="historicos-admin.js?v=20260511-build-151-limpo"></script>
     <script src="atlas-ajustes-fachadas.js?v=20260427-permissao-excluir"></script>
-    <script type="module" src="firebase-atlas.js?v=20260511-sem-midias"></script>
+    <script type="module" src="firebase-atlas.js?v=20260511-build-151-limpo"></script>
     <script>
         if ('serviceWorker' in navigator) {
             let atlasAtualizandoPWA = false;
@@ -304,7 +303,7 @@
             });
 
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=20260511-sem-midias')
+                navigator.serviceWorker.register('sw.js?v=20260511-build-151-limpo')
                     .then(reg => {
                         console.log('Atlas PWA: Ativo!');
                         reg.update();
