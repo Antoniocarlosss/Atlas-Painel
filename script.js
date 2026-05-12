@@ -9259,21 +9259,14 @@ document.addEventListener('click', function(evento) {
         const arquivo = input?.files?.[0];
         if (!arquivo) return { url: '', thumb: '' };
 
-        if (typeof window.atlasFirebaseUploadGuiaArquivo === 'function') {
-            let arquivoFinal = arquivo;
-            let thumb = '';
-            if (arquivo.type.startsWith('image/')) {
-                const fotoComprimida = await comprimirImagemGuia(arquivo);
-                thumb = await comprimirImagemGuia(arquivo, 420, 0.58);
-                const blob = await fetch(fotoComprimida).then(r => r.blob());
-                arquivoFinal = new File([blob], 'foto-guia.jpg', { type: 'image/jpeg' });
-            }
-            const url = await window.atlasFirebaseUploadGuiaArquivo(arquivoFinal, caminhoBase);
-            return { url, thumb };
+        if (arquivo.type.startsWith('image/')) {
+            const thumb = await comprimirImagemGuia(arquivo, 520, 0.54);
+            return { url: thumb, thumb };
         }
 
-        const url = await lerArquivoGuiaLocal(input);
-        return { url, thumb: arquivo.type.startsWith('image/') ? await comprimirImagemGuia(arquivo, 420, 0.58) : '' };
+        alert('Para deixar o sistema leve no celular, video por arquivo foi desativado. Use o campo de link do video ou me envie o video aqui para preparar.');
+        input.value = '';
+        return { url: '', thumb: '' };
     }
 
     function lerArquivoGuiaLocal(input) {
@@ -9334,16 +9327,16 @@ document.addEventListener('click', function(evento) {
                 <input id="guia-ferro-posicao" value="${escGuia(item?.posicao || '')}" placeholder="Posicao da guia / observacao curta" style="width:100%; padding:12px; background:#020617; color:white; border:1px solid #334155; border-radius:8px; margin-bottom:10px;">
                 <textarea id="guia-ferro-nota" placeholder="Detalhes de montagem" style="width:100%; min-height:75px; padding:12px; background:#020617; color:white; border:1px solid #334155; border-radius:8px; margin-bottom:10px;">${escGuia(item?.nota || '')}</textarea>
                 <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; margin-bottom:10px;">
-                    <label style="color:#94a3b8; font-size:12px;">Foto
+                    <label style="color:#94a3b8; font-size:12px;">Foto leve
                         <input id="guia-ferro-foto" type="file" accept="image/*" capture="environment" style="width:100%; margin-top:5px; color:white;">
                     </label>
-                    <label style="color:#94a3b8; font-size:12px;">Video
-                        <input id="guia-ferro-video" type="file" accept="video/*" capture="environment" style="width:100%; margin-top:5px; color:white;">
+                    <label style="color:#94a3b8; font-size:12px;">Link do video
+                        <input id="guia-ferro-video-url" value="${escGuia(item?.video || '')}" placeholder="Cole aqui o link do video" style="width:100%; margin-top:5px; padding:10px; background:#020617; color:white; border:1px solid #334155; border-radius:8px;">
                     </label>
                 </div>
                 ${editando ? `<label style="display:flex; gap:8px; align-items:center; color:#cbd5e1; font-size:13px; margin-bottom:10px;"><input id="guia-remover-midia" type="checkbox"> remover foto/video atual</label>` : ''}
                 <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                    <button id="guia-btn-salvar" onclick="atlasSalvarFerroGuiaInjecao('${jsGuia(tipo)}','${lado}')" style="background:#10b981; color:white; border:none; padding:12px 16px; border-radius:8px; font-weight:bold;">SALVAR / PUBLICAR</button>
+                    <button id="guia-btn-salvar" onclick="atlasSalvarFerroGuiaInjecao('${jsGuia(tipo)}','${lado}')" style="background:#10b981; color:white; border:none; padding:12px 16px; border-radius:8px; font-weight:bold;">SALVAR</button>
                     ${editando ? `<button onclick="atlasAbrirLadoGuiaInjecao('${jsGuia(tipo)}','${lado}')" style="background:#475569; color:white; border:none; padding:12px 16px; border-radius:8px; font-weight:bold;">CANCELAR</button>` : ''}
                 </div>
             </div>
@@ -9507,21 +9500,20 @@ document.addEventListener('click', function(evento) {
         const botaoSalvar = document.getElementById('guia-btn-salvar');
         if (botaoSalvar) {
             botaoSalvar.disabled = true;
-            botaoSalvar.textContent = 'PUBLICANDO...';
+            botaoSalvar.textContent = 'SALVANDO...';
             botaoSalvar.style.opacity = '.75';
         }
 
         let fotoNova = { url: '', thumb: '' };
-        let videoNovo = { url: '', thumb: '' };
+        const videoLink = document.getElementById('guia-ferro-video-url')?.value.trim() || '';
         try {
             fotoNova = await prepararArquivoGuia(document.getElementById('guia-ferro-foto'), `${tipo}/${lado}/${itemId}/foto`);
-            videoNovo = await prepararArquivoGuia(document.getElementById('guia-ferro-video'), `${tipo}/${lado}/${itemId}/video`);
         } catch (erro) {
             console.error('Erro ao publicar midia da guia:', erro);
-            alert('Nao foi possivel publicar a foto/video. Verifique a internet e tente novamente.');
+            alert('Nao foi possivel salvar a foto. Tente uma foto menor.');
             if (botaoSalvar) {
                 botaoSalvar.disabled = false;
-                botaoSalvar.textContent = 'SALVAR / PUBLICAR';
+                botaoSalvar.textContent = 'SALVAR';
                 botaoSalvar.style.opacity = '1';
             }
             return;
@@ -9534,7 +9526,7 @@ document.addEventListener('click', function(evento) {
             nota: document.getElementById('guia-ferro-nota')?.value.trim() || '',
             foto: removerMidia ? '' : (fotoNova.url || atual?.foto || ''),
             fotoThumb: removerMidia ? '' : (fotoNova.thumb || atual?.fotoThumb || ''),
-            video: removerMidia ? '' : (videoNovo.url || atual?.video || ''),
+            video: removerMidia ? '' : (videoLink || atual?.video || ''),
             atualizadoEm: new Date().toLocaleString('pt-BR'),
             atualizadoPor: document.getElementById('user-display')?.innerText || usuarioLogado?.id || 'SISTEMA'
         };
