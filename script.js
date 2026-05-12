@@ -9179,6 +9179,264 @@ document.addEventListener('click', function(evento) {
 })();
 
 /* ==========================================================
+   INJECAO - GUIAS / FERROS POR TIPO DE CHAPA
+   ========================================================== */
+(function() {
+    if (window.atlasGuiasInjecaoAtivo) return;
+    window.atlasGuiasInjecaoAtivo = true;
+
+    const CHAVE_GUIAS_INJECAO = 'atlas_guias_injecao';
+    const TIPOS_GUIAS_PADRAO = ['5 Ondas', 'Telha Canudo', 'Fachada Oculta', 'Fachada Visivel'];
+
+    function escGuia(valor) {
+        return String(valor ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' }[c]));
+    }
+
+    function jsGuia(valor) {
+        return String(valor ?? '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    }
+
+    function podeEditarGuiasInjecao() {
+        return typeof usuarioEhAdminSupervisor === 'function' && usuarioEhAdminSupervisor();
+    }
+
+    function tiposGuiasInjecao() {
+        const doSistema = Array.isArray(window.OPCOES_TIPO_PLANO) ? window.OPCOES_TIPO_PLANO : (typeof OPCOES_TIPO_PLANO !== 'undefined' ? OPCOES_TIPO_PLANO : []);
+        const todos = [...TIPOS_GUIAS_PADRAO, ...doSistema]
+            .map(v => String(v || '').trim())
+            .filter(v => v && normalizarStockAtlas(v) !== 'pir');
+        return [...new Set(todos)];
+    }
+
+    function dadosGuiasInjecao() {
+        const dados = atlasJSONLocal(CHAVE_GUIAS_INJECAO, {});
+        tiposGuiasInjecao().forEach(tipo => {
+            dados[tipo] ||= {};
+            dados[tipo].esquerdo ||= [];
+            dados[tipo].direito ||= [];
+        });
+        return dados;
+    }
+
+    function salvarGuiasInjecao(dados) {
+        localStorage.setItem(CHAVE_GUIAS_INJECAO, JSON.stringify(dados || {}));
+    }
+
+    function nomeLadoGuia(lado) {
+        return lado === 'direito' ? 'Lado direito' : 'Lado esquerdo';
+    }
+
+    function lerArquivoGuia(input) {
+        return new Promise(resolve => {
+            const arquivo = input?.files?.[0];
+            if (!arquivo) return resolve('');
+            if (arquivo.size > 12 * 1024 * 1024) {
+                alert('Arquivo muito grande. Use foto/video menor que 12 MB.');
+                input.value = '';
+                return resolve('');
+            }
+            const reader = new FileReader();
+            reader.onload = () => resolve(String(reader.result || ''));
+            reader.onerror = () => resolve('');
+            reader.readAsDataURL(arquivo);
+        });
+    }
+
+    function htmlMidiaGuia(item) {
+        const foto = item.foto ? `<img src="${item.foto}" alt="Foto ${escGuia(item.nome)}" style="width:100%; max-height:220px; object-fit:cover; border-radius:8px; border:1px solid #334155; margin-top:10px;">` : '';
+        const video = item.video ? `<video controls src="${item.video}" style="width:100%; max-height:260px; border-radius:8px; border:1px solid #334155; margin-top:10px;"></video>` : '';
+        if (!foto && !video) return `<div style="margin-top:10px; color:#94a3b8; border:1px dashed #475569; border-radius:8px; padding:18px; text-align:center;">Sem foto/video ainda</div>`;
+        return foto + video;
+    }
+
+    function htmlFormGuia(tipo, lado, item = null) {
+        if (!podeEditarGuiasInjecao()) return '';
+        const editando = !!item;
+        return `
+            <div style="background:#111827; border:1px solid #3b82f6; border-radius:10px; padding:14px; margin-bottom:15px;">
+                <h3 style="margin:0 0 12px; color:white; font-size:16px;">${editando ? 'Editar ferro' : 'Adicionar ferro'}</h3>
+                <input id="guia-ferro-id" type="hidden" value="${escGuia(item?.id || '')}">
+                <input id="guia-ferro-nome" value="${escGuia(item?.nome || '')}" placeholder="Ex: Ferro 1" style="width:100%; padding:12px; background:#020617; color:white; border:1px solid #334155; border-radius:8px; margin-bottom:10px;">
+                <input id="guia-ferro-posicao" value="${escGuia(item?.posicao || '')}" placeholder="Posicao da guia / observacao curta" style="width:100%; padding:12px; background:#020617; color:white; border:1px solid #334155; border-radius:8px; margin-bottom:10px;">
+                <textarea id="guia-ferro-nota" placeholder="Detalhes de montagem" style="width:100%; min-height:75px; padding:12px; background:#020617; color:white; border:1px solid #334155; border-radius:8px; margin-bottom:10px;">${escGuia(item?.nota || '')}</textarea>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; margin-bottom:10px;">
+                    <label style="color:#94a3b8; font-size:12px;">Foto
+                        <input id="guia-ferro-foto" type="file" accept="image/*" style="width:100%; margin-top:5px; color:white;">
+                    </label>
+                    <label style="color:#94a3b8; font-size:12px;">Video
+                        <input id="guia-ferro-video" type="file" accept="video/*" style="width:100%; margin-top:5px; color:white;">
+                    </label>
+                </div>
+                ${editando ? `<label style="display:flex; gap:8px; align-items:center; color:#cbd5e1; font-size:13px; margin-bottom:10px;"><input id="guia-remover-midia" type="checkbox"> remover foto/video atual</label>` : ''}
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button onclick="atlasSalvarFerroGuiaInjecao('${jsGuia(tipo)}','${lado}')" style="background:#10b981; color:white; border:none; padding:12px 16px; border-radius:8px; font-weight:bold;">SALVAR</button>
+                    ${editando ? `<button onclick="atlasAbrirLadoGuiaInjecao('${jsGuia(tipo)}','${lado}')" style="background:#475569; color:white; border:none; padding:12px 16px; border-radius:8px; font-weight:bold;">CANCELAR</button>` : ''}
+                </div>
+            </div>
+        `;
+    }
+
+    function inserirCardGuiasInjecao() {
+        if (window.atlasModuloAtual !== 'injecao') return;
+        const render = document.getElementById('render-modulo');
+        const grid = render?.querySelector('div[style*="grid-template-columns"]');
+        if (!grid || document.getElementById('atlas-card-guias-injecao')) return;
+        grid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(260px, 1fr))';
+        grid.insertAdjacentHTML('beforeend', `
+            <div id="atlas-card-guias-injecao" class="card" onclick="atlasAbrirGuiasInjecao()">
+                <i class="fas fa-grip-lines"></i><span>Guias / Ferros</span>
+            </div>
+        `);
+    }
+
+    const abrirModuloOriginalGuias = window.abrirModulo || abrirModulo;
+    window.abrirModulo = function(nome) {
+        const retorno = abrirModuloOriginalGuias.apply(this, arguments);
+        if (nome === 'injecao') inserirCardGuiasInjecao();
+        return retorno;
+    };
+    abrirModulo = window.abrirModulo;
+
+    window.atlasAbrirGuiasInjecao = function() {
+        const render = document.getElementById('render-modulo');
+        if (!render) return;
+        const dados = dadosGuiasInjecao();
+        const podeEditar = podeEditarGuiasInjecao();
+        render.innerHTML = `
+            <div style="padding:15px; color:white;">
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px;">
+                    <button onclick="abrirModulo('injecao')" style="background:none; border:none; color:#94a3b8; font-size:22px; cursor:pointer;"><i class="fas fa-arrow-left"></i></button>
+                    <div>
+                        <h2 style="margin:0; color:white;">Guias / Ferros da Injecao</h2>
+                        <small style="color:#94a3b8;">Selecione o tipo de chapa para ver lado esquerdo e lado direito.</small>
+                    </div>
+                </div>
+                ${podeEditar ? `<div style="background:#052e16; color:#bbf7d0; border:1px solid #10b981; border-radius:8px; padding:10px; margin-bottom:15px;">Modo edicao ativo: pode incluir, alterar e apagar fotos/videos.</div>` : ''}
+                <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:12px;">
+                    ${tiposGuiasInjecao().map(tipo => {
+                        const total = (dados[tipo]?.esquerdo?.length || 0) + (dados[tipo]?.direito?.length || 0);
+                        return `
+                            <div onclick="atlasAbrirTipoGuiaInjecao('${jsGuia(tipo)}')" style="cursor:pointer; background:#1e293b; border:1px solid #334155; border-radius:10px; padding:24px; min-height:145px; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center;">
+                                <i class="fas fa-layer-group" style="font-size:34px; color:#3b82f6; margin-bottom:12px;"></i>
+                                <b style="font-size:16px;">${escGuia(tipo)}</b>
+                                <small style="color:#94a3b8; margin-top:6px;">${total} ferro(s) cadastrado(s)</small>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    };
+
+    window.atlasAbrirTipoGuiaInjecao = function(tipo) {
+        const render = document.getElementById('render-modulo');
+        const dados = dadosGuiasInjecao();
+        render.innerHTML = `
+            <div style="padding:15px; color:white;">
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px;">
+                    <button onclick="atlasAbrirGuiasInjecao()" style="background:none; border:none; color:#94a3b8; font-size:22px; cursor:pointer;"><i class="fas fa-arrow-left"></i></button>
+                    <div>
+                        <h2 style="margin:0; color:white;">${escGuia(tipo)}</h2>
+                        <small style="color:#94a3b8;">Escolha o lado onde a guia fica posicionada.</small>
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:15px;">
+                    ${['esquerdo','direito'].map(lado => `
+                        <div onclick="atlasAbrirLadoGuiaInjecao('${jsGuia(tipo)}','${lado}')" style="cursor:pointer; background:#1e293b; border:1px solid #334155; border-radius:10px; padding:32px; text-align:center;">
+                            <i class="fas fa-arrow-${lado === 'direito' ? 'right' : 'left'}" style="font-size:36px; color:#3b82f6; margin-bottom:12px;"></i>
+                            <b style="display:block; font-size:17px;">${nomeLadoGuia(lado)}</b>
+                            <small style="color:#94a3b8;">${dados[tipo]?.[lado]?.length || 0} ferro(s)</small>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    };
+
+    window.atlasAbrirLadoGuiaInjecao = function(tipo, lado, editarId = '') {
+        const render = document.getElementById('render-modulo');
+        const dados = dadosGuiasInjecao();
+        const lista = dados[tipo]?.[lado] || [];
+        const itemEditando = lista.find(item => String(item.id) === String(editarId));
+        const podeEditar = podeEditarGuiasInjecao();
+
+        render.innerHTML = `
+            <div style="padding:15px; color:white;">
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px;">
+                    <button onclick="atlasAbrirTipoGuiaInjecao('${jsGuia(tipo)}')" style="background:none; border:none; color:#94a3b8; font-size:22px; cursor:pointer;"><i class="fas fa-arrow-left"></i></button>
+                    <div>
+                        <h2 style="margin:0; color:white;">${escGuia(tipo)} - ${nomeLadoGuia(lado)}</h2>
+                        <small style="color:#94a3b8;">Posicao da guia e ferros para montagem.</small>
+                    </div>
+                </div>
+                ${htmlFormGuia(tipo, lado, itemEditando)}
+                <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px;">
+                    ${lista.length ? lista.map(item => `
+                        <div style="background:#1e293b; border:1px solid #334155; border-radius:10px; padding:14px;">
+                            <div style="display:flex; justify-content:space-between; gap:8px; align-items:flex-start;">
+                                <div>
+                                    <b style="font-size:16px;">${escGuia(item.nome || 'Ferro')}</b><br>
+                                    <small style="color:#60a5fa;">${escGuia(item.posicao || 'Sem posicao informada')}</small>
+                                </div>
+                                ${podeEditar ? `<div style="display:flex; gap:6px;">
+                                    <button onclick="atlasAbrirLadoGuiaInjecao('${jsGuia(tipo)}','${lado}','${jsGuia(item.id)}')" style="background:#f59e0b; color:black; border:none; border-radius:6px; padding:8px; font-weight:bold;">EDITAR</button>
+                                    <button onclick="atlasApagarFerroGuiaInjecao('${jsGuia(tipo)}','${lado}','${jsGuia(item.id)}')" style="background:#ef4444; color:white; border:none; border-radius:6px; padding:8px; font-weight:bold;">X</button>
+                                </div>` : ''}
+                            </div>
+                            ${item.nota ? `<div style="color:#cbd5e1; font-size:13px; margin-top:10px; line-height:1.45;">${escGuia(item.nota)}</div>` : ''}
+                            ${htmlMidiaGuia(item)}
+                        </div>
+                    `).join('') : `<div style="grid-column:1/-1; color:#94a3b8; border:1px dashed #475569; border-radius:10px; padding:30px; text-align:center;">Ainda nao existem ferros cadastrados para este lado.</div>`}
+                </div>
+            </div>
+        `;
+    };
+
+    window.atlasSalvarFerroGuiaInjecao = async function(tipo, lado) {
+        if (!podeEditarGuiasInjecao()) return alert('Apenas ADMIN ou SUPERVISOR podem alterar guias.');
+        const dados = dadosGuiasInjecao();
+        dados[tipo] ||= { esquerdo: [], direito: [] };
+        dados[tipo][lado] ||= [];
+
+        const id = document.getElementById('guia-ferro-id')?.value || '';
+        const nome = document.getElementById('guia-ferro-nome')?.value.trim();
+        if (!nome) return alert('Informe o nome do ferro.');
+
+        const lista = dados[tipo][lado];
+        const atual = lista.find(item => String(item.id) === String(id));
+        const removerMidia = !!document.getElementById('guia-remover-midia')?.checked;
+        const fotoNova = await lerArquivoGuia(document.getElementById('guia-ferro-foto'));
+        const videoNovo = await lerArquivoGuia(document.getElementById('guia-ferro-video'));
+        const item = {
+            id: atual?.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            nome,
+            posicao: document.getElementById('guia-ferro-posicao')?.value.trim() || '',
+            nota: document.getElementById('guia-ferro-nota')?.value.trim() || '',
+            foto: removerMidia ? '' : (fotoNova || atual?.foto || ''),
+            video: removerMidia ? '' : (videoNovo || atual?.video || ''),
+            atualizadoEm: new Date().toLocaleString('pt-BR'),
+            atualizadoPor: document.getElementById('user-display')?.innerText || usuarioLogado?.id || 'SISTEMA'
+        };
+
+        if (atual) Object.assign(atual, item);
+        else lista.push(item);
+        salvarGuiasInjecao(dados);
+        atlasAbrirLadoGuiaInjecao(tipo, lado);
+    };
+
+    window.atlasApagarFerroGuiaInjecao = function(tipo, lado, id) {
+        if (!podeEditarGuiasInjecao()) return alert('Apenas ADMIN ou SUPERVISOR podem apagar guias.');
+        if (!confirm('Apagar este ferro da guia?')) return;
+        const dados = dadosGuiasInjecao();
+        dados[tipo][lado] = (dados[tipo]?.[lado] || []).filter(item => String(item.id) !== String(id));
+        salvarGuiasInjecao(dados);
+        atlasAbrirLadoGuiaInjecao(tipo, lado);
+    };
+
+    if (window.atlasModuloAtual === 'injecao') setTimeout(inserirCardGuiasInjecao, 0);
+})();
+
+/* ==========================================================
    FINALIZAR DIA DIRETO COM RELATORIO NA TELA
    ========================================================== */
 (function() {
