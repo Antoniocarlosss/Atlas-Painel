@@ -1055,8 +1055,11 @@ function atlasUsuarioDigitandoOuEditando() {
     return modal && modal.style.display && modal.style.display !== 'none';
 }
 
-function atlasAtualizarTelaAposSyncNuvem() {
+function atlasAtualizarTelaAposSyncNuvem(evento) {
     if (!usuarioLogado) return;
+
+    const chavesAtualizadas = evento?.detail?.chaves || [];
+    if (chavesAtualizadas.length === 1 && chavesAtualizadas[0] === 'atlas_guias_injecao') return;
 
     if (typeof aplicarPermissoesUsuario === 'function') aplicarPermissoesUsuario();
     if (typeof aplicarPreferenciasVisuaisUsuario === 'function') aplicarPreferenciasVisuaisUsuario();

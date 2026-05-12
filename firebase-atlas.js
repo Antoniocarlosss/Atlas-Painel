@@ -72,13 +72,18 @@ function atlasFirebaseChaveSincronizada(chave) {
 }
 
 function atlasFirebaseAplicarGuiasInjecao(dados) {
+    const novoValor = JSON.stringify(dados || {});
+    if (localStorage.getItem("atlas_guias_injecao") === novoValor) return false;
+
     atlasFirebaseBloqueado = true;
-    atlasLocalStorageSetItemOriginal.call(localStorage, "atlas_guias_injecao", JSON.stringify(dados || {}));
+    atlasLocalStorageSetItemOriginal.call(localStorage, "atlas_guias_injecao", novoValor);
     atlasFirebaseBloqueado = false;
 
     window.dispatchEvent(new CustomEvent("atlasDadosNuvemAtualizados", {
         detail: { chaves: ["atlas_guias_injecao"], origem: "guias_injecao" }
     }));
+
+    return true;
 }
 
 function atlasFirebaseMesclarUsuario(local, nuvem) {
@@ -734,53 +739,17 @@ async function atlasEnviarDestinosPlano() {
 
 async function atlasEnviarGuiasInjecao() {
     const dados = atlasParseJSON("atlas_guias_injecao", {});
-    await atlasLimparColecao("guias_injecao");
-
-    const promessas = [];
-    Object.keys(dados || {}).forEach(tipo => {
-        ["esquerdo", "direito"].forEach(lado => {
-            (dados[tipo]?.[lado] || []).forEach((item, index) => {
-                const id = atlasDocId(item.id || `${tipo}_${lado}_${index}`);
-                promessas.push(atlasSetDoc(["guias_injecao", id], {
-                    ...item,
-                    id,
-                    tipo,
-                    lado,
-                    ordem: index,
-                    atualizadoEmMs: Date.now()
-                }));
-            });
-        });
+    await atlasSetDoc(["configuracoes", "guias_injecao"], {
+        dados,
+        atualizadoEmMs: Date.now(),
+        atualizadoPor: atlasFirebaseNomeUsuario()
     });
-
-    await Promise.all(promessas);
 }
 
 async function atlasBaixarGuiasInjecaoDireto() {
-    const snap = await getDocsFromServer(collection(atlasFirestore, "guias_injecao")).catch(() => getDocs(collection(atlasFirestore, "guias_injecao")));
-    const dados = {};
-
-    snap.docs
-        .map(d => d.data())
-        .filter(item => item && item.tipo && item.lado)
-        .sort((a, b) => Number(a.ordem || 0) - Number(b.ordem || 0))
-        .forEach(item => {
-            const tipo = item.tipo;
-            const lado = item.lado === "direito" ? "direito" : "esquerdo";
-            dados[tipo] ||= { esquerdo: [], direito: [] };
-            dados[tipo][lado].push({
-                id: item.id || "",
-                nome: item.nome || "",
-                posicao: item.posicao || "",
-                nota: item.nota || "",
-                foto: item.foto || "",
-                video: item.video || "",
-                atualizadoEm: item.atualizadoEm || "",
-                atualizadoPor: item.atualizadoPor || ""
-            });
-        });
-
-    atlasFirebaseAplicarGuiasInjecao(dados);
+    const snap = await getDoc(doc(atlasFirestore, "configuracoes", "guias_injecao")).catch(() => null);
+    if (!snap || !snap.exists()) return false;
+    atlasFirebaseAplicarGuiasInjecao(snap.data()?.dados || {});
     return true;
 }
 
@@ -997,28 +966,9 @@ onSnapshot(doc(atlasFirestore, "backups_localstorage", "ultimo_backup"), snap =>
     console.error("Erro ao ouvir atualizacoes em tempo real:", erro);
 });
 
-onSnapshot(collection(atlasFirestore, "guias_injecao"), snap => {
-    const dados = {};
-    snap.docs
-        .map(d => d.data())
-        .filter(item => item && item.tipo && item.lado)
-        .sort((a, b) => Number(a.ordem || 0) - Number(b.ordem || 0))
-        .forEach(item => {
-            const tipo = item.tipo;
-            const lado = item.lado === "direito" ? "direito" : "esquerdo";
-            dados[tipo] ||= { esquerdo: [], direito: [] };
-            dados[tipo][lado].push({
-                id: item.id || "",
-                nome: item.nome || "",
-                posicao: item.posicao || "",
-                nota: item.nota || "",
-                foto: item.foto || "",
-                video: item.video || "",
-                atualizadoEm: item.atualizadoEm || "",
-                atualizadoPor: item.atualizadoPor || ""
-            });
-        });
-    atlasFirebaseAplicarGuiasInjecao(dados);
+onSnapshot(doc(atlasFirestore, "configuracoes", "guias_injecao"), snap => {
+    if (!snap.exists()) return;
+    atlasFirebaseAplicarGuiasInjecao(snap.data()?.dados || {});
 }, erro => {
     console.error("Erro ao ouvir guias da injecao:", erro);
 });
