@@ -2960,7 +2960,7 @@ gerarPDF_Bobines = function(dadosEncoded) {
                 <div class="rodape"><div>Ass: <span class="assinatura"></span></div></div>
                 <div class="no-print print-topo">
                     <button class="btn-imprimir" onclick="window.print()">IMPRIMIR / PDF</button>
-                    <button class="btn-fechar" onclick="try { if (history.length > 1) { history.back(); } else if (window.opener && !window.opener.closed) { window.opener.focus(); setTimeout(function(){ try { location.href = window.opener.location.href; } catch(e) {} }, 80); } } catch(e) {}">FECHAR</button>
+                    <button class="btn-fechar" onclick="try { if (window.opener && !window.opener.closed && window.opener.atlasVoltarDoPDFParaTelaAnterior) { window.opener.atlasVoltarDoPDFParaTelaAnterior({modulo:'bobines',historico:true}); window.opener.focus(); } } catch(e) {}">FECHAR</button>
                 </div>
             </div>
         </body>
@@ -8989,7 +8989,60 @@ document.addEventListener('click', function(evento) {
 
     const windowOpenOriginalAtlas = window.open;
 
+    window.atlasVoltarDoPDFParaTelaAnterior = function(contexto = {}) {
+        const modulo = contexto.modulo || window.atlasModuloAtual || 'plano';
+
+        if (modulo === 'injecao') {
+            abrirModulo('injecao');
+            setTimeout(() => exibirHistoricoModulo('injecao'), 50);
+            return;
+        }
+
+        if (modulo === 'bobines') {
+            abrirModulo('bobines');
+            setTimeout(() => {
+                if (typeof renderizarHistoricoBobines === 'function') renderizarHistoricoBobines();
+            }, 50);
+            return;
+        }
+
+        if (modulo === 'serra') {
+            abrirModulo('serra');
+            setTimeout(() => {
+                if (typeof listarHistoricoSerra === 'function') listarHistoricoSerra();
+            }, 50);
+            return;
+        }
+
+        if (modulo === 'embalagem') {
+            abrirModulo('embalagem');
+            setTimeout(() => {
+                if (typeof listarHistoricoEmbalagem === 'function') listarHistoricoEmbalagem();
+            }, 50);
+            return;
+        }
+
+        if (modulo === 'plano') {
+            abrirModulo('plano');
+            setTimeout(() => {
+                if (typeof listarHistoricoPlano === 'function') listarHistoricoPlano();
+            }, 50);
+            return;
+        }
+
+        if (modulo && typeof abrirModulo === 'function') abrirModulo(modulo);
+    };
+
+    function atlasContextoRetornoPDF() {
+        const textoTela = String(document.getElementById('render-modulo')?.innerText || '').toLowerCase();
+        return {
+            modulo: window.atlasModuloAtual || '',
+            historico: textoTela.includes('historico') || textoTela.includes('histórico')
+        };
+    }
+
     window.open = function() {
+        const contextoRetorno = atlasContextoRetornoPDF();
         const janela = windowOpenOriginalAtlas.apply(window, arguments);
 
         if (!janela) return janela;
@@ -9044,12 +9097,14 @@ document.addEventListener('click', function(evento) {
                 const div = janela.document.createElement('div');
                 div.id = 'atlas-botao-voltar-pdf';
                 div.className = 'no-print';
+                const contextoSeguro = JSON.stringify(contextoRetorno).replace(/</g, '\\u003c');
                 div.innerHTML = `
                     <button type="button" onclick="
                         (function() {
                             try {
-                                if (history.length > 1) {
-                                    history.back();
+                                if (window.opener && !window.opener.closed && window.opener.atlasVoltarDoPDFParaTelaAnterior) {
+                                    window.opener.atlasVoltarDoPDFParaTelaAnterior(${contextoSeguro});
+                                    window.opener.focus();
                                     return;
                                 }
                             } catch(e) {}
@@ -9057,14 +9112,13 @@ document.addEventListener('click', function(evento) {
                             try {
                                 if (window.opener && !window.opener.closed) {
                                     window.opener.focus();
-                                    setTimeout(function() {
-                                        try { location.href = window.opener.location.href; } catch(e) {}
-                                    }, 80);
                                     return;
                                 }
                             } catch(e) {}
 
-                            try { location.href = 'index.html'; } catch(e) {}
+                            try {
+                                document.body.innerHTML = '<div style=&quot;font-family:Arial;padding:30px;text-align:center;&quot;><h2>Volte para a aba do sistema</h2><p>O relatorio continua aberto, mas a tela principal ficou na aba anterior.</p></div>';
+                            } catch(e) {}
                         })();
                     ">
                         VOLTAR / FECHAR
