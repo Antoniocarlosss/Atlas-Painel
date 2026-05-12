@@ -5,6 +5,12 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.1/firebase-app.js";
 import {
+    getStorage,
+    ref as storageRef,
+    uploadBytes,
+    getDownloadURL
+} from "https://www.gstatic.com/firebasejs/12.12.1/firebase-storage.js";
+import {
    getFirestore,
 doc,
 getDoc,
@@ -30,6 +36,7 @@ const firebaseConfig = {
 
 const atlasFirebaseApp = initializeApp(firebaseConfig);
 const atlasFirestore = getFirestore(atlasFirebaseApp);
+const atlasStorage = getStorage(atlasFirebaseApp);
 
 let atlasFirebaseBloqueado = false;
 let atlasFirebaseTimer = null;
@@ -72,6 +79,8 @@ function atlasFirebaseChaveSincronizada(chave) {
 }
 
 function atlasFirebaseAplicarGuiasInjecao(dados) {
+    if (Date.now() - atlasFirebaseUltimaAlteracaoLocal < 8000) return false;
+
     const novoValor = JSON.stringify(dados || {});
     if (localStorage.getItem("atlas_guias_injecao") === novoValor) return false;
 
@@ -746,6 +755,22 @@ async function atlasEnviarGuiasInjecao() {
     });
 }
 
+async function atlasFirebaseUploadGuiaArquivo(arquivo, caminhoBase) {
+    if (!arquivo) return "";
+    const ext = String(arquivo.name || "").split(".").pop() || (arquivo.type.startsWith("video/") ? "webm" : "jpg");
+    const caminhoSeguro = atlasDocId(caminhoBase || "arquivo");
+    const caminho = `guias_injecao/${caminhoSeguro}_${Date.now()}.${ext}`;
+    const refArquivo = storageRef(atlasStorage, caminho);
+    const snap = await uploadBytes(refArquivo, arquivo, {
+        contentType: arquivo.type || "application/octet-stream",
+        customMetadata: {
+            usuario: atlasFirebaseNomeUsuario(),
+            origem: "atlas_guias_injecao"
+        }
+    });
+    return getDownloadURL(snap.ref);
+}
+
 async function atlasBaixarGuiasInjecaoDireto() {
     const snap = await getDoc(doc(atlasFirestore, "configuracoes", "guias_injecao")).catch(() => null);
     if (!snap || !snap.exists()) return false;
@@ -874,8 +899,11 @@ window.atlasFirebaseEnviarTudo = function() {
 
 window.atlasFirebaseStatus = {
     app: atlasFirebaseApp,
-    db: atlasFirestore
+    db: atlasFirestore,
+    storage: atlasStorage
 };
+
+window.atlasFirebaseUploadGuiaArquivo = atlasFirebaseUploadGuiaArquivo;
 
 function atlasFirebaseAplicarBackupNuvem(dados, opcoes = {}) {
     const chaves = Object.keys(dados || {});
@@ -1043,8 +1071,8 @@ window.atlasFirebaseRemoverDispositivo = function(idDispositivo) {
 window.atlasFirebaseSincronizarAgora = function() {
     return atlasFirebaseSincronizarVersaoSistema()
         .then(() => atlasFirebaseEnviarDispositivosLocais())
-        .then(() => atlasBaixarGuiasInjecaoDireto())
         .then(() => atlasFirebaseEnviarTudoOrganizadoInterno())
+        .then(() => atlasBaixarGuiasInjecaoDireto())
         .catch(erro => {
         console.error("Erro ao sincronizar agora:", erro);
     });

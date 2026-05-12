@@ -9252,7 +9252,24 @@ document.addEventListener('click', function(evento) {
         });
     }
 
-    function lerArquivoGuia(input) {
+    async function prepararArquivoGuia(input, caminhoBase) {
+        const arquivo = input?.files?.[0];
+        if (!arquivo) return '';
+
+        if (typeof window.atlasFirebaseUploadGuiaArquivo === 'function') {
+            let arquivoFinal = arquivo;
+            if (arquivo.type.startsWith('image/')) {
+                const fotoComprimida = await comprimirImagemGuia(arquivo);
+                const blob = await fetch(fotoComprimida).then(r => r.blob());
+                arquivoFinal = new File([blob], 'foto-guia.jpg', { type: 'image/jpeg' });
+            }
+            return window.atlasFirebaseUploadGuiaArquivo(arquivoFinal, caminhoBase);
+        }
+
+        return lerArquivoGuiaLocal(input);
+    }
+
+    function lerArquivoGuiaLocal(input) {
         return new Promise(resolve => {
             const arquivo = input?.files?.[0];
             if (!arquivo) return resolve('');
@@ -9295,15 +9312,15 @@ document.addEventListener('click', function(evento) {
                 <textarea id="guia-ferro-nota" placeholder="Detalhes de montagem" style="width:100%; min-height:75px; padding:12px; background:#020617; color:white; border:1px solid #334155; border-radius:8px; margin-bottom:10px;">${escGuia(item?.nota || '')}</textarea>
                 <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; margin-bottom:10px;">
                     <label style="color:#94a3b8; font-size:12px;">Foto
-                        <input id="guia-ferro-foto" type="file" accept="image/*" style="width:100%; margin-top:5px; color:white;">
+                        <input id="guia-ferro-foto" type="file" accept="image/*" capture="environment" style="width:100%; margin-top:5px; color:white;">
                     </label>
                     <label style="color:#94a3b8; font-size:12px;">Video
-                        <input id="guia-ferro-video" type="file" accept="video/*" style="width:100%; margin-top:5px; color:white;">
+                        <input id="guia-ferro-video" type="file" accept="video/*" capture="environment" style="width:100%; margin-top:5px; color:white;">
                     </label>
                 </div>
                 ${editando ? `<label style="display:flex; gap:8px; align-items:center; color:#cbd5e1; font-size:13px; margin-bottom:10px;"><input id="guia-remover-midia" type="checkbox"> remover foto/video atual</label>` : ''}
                 <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                    <button onclick="atlasSalvarFerroGuiaInjecao('${jsGuia(tipo)}','${lado}')" style="background:#10b981; color:white; border:none; padding:12px 16px; border-radius:8px; font-weight:bold;">SALVAR</button>
+                    <button id="guia-btn-salvar" onclick="atlasSalvarFerroGuiaInjecao('${jsGuia(tipo)}','${lado}')" style="background:#10b981; color:white; border:none; padding:12px 16px; border-radius:8px; font-weight:bold;">SALVAR / PUBLICAR</button>
                     ${editando ? `<button onclick="atlasAbrirLadoGuiaInjecao('${jsGuia(tipo)}','${lado}')" style="background:#475569; color:white; border:none; padding:12px 16px; border-radius:8px; font-weight:bold;">CANCELAR</button>` : ''}
                 </div>
             </div>
@@ -9438,11 +9455,33 @@ document.addEventListener('click', function(evento) {
 
         const lista = dados[tipo][lado];
         const atual = lista.find(item => String(item.id) === String(id));
+        const itemId = atual?.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
         const removerMidia = !!document.getElementById('guia-remover-midia')?.checked;
-        const fotoNova = await lerArquivoGuia(document.getElementById('guia-ferro-foto'));
-        const videoNovo = await lerArquivoGuia(document.getElementById('guia-ferro-video'));
+        const botaoSalvar = document.getElementById('guia-btn-salvar');
+        if (botaoSalvar) {
+            botaoSalvar.disabled = true;
+            botaoSalvar.textContent = 'PUBLICANDO...';
+            botaoSalvar.style.opacity = '.75';
+        }
+
+        let fotoNova = '';
+        let videoNovo = '';
+        try {
+            fotoNova = await prepararArquivoGuia(document.getElementById('guia-ferro-foto'), `${tipo}/${lado}/${itemId}/foto`);
+            videoNovo = await prepararArquivoGuia(document.getElementById('guia-ferro-video'), `${tipo}/${lado}/${itemId}/video`);
+        } catch (erro) {
+            console.error('Erro ao publicar midia da guia:', erro);
+            alert('Nao foi possivel publicar a foto/video. Verifique a internet e tente novamente.');
+            if (botaoSalvar) {
+                botaoSalvar.disabled = false;
+                botaoSalvar.textContent = 'SALVAR / PUBLICAR';
+                botaoSalvar.style.opacity = '1';
+            }
+            return;
+        }
+
         const item = {
-            id: atual?.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+            id: itemId,
             nome,
             posicao: document.getElementById('guia-ferro-posicao')?.value.trim() || '',
             nota: document.getElementById('guia-ferro-nota')?.value.trim() || '',
@@ -9498,7 +9537,6 @@ document.addEventListener('click', function(evento) {
     };
 
     if (window.atlasModuloAtual === 'injecao') setTimeout(inserirCardGuiasInjecao, 0);
-    setTimeout(() => window.atlasCompactarFotosGuiasInjecao?.(), 1200);
 })();
 
 /* ==========================================================
