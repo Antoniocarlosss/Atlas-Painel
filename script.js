@@ -1201,7 +1201,7 @@ let producoesDoDia = []; // Deve ficar no topo do script
 
             <button onclick="salvarNaLista()" class="btn-primary btn-add-lista">ADICIONAR À LISTA</button>
             <div id="lista-temp" style="margin-top:15px;"></div>
-            <button id="btn-finalizar" onclick="atlasInjecaoPreviewFinalizar('${modulo}')" class="btn-primary btn-finish-dia" style="display:none;">VER PDF E CONFIRMAR</button>
+            <button id="btn-finalizar" onclick="atlasFinalizarDiaInjecao('${modulo}')" class="btn-primary btn-finish-dia" style="display:none;">FINALIZAR DIA</button>
         </div>`;
     atualizarEspumaInjecaoPadrao();
     adicionarLinhaDensidadeInjecao();
@@ -3402,7 +3402,7 @@ function iniciarInterfaceCorteSerra() {
 
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:15px;">
             <button onclick="exibirSetupSerra()" style="background:#3b82f6; color:white; border:none; padding:15px; border-radius:8px; font-weight:bold;">MUDAR PAINEL</button>
-            <button onclick="atlasSerraPreviewFecharDia()" style="background:#E31C24; color:white; border:none; padding:15px; border-radius:8px; font-weight:bold;">VER PDF E CONFIRMAR</button>
+            <button onclick="atlasFinalizarDiaSerra()" style="background:#E31C24; color:white; border:none; padding:15px; border-radius:8px; font-weight:bold;">FINALIZAR DIA</button>
         </div>
     `;
 
@@ -9072,6 +9072,218 @@ document.addEventListener('click', function(evento) {
         };
 
         return janela;
+    };
+})();
+
+/* ==========================================================
+   FINALIZAR DIA DIRETO COM RELATORIO NA TELA
+   ========================================================== */
+(function() {
+    function atlasFinalDiaHtml(valor) {
+        return String(valor ?? '').replace(/[&<>"']/g, c => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[c]));
+    }
+
+    function atlasPayloadFinalDia(rel) {
+        return encodeURIComponent(JSON.stringify(rel));
+    }
+
+    function atlasAcaoAuditoriaFinalDia(modulo, detalhe) {
+        if (typeof atlasRegistrarAuditoria === 'function') {
+            atlasRegistrarAuditoria('Finalizou relatorio', modulo, detalhe);
+        }
+    }
+
+    window.atlasRenderRelatorioInjecaoFinalizado = function(rel, modulo = 'injecao') {
+        const render = document.getElementById('render-modulo');
+        if (!render) return;
+
+        const itens = Array.isArray(rel.itens) ? rel.itens : [];
+        const totalMetros = itens.reduce((total, item) => total + (parseFloat(item.metros) || 0), 0);
+
+        render.innerHTML = `
+            <div style="padding:15px; color:white;">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:15px; flex-wrap:wrap;">
+                    <div>
+                        <h2 style="margin:0; color:#10b981; font-size:20px;">Relatorio finalizado</h2>
+                        <div style="color:#94a3b8; font-size:13px; margin-top:4px;">Injecao | ${atlasFinalDiaHtml(rel.data)} | ${atlasFinalDiaHtml(rel.operador)}</div>
+                    </div>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button onclick="gerarPDF_Injecao_Final('${atlasPayloadFinalDia(rel)}')" style="background:#10b981; color:white; border:none; padding:11px 14px; border-radius:8px; font-weight:bold; cursor:pointer;">PDF / IMPRIMIR</button>
+                        <button onclick="exibirFormulario('${atlasFinalDiaHtml(modulo)}')" style="background:#334155; color:white; border:none; padding:11px 14px; border-radius:8px; font-weight:bold; cursor:pointer;">NOVO DIA</button>
+                    </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-bottom:15px;">
+                    <div style="background:#1e293b; border:1px solid #334155; border-radius:8px; padding:12px;"><b>Total</b><br><span style="color:#10b981; font-size:20px; font-weight:bold;">${totalMetros.toFixed(2)} m</span></div>
+                    <div style="background:#1e293b; border:1px solid #334155; border-radius:8px; padding:12px;"><b>Linhas</b><br><span style="color:#38bdf8; font-size:20px; font-weight:bold;">${itens.length}</span></div>
+                </div>
+
+                <div style="overflow:auto; background:#0f172a; border:1px solid #334155; border-radius:10px;">
+                    <table style="width:100%; border-collapse:collapse; min-width:760px;">
+                        <thead>
+                            <tr style="background:#1e293b; color:#cbd5e1;">
+                                <th style="padding:10px; text-align:left;">Painel</th>
+                                <th style="padding:10px; text-align:left;">Esp.</th>
+                                <th style="padding:10px; text-align:left;">RAL</th>
+                                <th style="padding:10px; text-align:left;">Metros</th>
+                                <th style="padding:10px; text-align:left;">Vel.</th>
+                                <th style="padding:10px; text-align:left;">Quimicos</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${itens.map(item => `
+                                <tr style="border-top:1px solid #334155;">
+                                    <td style="padding:10px;">${item.pir ? '<b style="color:#facc15;">PIR</b> - ' : ''}${atlasFinalDiaHtml(item.nome)}</td>
+                                    <td style="padding:10px;">${atlasFinalDiaHtml(item.esp)} mm</td>
+                                    <td style="padding:10px;">${atlasFinalDiaHtml(item.ral || '')}</td>
+                                    <td style="padding:10px;">${atlasFinalDiaHtml(item.metros)} m</td>
+                                    <td style="padding:10px;">${atlasFinalDiaHtml(item.vel || '')}</td>
+                                    <td style="padding:10px;">POL ${atlasFinalDiaHtml(item.pol || 0)} | MDI ${atlasFinalDiaHtml(item.mdi || 0)} | PEN ${atlasFinalDiaHtml(item.pen || 0)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    };
+
+    window.atlasFinalizarDiaInjecao = function(modulo) {
+        if (!producoesDoDia.length) return alert('Adicione itens antes de finalizar.');
+
+        const dataInput = document.getElementById('data-producao')?.value;
+        const d = new Date((dataInput || new Date().toISOString().split('T')[0]) + 'T12:00:00');
+        const ano = d.getFullYear();
+        const mes = d.toLocaleString('pt-br', { month: 'long' }).toUpperCase();
+        const rel = {
+            modulo,
+            data: d.toLocaleDateString('pt-br'),
+            operador: document.getElementById('user-display')?.innerText || 'OPERADOR',
+            itens: [...producoesDoDia]
+        };
+
+        const db = JSON.parse(localStorage.getItem('atlas_db')) || {};
+        db[ano] ||= {};
+        db[ano][mes] ||= [];
+        db[ano][mes].push(rel);
+        localStorage.setItem('atlas_db', JSON.stringify(db));
+
+        atlasAcaoAuditoriaFinalDia('injecao', `Modulo: ${modulo}`);
+        producoesDoDia = [];
+        atlasRenderRelatorioInjecaoFinalizado(rel, modulo);
+    };
+
+    window.atlasRenderRelatorioSerraFinalizado = function(rel) {
+        const render = document.getElementById('render-modulo');
+        if (!render) return;
+
+        const itens = Array.isArray(rel.itens) ? rel.itens : [];
+        const totalGeral = Number(rel.totalGeral || itens.reduce((total, item) => total + ((parseFloat(item.metros) || 0) * (parseInt(item.qtd, 10) || 1)), 0));
+
+        render.innerHTML = `
+            <div style="padding:15px; color:white;">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:15px; flex-wrap:wrap;">
+                    <div>
+                        <h2 style="margin:0; color:#10b981; font-size:20px;">Relatorio finalizado</h2>
+                        <div style="color:#94a3b8; font-size:13px; margin-top:4px;">Serra | ${atlasFinalDiaHtml(rel.data)} | ${atlasFinalDiaHtml(rel.operador)}</div>
+                    </div>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button onclick="gerarPDF_Serra('${atlasPayloadFinalDia(rel)}')" style="background:#10b981; color:white; border:none; padding:11px 14px; border-radius:8px; font-weight:bold; cursor:pointer;">PDF / IMPRIMIR</button>
+                        <button onclick="renderizarMenuSerra()" style="background:#334155; color:white; border:none; padding:11px 14px; border-radius:8px; font-weight:bold; cursor:pointer;">NOVO DIA</button>
+                    </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-bottom:15px;">
+                    <div style="background:#1e293b; border:1px solid #334155; border-radius:8px; padding:12px;"><b>Total</b><br><span style="color:#10b981; font-size:20px; font-weight:bold;">${totalGeral.toFixed(2)} m</span></div>
+                    <div style="background:#1e293b; border:1px solid #334155; border-radius:8px; padding:12px;"><b>Linhas</b><br><span style="color:#38bdf8; font-size:20px; font-weight:bold;">${itens.length}</span></div>
+                </div>
+
+                <div style="overflow:auto; background:#0f172a; border:1px solid #334155; border-radius:10px;">
+                    <table style="width:100%; border-collapse:collapse; min-width:820px;">
+                        <thead>
+                            <tr style="background:#1e293b; color:#cbd5e1;">
+                                <th style="padding:10px; text-align:left;">Tipo</th>
+                                <th style="padding:10px; text-align:left;">Esp.</th>
+                                <th style="padding:10px; text-align:left;">RAL sup.</th>
+                                <th style="padding:10px; text-align:left;">RAL inf.</th>
+                                <th style="padding:10px; text-align:left;">Qtd</th>
+                                <th style="padding:10px; text-align:left;">Medida</th>
+                                <th style="padding:10px; text-align:left;">Total</th>
+                                <th style="padding:10px; text-align:left;">Pedido/Stock</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${itens.map(item => {
+                                const qtd = parseInt(item.qtd, 10) || 1;
+                                const metros = parseFloat(item.metros) || 0;
+                                return `
+                                    <tr style="border-top:1px solid #334155;">
+                                        <td style="padding:10px;">${atlasFinalDiaHtml(item.tipo || '')}</td>
+                                        <td style="padding:10px;">${atlasFinalDiaHtml(item.esp || '')} mm</td>
+                                        <td style="padding:10px;">${atlasFinalDiaHtml(item.ralS || '')}</td>
+                                        <td style="padding:10px;">${atlasFinalDiaHtml(item.ralI || '')}</td>
+                                        <td style="padding:10px;">${qtd}</td>
+                                        <td style="padding:10px;">${metros.toFixed(2)} m</td>
+                                        <td style="padding:10px;">${(qtd * metros).toFixed(2)} m</td>
+                                        <td style="padding:10px;">${atlasFinalDiaHtml(item.desc || '')}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+    };
+
+    window.atlasFinalizarDiaSerra = function() {
+        if (db_serra_live.length === 0) return alert('Adicione itens antes de finalizar.');
+
+        const seletorData = document.getElementById('h-data-rel-serra')?.value || '';
+        let dataFinal, dia, mes, ano;
+
+        if (seletorData) {
+            const partes = seletorData.split('-');
+            ano = partes[0];
+            mes = partes[1];
+            dia = partes[2];
+            dataFinal = `${dia}/${mes}/${ano}`;
+        } else {
+            const hoje = new Date();
+            dataFinal = hoje.toLocaleDateString('pt-BR');
+            dia = String(hoje.getDate()).padStart(2, '0');
+            mes = String(hoje.getMonth() + 1).padStart(2, '0');
+            ano = hoje.getFullYear();
+        }
+
+        const rel = {
+            id: Date.now(),
+            data: dataFinal,
+            dia,
+            mes: parseInt(mes, 10),
+            ano,
+            operador: document.getElementById('user-display')?.innerText || 'OP. SERRA',
+            itens: [...db_serra_live],
+            totalGeral: db_serra_live.reduce((acc, cur) => acc + ((parseFloat(cur.metros) || 0) * (parseInt(cur.qtd, 10) || 1)), 0).toFixed(2)
+        };
+
+        db_serra_hist.push(rel);
+        localStorage.setItem('atlas_serra_hist', JSON.stringify(db_serra_hist));
+
+        if (typeof registrarPedidosSerraParaConferencia === 'function') {
+            registrarPedidosSerraParaConferencia(rel.itens, rel);
+        }
+
+        atlasAcaoAuditoriaFinalDia('serra', 'Fechou dia da serra');
+        db_serra_live = [];
+        localStorage.removeItem('atlas_serra_live');
+        atlasRenderRelatorioSerraFinalizado(rel);
     };
 })();
 
