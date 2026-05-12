@@ -9115,7 +9115,7 @@ document.addEventListener('click', function(evento) {
                     </div>
                     <div style="display:flex; gap:8px; flex-wrap:wrap;">
                         <button onclick="gerarPDF_Injecao_Final('${atlasPayloadFinalDia(rel)}')" style="background:#10b981; color:white; border:none; padding:11px 14px; border-radius:8px; font-weight:bold; cursor:pointer;">PDF / IMPRIMIR</button>
-                        <button onclick="exibirFormulario('${atlasFinalDiaHtml(modulo)}')" style="background:#334155; color:white; border:none; padding:11px 14px; border-radius:8px; font-weight:bold; cursor:pointer;">NOVO DIA</button>
+                        <button onclick="abrirModulo('${atlasFinalDiaHtml(modulo)}')" style="background:#334155; color:white; border:none; padding:11px 14px; border-radius:8px; font-weight:bold; cursor:pointer;">FECHAR</button>
                     </div>
                 </div>
 
@@ -9195,7 +9195,7 @@ document.addEventListener('click', function(evento) {
                     </div>
                     <div style="display:flex; gap:8px; flex-wrap:wrap;">
                         <button onclick="gerarPDF_Serra('${atlasPayloadFinalDia(rel)}')" style="background:#10b981; color:white; border:none; padding:11px 14px; border-radius:8px; font-weight:bold; cursor:pointer;">PDF / IMPRIMIR</button>
-                        <button onclick="renderizarMenuSerra()" style="background:#334155; color:white; border:none; padding:11px 14px; border-radius:8px; font-weight:bold; cursor:pointer;">NOVO DIA</button>
+                        <button onclick="renderizarMenuSerra()" style="background:#334155; color:white; border:none; padding:11px 14px; border-radius:8px; font-weight:bold; cursor:pointer;">FECHAR</button>
                     </div>
                 </div>
 
