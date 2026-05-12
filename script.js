@@ -1114,7 +1114,7 @@ function atlasInjecaoPreviewFinalizar(modulo) {
             <tbody>${rel.itens.map(item => `<tr><td>${atlasTextoSeguroSaude(item.pir ? 'PIR - ' : '')}${atlasTextoSeguroSaude(item.nome)}</td><td>${atlasTextoSeguroSaude(item.esp)} mm</td><td>${atlasTextoSeguroSaude(item.ral || '')}</td><td>${atlasTextoSeguroSaude(item.metros)}</td><td>${atlasTextoSeguroSaude(item.vel || '')}</td><td>POL ${atlasTextoSeguroSaude(item.pol || 0)} | MDI ${atlasTextoSeguroSaude(item.mdi || 0)} | PEN ${atlasTextoSeguroSaude(item.pen || 0)}</td></tr>`).join('')}</tbody></table>
             <div class="no-print">
                 <button onclick="window.print()">IMPRIMIR / PDF</button>
-                <button onclick="window.opener.finalizarTurno('${modulo}'); window.close()">CONFIRMAR E SALVAR</button>
+                <button onclick="window.opener.finalizarTurno('${modulo}'); try { window.opener.focus(); } catch(e) {}">CONFIRMAR E SALVAR</button>
             </div>
         </body></html>
     `);
@@ -2960,7 +2960,7 @@ gerarPDF_Bobines = function(dadosEncoded) {
                 <div class="rodape"><div>Ass: <span class="assinatura"></span></div></div>
                 <div class="no-print print-topo">
                     <button class="btn-imprimir" onclick="window.print()">IMPRIMIR / PDF</button>
-                    <button class="btn-fechar" onclick="window.close()">FECHAR</button>
+                    <button class="btn-fechar" onclick="try { if (history.length > 1) { history.back(); } else if (window.opener && !window.opener.closed) { window.opener.focus(); setTimeout(function(){ try { location.href = window.opener.location.href; } catch(e) {} }, 80); } } catch(e) {}">FECHAR</button>
                 </div>
             </div>
         </body>
@@ -3543,7 +3543,7 @@ function atlasSerraPreviewFecharDia() {
             }).join('')}</tbody></table>
             <div class="no-print">
                 <button onclick="window.print()">IMPRIMIR / PDF</button>
-                <button onclick="window.opener.fecharDiaSerra(); window.close()">CONFIRMAR E SALVAR</button>
+                <button onclick="window.opener.fecharDiaSerra(); try { window.opener.focus(); } catch(e) {}">CONFIRMAR E SALVAR</button>
             </div>
         </body></html>
     `);
@@ -9046,10 +9046,26 @@ document.addEventListener('click', function(evento) {
                 div.className = 'no-print';
                 div.innerHTML = `
                     <button type="button" onclick="
-                        try { window.close(); } catch(e) {}
-                        setTimeout(function() {
-                            try { history.back(); } catch(e) {}
-                        }, 150);
+                        (function() {
+                            try {
+                                if (history.length > 1) {
+                                    history.back();
+                                    return;
+                                }
+                            } catch(e) {}
+
+                            try {
+                                if (window.opener && !window.opener.closed) {
+                                    window.opener.focus();
+                                    setTimeout(function() {
+                                        try { location.href = window.opener.location.href; } catch(e) {}
+                                    }, 80);
+                                    return;
+                                }
+                            } catch(e) {}
+
+                            try { location.href = 'index.html'; } catch(e) {}
+                        })();
                     ">
                         VOLTAR / FECHAR
                     </button>
