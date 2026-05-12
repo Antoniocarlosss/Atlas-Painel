@@ -9097,33 +9097,30 @@ document.addEventListener('click', function(evento) {
                 const div = janela.document.createElement('div');
                 div.id = 'atlas-botao-voltar-pdf';
                 div.className = 'no-print';
-                const contextoSeguro = JSON.stringify(contextoRetorno).replace(/</g, '\\u003c');
-                div.innerHTML = `
-                    <button type="button" onclick="
-                        (function() {
-                            try {
-                                if (window.opener && !window.opener.closed && window.opener.atlasVoltarDoPDFParaTelaAnterior) {
-                                    window.opener.atlasVoltarDoPDFParaTelaAnterior(${contextoSeguro});
-                                    window.opener.focus();
-                                    return;
-                                }
-                            } catch(e) {}
+                const botao = janela.document.createElement('button');
+                botao.type = 'button';
+                botao.textContent = 'VOLTAR / FECHAR';
+                botao.addEventListener('click', function() {
+                    try {
+                        if (janela.opener && !janela.opener.closed && janela.opener.atlasVoltarDoPDFParaTelaAnterior) {
+                            janela.opener.atlasVoltarDoPDFParaTelaAnterior(contextoRetorno);
+                            janela.opener.focus();
+                            return;
+                        }
+                    } catch(e) {}
 
-                            try {
-                                if (window.opener && !window.opener.closed) {
-                                    window.opener.focus();
-                                    return;
-                                }
-                            } catch(e) {}
+                    try {
+                        if (janela.opener && !janela.opener.closed) {
+                            janela.opener.focus();
+                            return;
+                        }
+                    } catch(e) {}
 
-                            try {
-                                document.body.innerHTML = '<div style=&quot;font-family:Arial;padding:30px;text-align:center;&quot;><h2>Volte para a aba do sistema</h2><p>O relatorio continua aberto, mas a tela principal ficou na aba anterior.</p></div>';
-                            } catch(e) {}
-                        })();
-                    ">
-                        VOLTAR / FECHAR
-                    </button>
-                `;
+                    try {
+                        janela.document.body.innerHTML = '<div style="font-family:Arial;padding:30px;text-align:center;"><h2>Volte para a aba do sistema</h2><p>O relatorio continua aberto, mas a tela principal ficou na aba anterior.</p></div>';
+                    } catch(e) {}
+                });
+                div.appendChild(botao);
 
                 janela.document.body.appendChild(div);
             } catch (erro) {}
