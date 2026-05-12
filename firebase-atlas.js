@@ -67,7 +67,8 @@ function atlasFirebaseChaveTemporaria(chave) {
         "atlas_sistema_versao",
         "atlas_sistema_mostrar_atualizado",
         "atlas_sistema_forcar_recarregar_sem_cache",
-        "atlas_dispositivo_ultimo_sync_ms"
+        "atlas_dispositivo_ultimo_sync_ms",
+        "atlas_guias_editando_ate"
     ].includes(chave)
         || String(chave || "").startsWith("atlas_update_")
         || String(chave || "").startsWith("atlas_sistema_cache_limpo_")
@@ -79,7 +80,14 @@ function atlasFirebaseChaveSincronizada(chave) {
 }
 
 function atlasFirebaseAplicarGuiasInjecao(dados) {
+    const bloqueioEdicao = Number(localStorage.getItem("atlas_guias_editando_ate") || 0);
+    if (bloqueioEdicao > Date.now()) return false;
     if (Date.now() - atlasFirebaseUltimaAlteracaoLocal < 8000) return false;
+
+    const localAtual = atlasParseJSON("atlas_guias_injecao", {});
+    const localMs = Number(localAtual?._atlasMeta?.atualizadoEmMs || 0);
+    const nuvemMs = Number(dados?._atlasMeta?.atualizadoEmMs || 0);
+    if (localMs && nuvemMs && localMs >= nuvemMs) return false;
 
     const novoValor = JSON.stringify(dados || {});
     if (localStorage.getItem("atlas_guias_injecao") === novoValor) return false;

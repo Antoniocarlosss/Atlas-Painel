@@ -9222,6 +9222,10 @@ document.addEventListener('click', function(evento) {
     }
 
     function salvarGuiasInjecao(dados) {
+        dados._atlasMeta = {
+            atualizadoEmMs: Date.now(),
+            atualizadoPor: document.getElementById('user-display')?.innerText || usuarioLogado?.id || 'SISTEMA'
+        };
         localStorage.setItem(CHAVE_GUIAS_INJECAO, JSON.stringify(dados || {}));
     }
 
@@ -9294,8 +9298,8 @@ document.addEventListener('click', function(evento) {
     }
 
     function htmlMidiaGuia(item) {
-        const foto = item.foto ? `<img src="${item.foto}" alt="Foto ${escGuia(item.nome)}" style="width:100%; max-height:220px; object-fit:cover; border-radius:8px; border:1px solid #334155; margin-top:10px;">` : '';
-        const video = item.video ? `<video controls src="${item.video}" style="width:100%; max-height:260px; border-radius:8px; border:1px solid #334155; margin-top:10px;"></video>` : '';
+        const foto = item.foto ? `<img loading="lazy" src="${item.foto}" alt="Foto ${escGuia(item.nome)}" style="width:100%; max-height:220px; object-fit:cover; border-radius:8px; border:1px solid #334155; margin-top:10px;">` : '';
+        const video = item.video ? `<a href="${item.video}" target="_blank" rel="noopener" style="display:block; margin-top:10px; background:#0f172a; color:#93c5fd; border:1px solid #3b82f6; border-radius:8px; padding:12px; text-align:center; font-weight:bold; text-decoration:none;">VER VIDEO</a>` : '';
         if (!foto && !video) return `<div style="margin-top:10px; color:#94a3b8; border:1px dashed #475569; border-radius:8px; padding:18px; text-align:center;">Sem foto/video ainda</div>`;
         return foto + video;
     }
@@ -9457,6 +9461,7 @@ document.addEventListener('click', function(evento) {
         const atual = lista.find(item => String(item.id) === String(id));
         const itemId = atual?.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
         const removerMidia = !!document.getElementById('guia-remover-midia')?.checked;
+        localStorage.setItem('atlas_guias_editando_ate', String(Date.now() + 120000));
         const botaoSalvar = document.getElementById('guia-btn-salvar');
         if (botaoSalvar) {
             botaoSalvar.disabled = true;
@@ -9494,6 +9499,7 @@ document.addEventListener('click', function(evento) {
         if (atual) Object.assign(atual, item);
         else lista.push(item);
         salvarGuiasInjecao(dados);
+        localStorage.setItem('atlas_guias_editando_ate', String(Date.now() + 8000));
         atlasAbrirLadoGuiaInjecao(tipo, lado);
     };
 
@@ -9502,38 +9508,13 @@ document.addEventListener('click', function(evento) {
         if (!confirm('Apagar este ferro da guia?')) return;
         const dados = dadosGuiasInjecao();
         dados[tipo][lado] = (dados[tipo]?.[lado] || []).filter(item => String(item.id) !== String(id));
+        localStorage.setItem('atlas_guias_editando_ate', String(Date.now() + 15000));
         salvarGuiasInjecao(dados);
         atlasAbrirLadoGuiaInjecao(tipo, lado);
     };
 
     window.atlasCompactarFotosGuiasInjecao = async function() {
-        const dados = atlasJSONLocal(CHAVE_GUIAS_INJECAO, {});
-        let alterou = false;
-        const tarefas = [];
-
-        Object.keys(dados || {}).forEach(tipo => {
-            ['esquerdo', 'direito'].forEach(lado => {
-                (dados[tipo]?.[lado] || []).forEach(item => {
-                    if (!String(item.foto || '').startsWith('data:image/') || String(item.foto || '').length < 360000) return;
-                    tarefas.push(new Promise(resolve => {
-                        const img = new Image();
-                        img.onload = async () => {
-                            const blob = await fetch(item.foto).then(r => r.blob()).catch(() => null);
-                            if (blob) {
-                                item.foto = await comprimirImagemGuia(new File([blob], 'guia.jpg', { type: 'image/jpeg' }));
-                                alterou = true;
-                            }
-                            resolve();
-                        };
-                        img.onerror = () => resolve();
-                        img.src = item.foto;
-                    }));
-                });
-            });
-        });
-
-        await Promise.all(tarefas);
-        if (alterou) salvarGuiasInjecao(dados);
+        return false;
     };
 
     if (window.atlasModuloAtual === 'injecao') setTimeout(inserirCardGuiasInjecao, 0);
