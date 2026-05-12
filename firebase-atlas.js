@@ -71,6 +71,16 @@ function atlasFirebaseChaveSincronizada(chave) {
     return chave && !atlasFirebaseChaveTemporaria(chave) && (chave.startsWith("atlas_") || chave === "historicoBobines");
 }
 
+function atlasFirebaseAplicarGuiasInjecao(dados) {
+    atlasFirebaseBloqueado = true;
+    atlasLocalStorageSetItemOriginal.call(localStorage, "atlas_guias_injecao", JSON.stringify(dados || {}));
+    atlasFirebaseBloqueado = false;
+
+    window.dispatchEvent(new CustomEvent("atlasDadosNuvemAtualizados", {
+        detail: { chaves: ["atlas_guias_injecao"], origem: "guias_injecao" }
+    }));
+}
+
 function atlasFirebaseMesclarUsuario(local, nuvem) {
     if (String(local?.id || nuvem?.id || "").trim().toLowerCase() === "admin") {
         return { id: "admin", nome: "ADMIN", senha: "123", cargo: "admin", bloqueado: false, _atlasUsuarioAtualizadoEm: Date.now() };
@@ -722,6 +732,58 @@ async function atlasEnviarDestinosPlano() {
     });
 }
 
+async function atlasEnviarGuiasInjecao() {
+    const dados = atlasParseJSON("atlas_guias_injecao", {});
+    await atlasLimparColecao("guias_injecao");
+
+    const promessas = [];
+    Object.keys(dados || {}).forEach(tipo => {
+        ["esquerdo", "direito"].forEach(lado => {
+            (dados[tipo]?.[lado] || []).forEach((item, index) => {
+                const id = atlasDocId(item.id || `${tipo}_${lado}_${index}`);
+                promessas.push(atlasSetDoc(["guias_injecao", id], {
+                    ...item,
+                    id,
+                    tipo,
+                    lado,
+                    ordem: index,
+                    atualizadoEmMs: Date.now()
+                }));
+            });
+        });
+    });
+
+    await Promise.all(promessas);
+}
+
+async function atlasBaixarGuiasInjecaoDireto() {
+    const snap = await getDocsFromServer(collection(atlasFirestore, "guias_injecao")).catch(() => getDocs(collection(atlasFirestore, "guias_injecao")));
+    const dados = {};
+
+    snap.docs
+        .map(d => d.data())
+        .filter(item => item && item.tipo && item.lado)
+        .sort((a, b) => Number(a.ordem || 0) - Number(b.ordem || 0))
+        .forEach(item => {
+            const tipo = item.tipo;
+            const lado = item.lado === "direito" ? "direito" : "esquerdo";
+            dados[tipo] ||= { esquerdo: [], direito: [] };
+            dados[tipo][lado].push({
+                id: item.id || "",
+                nome: item.nome || "",
+                posicao: item.posicao || "",
+                nota: item.nota || "",
+                foto: item.foto || "",
+                video: item.video || "",
+                atualizadoEm: item.atualizadoEm || "",
+                atualizadoPor: item.atualizadoPor || ""
+            });
+        });
+
+    atlasFirebaseAplicarGuiasInjecao(dados);
+    return true;
+}
+
 async function atlasEnviarBackupLocalStorage() {
     const backup = {};
     if (!atlasFirebaseBloqueado && !localStorage.getItem(ATLAS_FIREBASE_SYNC_KEY)) {
@@ -730,7 +792,7 @@ async function atlasEnviarBackupLocalStorage() {
 
     for (let i = 0; i < localStorage.length; i++) {
         const chave = localStorage.key(i);
-        if (atlasFirebaseChaveSincronizada(chave) && chave !== "atlas_usuarios") {
+        if (atlasFirebaseChaveSincronizada(chave) && chave !== "atlas_usuarios" && chave !== "atlas_guias_injecao") {
             backup[chave] = localStorage.getItem(chave);
         }
     }
@@ -752,6 +814,7 @@ async function atlasFirebaseEnviarTudoOrganizadoInterno() {
     await atlasEnviarPlanos();
     await atlasEnviarConferencia();
     await atlasEnviarDestinosPlano();
+    await atlasEnviarGuiasInjecao();
     await atlasEnviarBackupLocalStorage();
 }
 
@@ -885,6 +948,7 @@ async function atlasFirebaseBaixarBackupInicial() {
 setTimeout(() => {
     atlasFirebaseSincronizarVersaoSistema()
         .then(() => atlasFirebaseBaixarUsuariosDireto())
+        .then(() => atlasBaixarGuiasInjecaoDireto())
         .then(() => atlasFirebaseBaixarBackupInicial())
         .then(() => atlasFirebaseEnviarDispositivosLocais())
         .then(() => atlasFirebaseEnviarTudoOrganizadoInterno())
@@ -903,6 +967,8 @@ async function atlasFirebaseAtualizarSemSair() {
         }
 
         if (Date.now() - atlasFirebaseUltimaAlteracaoLocal < 30000) return;
+
+        await atlasBaixarGuiasInjecaoDireto();
 
         const snap = await getDoc(doc(atlasFirestore, "backups_localstorage", "ultimo_backup"));
         if (!snap.exists()) return;
@@ -931,8 +997,35 @@ onSnapshot(doc(atlasFirestore, "backups_localstorage", "ultimo_backup"), snap =>
     console.error("Erro ao ouvir atualizacoes em tempo real:", erro);
 });
 
+onSnapshot(collection(atlasFirestore, "guias_injecao"), snap => {
+    const dados = {};
+    snap.docs
+        .map(d => d.data())
+        .filter(item => item && item.tipo && item.lado)
+        .sort((a, b) => Number(a.ordem || 0) - Number(b.ordem || 0))
+        .forEach(item => {
+            const tipo = item.tipo;
+            const lado = item.lado === "direito" ? "direito" : "esquerdo";
+            dados[tipo] ||= { esquerdo: [], direito: [] };
+            dados[tipo][lado].push({
+                id: item.id || "",
+                nome: item.nome || "",
+                posicao: item.posicao || "",
+                nota: item.nota || "",
+                foto: item.foto || "",
+                video: item.video || "",
+                atualizadoEm: item.atualizadoEm || "",
+                atualizadoPor: item.atualizadoPor || ""
+            });
+        });
+    atlasFirebaseAplicarGuiasInjecao(dados);
+}, erro => {
+    console.error("Erro ao ouvir guias da injecao:", erro);
+});
+
 window.atlasFirebaseForcarAtualizacao = function() {
     return atlasFirebaseBaixarUsuariosDireto()
+        .then(() => atlasBaixarGuiasInjecaoDireto())
         .then(() => atlasFirebaseBaixarBackupInicial())
         .then(() => {
             if (typeof usuariosSistema !== "undefined") {
@@ -1000,6 +1093,7 @@ window.atlasFirebaseRemoverDispositivo = function(idDispositivo) {
 window.atlasFirebaseSincronizarAgora = function() {
     return atlasFirebaseSincronizarVersaoSistema()
         .then(() => atlasFirebaseEnviarDispositivosLocais())
+        .then(() => atlasBaixarGuiasInjecaoDireto())
         .then(() => atlasFirebaseEnviarTudoOrganizadoInterno())
         .catch(erro => {
         console.error("Erro ao sincronizar agora:", erro);

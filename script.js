@@ -9226,12 +9226,43 @@ document.addEventListener('click', function(evento) {
         return lado === 'direito' ? 'Lado direito' : 'Lado esquerdo';
     }
 
+    function comprimirImagemGuia(arquivo) {
+        return new Promise(resolve => {
+            const img = new Image();
+            const reader = new FileReader();
+            reader.onload = () => {
+                img.onload = () => {
+                    const max = 1100;
+                    const escala = Math.min(1, max / Math.max(img.width, img.height));
+                    const canvas = document.createElement('canvas');
+                    canvas.width = Math.max(1, Math.round(img.width * escala));
+                    canvas.height = Math.max(1, Math.round(img.height * escala));
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    resolve(canvas.toDataURL('image/jpeg', 0.72));
+                };
+                img.onerror = () => resolve(String(reader.result || ''));
+                img.src = String(reader.result || '');
+            };
+            reader.onerror = () => resolve('');
+            reader.readAsDataURL(arquivo);
+        });
+    }
+
     function lerArquivoGuia(input) {
         return new Promise(resolve => {
             const arquivo = input?.files?.[0];
             if (!arquivo) return resolve('');
-            if (arquivo.size > 12 * 1024 * 1024) {
-                alert('Arquivo muito grande. Use foto/video menor que 12 MB.');
+            if (arquivo.type.startsWith('image/')) {
+                return comprimirImagemGuia(arquivo).then(resolve);
+            }
+            if (arquivo.type.startsWith('video/') && arquivo.size > 700 * 1024) {
+                alert('Video muito grande para sincronizar no celular. Por enquanto use video menor que 700 KB, ou me envie o video aqui para eu preparar outro tipo de armazenamento.');
+                input.value = '';
+                return resolve('');
+            }
+            if (arquivo.size > 700 * 1024) {
+                alert('Arquivo muito grande para sincronizar no celular.');
                 input.value = '';
                 return resolve('');
             }
@@ -9433,7 +9464,38 @@ document.addEventListener('click', function(evento) {
         atlasAbrirLadoGuiaInjecao(tipo, lado);
     };
 
+    window.atlasCompactarFotosGuiasInjecao = async function() {
+        const dados = atlasJSONLocal(CHAVE_GUIAS_INJECAO, {});
+        let alterou = false;
+        const tarefas = [];
+
+        Object.keys(dados || {}).forEach(tipo => {
+            ['esquerdo', 'direito'].forEach(lado => {
+                (dados[tipo]?.[lado] || []).forEach(item => {
+                    if (!String(item.foto || '').startsWith('data:image/') || String(item.foto || '').length < 360000) return;
+                    tarefas.push(new Promise(resolve => {
+                        const img = new Image();
+                        img.onload = async () => {
+                            const blob = await fetch(item.foto).then(r => r.blob()).catch(() => null);
+                            if (blob) {
+                                item.foto = await comprimirImagemGuia(new File([blob], 'guia.jpg', { type: 'image/jpeg' }));
+                                alterou = true;
+                            }
+                            resolve();
+                        };
+                        img.onerror = () => resolve();
+                        img.src = item.foto;
+                    }));
+                });
+            });
+        });
+
+        await Promise.all(tarefas);
+        if (alterou) salvarGuiasInjecao(dados);
+    };
+
     if (window.atlasModuloAtual === 'injecao') setTimeout(inserirCardGuiasInjecao, 0);
+    setTimeout(() => window.atlasCompactarFotosGuiasInjecao?.(), 1200);
 })();
 
 /* ==========================================================
