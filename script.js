@@ -9233,19 +9233,20 @@ document.addEventListener('click', function(evento) {
         return lado === 'direito' ? 'Lado direito' : 'Lado esquerdo';
     }
 
-    function comprimirImagemGuia(arquivo, max = 1100, qualidade = 0.72) {
+    function comprimirImagemGuia(arquivo) {
         return new Promise(resolve => {
             const img = new Image();
             const reader = new FileReader();
             reader.onload = () => {
                 img.onload = () => {
+                    const max = 1100;
                     const escala = Math.min(1, max / Math.max(img.width, img.height));
                     const canvas = document.createElement('canvas');
                     canvas.width = Math.max(1, Math.round(img.width * escala));
                     canvas.height = Math.max(1, Math.round(img.height * escala));
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                    resolve(canvas.toDataURL('image/jpeg', qualidade));
+                    resolve(canvas.toDataURL('image/jpeg', 0.72));
                 };
                 img.onerror = () => resolve(String(reader.result || ''));
                 img.src = String(reader.result || '');
@@ -9257,35 +9258,19 @@ document.addEventListener('click', function(evento) {
 
     async function prepararArquivoGuia(input, caminhoBase) {
         const arquivo = input?.files?.[0];
-        if (!arquivo) return { url: '', thumb: '' };
+        if (!arquivo) return '';
 
-        if (arquivo.type.startsWith('image/')) {
-            const thumb = await comprimirImagemGuia(arquivo, 520, 0.54);
-            if (typeof window.atlasFirebaseUploadGuiaArquivo === 'function') {
-                const fotoComprimida = await comprimirImagemGuia(arquivo, 1400, 0.76);
+        if (typeof window.atlasFirebaseUploadGuiaArquivo === 'function') {
+            let arquivoFinal = arquivo;
+            if (arquivo.type.startsWith('image/')) {
+                const fotoComprimida = await comprimirImagemGuia(arquivo);
                 const blob = await fetch(fotoComprimida).then(r => r.blob());
-                const arquivoFinal = new File([blob], 'foto-guia.jpg', { type: 'image/jpeg' });
-                const url = await window.atlasFirebaseUploadGuiaArquivo(arquivoFinal, caminhoBase);
-                return { url, thumb };
+                arquivoFinal = new File([blob], 'foto-guia.jpg', { type: 'image/jpeg' });
             }
-            return { url: thumb, thumb };
+            return window.atlasFirebaseUploadGuiaArquivo(arquivoFinal, caminhoBase);
         }
 
-        if (arquivo.type.startsWith('video/')) {
-            if (arquivo.size > 80 * 1024 * 1024) {
-                alert('Video muito grande. Grave um video menor, ate 80 MB.');
-                input.value = '';
-                return { url: '', thumb: '' };
-            }
-            if (typeof window.atlasFirebaseUploadGuiaArquivo !== 'function') {
-                alert('Upload de video ainda nao carregou. Aguarde alguns segundos e tente novamente.');
-                return { url: '', thumb: '' };
-            }
-            const url = await window.atlasFirebaseUploadGuiaArquivo(arquivo, caminhoBase);
-            return { url, thumb: '' };
-        }
-
-        return { url: '', thumb: '' };
+        return lerArquivoGuiaLocal(input);
     }
 
     function lerArquivoGuiaLocal(input) {
@@ -9313,26 +9298,10 @@ document.addEventListener('click', function(evento) {
     }
 
     function htmlMidiaGuia(item) {
-        const botoes = [];
-        if (item.foto) {
-            const thumb = item.fotoThumb || (String(item.foto).startsWith('data:image/') && String(item.foto).length > 350000 ? '' : item.foto);
-            botoes.push(`
-                <button onclick="atlasAbrirMidiaGuia('${jsGuia(item.foto)}','foto')" style="position:relative; min-height:120px; border:none; border-radius:10px; overflow:hidden; background:#020617; color:white; padding:0; cursor:pointer; border:1px solid #334155;">
-                    ${thumb ? `<img loading="lazy" src="${thumb}" alt="Foto" style="width:100%; height:120px; object-fit:cover; display:block;">` : `<div style="height:120px; display:grid; place-items:center; color:#93c5fd;"><i class="fas fa-image" style="font-size:30px;"></i></div>`}
-                    <span style="position:absolute; left:8px; bottom:8px; background:rgba(2,6,23,.82); border-radius:999px; padding:5px 9px; font-size:11px; font-weight:bold;">FOTO</span>
-                </button>
-            `);
-        }
-        if (item.video) {
-            botoes.push(`
-                <button onclick="atlasAbrirMidiaGuia('${jsGuia(item.video)}','video')" style="position:relative; min-height:120px; border:none; border-radius:10px; overflow:hidden; background:#020617; color:white; padding:0; cursor:pointer; border:1px solid #334155;">
-                    <div style="height:120px; display:grid; place-items:center; background:linear-gradient(135deg,#0f172a,#1e293b); color:#93c5fd;"><i class="fas fa-play-circle" style="font-size:42px;"></i></div>
-                    <span style="position:absolute; left:8px; bottom:8px; background:rgba(2,6,23,.82); border-radius:999px; padding:5px 9px; font-size:11px; font-weight:bold;">VIDEO</span>
-                </button>
-            `);
-        }
-        if (!botoes.length) return `<div style="margin-top:10px; color:#94a3b8; border:1px dashed #475569; border-radius:8px; padding:18px; text-align:center;">Sem foto/video ainda</div>`;
-        return `<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:8px; margin-top:10px;">${botoes.join('')}</div>`;
+        const foto = item.foto ? `<img loading="lazy" src="${item.foto}" alt="Foto ${escGuia(item.nome)}" style="width:100%; max-height:220px; object-fit:cover; border-radius:8px; border:1px solid #334155; margin-top:10px;">` : '';
+        const video = item.video ? `<a href="${item.video}" target="_blank" rel="noopener" style="display:block; margin-top:10px; background:#0f172a; color:#93c5fd; border:1px solid #3b82f6; border-radius:8px; padding:12px; text-align:center; font-weight:bold; text-decoration:none;">VER VIDEO</a>` : '';
+        if (!foto && !video) return `<div style="margin-top:10px; color:#94a3b8; border:1px dashed #475569; border-radius:8px; padding:18px; text-align:center;">Sem foto/video ainda</div>`;
+        return foto + video;
     }
 
     function htmlFormGuia(tipo, lado, item = null) {
@@ -9347,13 +9316,12 @@ document.addEventListener('click', function(evento) {
                 <textarea id="guia-ferro-nota" placeholder="Detalhes de montagem" style="width:100%; min-height:75px; padding:12px; background:#020617; color:white; border:1px solid #334155; border-radius:8px; margin-bottom:10px;">${escGuia(item?.nota || '')}</textarea>
                 <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; margin-bottom:10px;">
                     <label style="color:#94a3b8; font-size:12px;">Foto
-                        <input id="guia-ferro-foto" type="file" accept="image/*" onchange="atlasPreviewArquivoGuia(this,'foto')" style="width:100%; margin-top:5px; color:white;">
+                        <input id="guia-ferro-foto" type="file" accept="image/*" capture="environment" style="width:100%; margin-top:5px; color:white;">
                     </label>
                     <label style="color:#94a3b8; font-size:12px;">Video
-                        <input id="guia-ferro-video" type="file" accept="video/*" onchange="atlasPreviewArquivoGuia(this,'video')" style="width:100%; margin-top:5px; color:white;">
+                        <input id="guia-ferro-video" type="file" accept="video/*" capture="environment" style="width:100%; margin-top:5px; color:white;">
                     </label>
                 </div>
-                <div id="guia-preview-midia" style="display:none; margin-bottom:10px; background:#020617; border:1px solid #334155; border-radius:8px; padding:10px; color:#bfdbfe; font-size:13px;"></div>
                 ${editando ? `<label style="display:flex; gap:8px; align-items:center; color:#cbd5e1; font-size:13px; margin-bottom:10px;"><input id="guia-remover-midia" type="checkbox"> remover foto/video atual</label>` : ''}
                 <div style="display:flex; gap:8px; flex-wrap:wrap;">
                     <button id="guia-btn-salvar" onclick="atlasSalvarFerroGuiaInjecao('${jsGuia(tipo)}','${lado}')" style="background:#10b981; color:white; border:none; padding:12px 16px; border-radius:8px; font-weight:bold;">SALVAR / PUBLICAR</button>
@@ -9378,7 +9346,6 @@ document.addEventListener('click', function(evento) {
 
     const abrirModuloOriginalGuias = window.abrirModulo || abrirModulo;
     window.abrirModulo = function(nome) {
-        window.atlasGuiasInjecaoEmUso = false;
         const retorno = abrirModuloOriginalGuias.apply(this, arguments);
         if (nome === 'injecao') inserirCardGuiasInjecao();
         return retorno;
@@ -9386,7 +9353,6 @@ document.addEventListener('click', function(evento) {
     abrirModulo = window.abrirModulo;
 
     window.atlasAbrirGuiasInjecao = function() {
-        window.atlasGuiasInjecaoEmUso = true;
         const render = document.getElementById('render-modulo');
         if (!render) return;
         const dados = dadosGuiasInjecao();
@@ -9418,7 +9384,6 @@ document.addEventListener('click', function(evento) {
     };
 
     window.atlasAbrirTipoGuiaInjecao = function(tipo) {
-        window.atlasGuiasInjecaoEmUso = true;
         const render = document.getElementById('render-modulo');
         const dados = dadosGuiasInjecao();
         render.innerHTML = `
@@ -9444,7 +9409,6 @@ document.addEventListener('click', function(evento) {
     };
 
     window.atlasAbrirLadoGuiaInjecao = function(tipo, lado, editarId = '') {
-        window.atlasGuiasInjecaoEmUso = true;
         const render = document.getElementById('render-modulo');
         const dados = dadosGuiasInjecao();
         const lista = dados[tipo]?.[lado] || [];
@@ -9483,53 +9447,6 @@ document.addEventListener('click', function(evento) {
         `;
     };
 
-    window.atlasPreviewArquivoGuia = function(input, tipo) {
-        const preview = document.getElementById('guia-preview-midia');
-        const arquivo = input?.files?.[0];
-        if (!preview || !arquivo) return;
-        const mb = (arquivo.size / 1024 / 1024).toFixed(1);
-        preview.style.display = 'block';
-        if (tipo === 'foto') {
-            const url = URL.createObjectURL(arquivo);
-            preview.innerHTML = `
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <img src="${url}" style="width:70px; height:70px; object-fit:cover; border-radius:8px; border:1px solid #334155;">
-                    <div><b>Foto selecionada</b><br><small>${escGuia(arquivo.name)} | ${mb} MB</small></div>
-                </div>
-            `;
-        } else {
-            preview.innerHTML = `
-                <div style="display:flex; align-items:center; gap:10px;">
-                    <i class="fas fa-play-circle" style="font-size:42px; color:#60a5fa;"></i>
-                    <div><b>Video selecionado</b><br><small>${escGuia(arquivo.name)} | ${mb} MB</small></div>
-                </div>
-            `;
-        }
-    };
-
-    window.atlasAbrirMidiaGuia = function(src, tipo) {
-        if (!src) return;
-        const antigo = document.getElementById('atlas-modal-midia-guia');
-        if (antigo) antigo.remove();
-        const modal = document.createElement('div');
-        modal.id = 'atlas-modal-midia-guia';
-        modal.style.cssText = 'position:fixed; inset:0; z-index:99999; background:rgba(2,6,23,.94); display:flex; align-items:center; justify-content:center; padding:14px;';
-        modal.innerHTML = `
-            <div style="width:min(96vw,900px); max-height:94vh; display:flex; flex-direction:column; gap:10px;">
-                <div style="display:flex; justify-content:flex-end;">
-                    <button onclick="document.getElementById('atlas-modal-midia-guia')?.remove()" style="background:#ef4444; color:white; border:none; border-radius:10px; padding:12px 18px; font-weight:bold;">FECHAR</button>
-                </div>
-                <div style="background:#020617; border:1px solid #334155; border-radius:12px; padding:8px; overflow:auto; text-align:center;">
-                    ${tipo === 'video'
-                        ? `<video controls autoplay src="${escGuia(src)}" style="max-width:100%; max-height:78vh; border-radius:8px;"></video>`
-                        : `<img src="${escGuia(src)}" alt="Foto da guia" style="max-width:100%; max-height:78vh; object-fit:contain; border-radius:8px;">`
-                    }
-                </div>
-            </div>
-        `;
-        document.body.appendChild(modal);
-    };
-
     window.atlasSalvarFerroGuiaInjecao = async function(tipo, lado) {
         if (!podeEditarGuiasInjecao()) return alert('Apenas ADMIN ou SUPERVISOR podem alterar guias.');
         const dados = dadosGuiasInjecao();
@@ -9552,8 +9469,8 @@ document.addEventListener('click', function(evento) {
             botaoSalvar.style.opacity = '.75';
         }
 
-        let fotoNova = { url: '', thumb: '' };
-        let videoNovo = { url: '', thumb: '' };
+        let fotoNova = '';
+        let videoNovo = '';
         try {
             fotoNova = await prepararArquivoGuia(document.getElementById('guia-ferro-foto'), `${tipo}/${lado}/${itemId}/foto`);
             videoNovo = await prepararArquivoGuia(document.getElementById('guia-ferro-video'), `${tipo}/${lado}/${itemId}/video`);
@@ -9573,9 +9490,8 @@ document.addEventListener('click', function(evento) {
             nome,
             posicao: document.getElementById('guia-ferro-posicao')?.value.trim() || '',
             nota: document.getElementById('guia-ferro-nota')?.value.trim() || '',
-            foto: removerMidia ? '' : (fotoNova.url || atual?.foto || ''),
-            fotoThumb: removerMidia ? '' : (fotoNova.thumb || atual?.fotoThumb || ''),
-            video: removerMidia ? '' : (videoNovo.url || atual?.video || ''),
+            foto: removerMidia ? '' : (fotoNova || atual?.foto || ''),
+            video: removerMidia ? '' : (videoNovo || atual?.video || ''),
             atualizadoEm: new Date().toLocaleString('pt-BR'),
             atualizadoPor: document.getElementById('user-display')?.innerText || usuarioLogado?.id || 'SISTEMA'
         };

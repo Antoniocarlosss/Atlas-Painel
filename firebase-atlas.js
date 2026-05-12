@@ -80,7 +80,6 @@ function atlasFirebaseChaveSincronizada(chave) {
 }
 
 function atlasFirebaseAplicarGuiasInjecao(dados) {
-    if (window.atlasGuiasInjecaoEmUso === true) return false;
     const bloqueioEdicao = Number(localStorage.getItem("atlas_guias_editando_ate") || 0);
     if (bloqueioEdicao > Date.now()) return false;
     if (Date.now() - atlasFirebaseUltimaAlteracaoLocal < 8000) return false;
@@ -766,7 +765,7 @@ async function atlasEnviarGuiasInjecao() {
 
 async function atlasFirebaseUploadGuiaArquivo(arquivo, caminhoBase) {
     if (!arquivo) return "";
-    const ext = String(arquivo.name || "").split(".").pop() || (arquivo.type.startsWith("video/") ? "mp4" : "jpg");
+    const ext = String(arquivo.name || "").split(".").pop() || (arquivo.type.startsWith("video/") ? "webm" : "jpg");
     const caminhoSeguro = atlasDocId(caminhoBase || "arquivo");
     const caminho = `guias_injecao/${caminhoSeguro}_${Date.now()}.${ext}`;
     const refArquivo = storageRef(atlasStorage, caminho);
