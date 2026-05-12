@@ -2960,7 +2960,7 @@ gerarPDF_Bobines = function(dadosEncoded) {
                 <div class="rodape"><div>Ass: <span class="assinatura"></span></div></div>
                 <div class="no-print print-topo">
                     <button class="btn-imprimir" onclick="window.print()">IMPRIMIR / PDF</button>
-                    <button class="btn-fechar" onclick="try { localStorage.setItem('atlas_pdf_retorno_historico', JSON.stringify({modulo:'bobines',historico:true,em:Date.now()})); if (window.opener && !window.opener.closed && window.opener.atlasVoltarDoPDFParaTelaAnterior) { window.opener.atlasVoltarDoPDFParaTelaAnterior({modulo:'bobines',historico:true}); window.opener.focus(); } this.textContent='VOLTANDO...'; this.style.background='#10b981'; } catch(e) {}">FECHAR</button>
+                    <button class="btn-fechar" onclick="try { localStorage.setItem('atlas_pdf_retorno_historico', JSON.stringify({modulo:'bobines',historico:true,em:Date.now()})); if (window.opener && !window.opener.closed && window.opener.atlasVoltarDoPDFParaTelaAnterior) { window.opener.atlasVoltarDoPDFParaTelaAnterior({modulo:'bobines',historico:true}); window.opener.focus(); setTimeout(function(){ try { window.close(); } catch(e) {} }, 120); } this.textContent='VOLTANDO...'; this.style.background='#10b981'; } catch(e) {}">FECHAR</button>
                 </div>
             </div>
         </body>
@@ -9135,6 +9135,9 @@ document.addEventListener('click', function(evento) {
                         if (janela.opener && !janela.opener.closed && janela.opener.atlasVoltarDoPDFParaTelaAnterior) {
                             janela.opener.atlasVoltarDoPDFParaTelaAnterior(contexto);
                             janela.opener.focus();
+                            setTimeout(function() {
+                                try { janela.close(); } catch(e) {}
+                            }, 120);
                         }
                     } catch(e) {}
 
@@ -9143,7 +9146,7 @@ document.addEventListener('click', function(evento) {
                         const aviso = janela.document.createElement('div');
                         aviso.className = 'no-print';
                         aviso.style.cssText = 'position:fixed;left:10px;right:10px;bottom:10px;z-index:2147483647;background:#10b981;color:white;border:3px solid #064e3b;border-radius:10px;padding:16px;text-align:center;font-family:Arial;font-weight:bold;';
-                        aviso.textContent = 'Voltando para o historico... se nao mudar sozinho, toque na aba do sistema.';
+                        aviso.textContent = 'Voltando para o historico... se esta aba nao fechar sozinha, toque na aba do sistema.';
                         janela.document.body.appendChild(aviso);
                     } catch(e) {}
                 };
