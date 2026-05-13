@@ -16673,7 +16673,7 @@ window.addEventListener('load', () => setTimeout(instalarProtecaoExclusaoSeparad
 
             modal.querySelectorAll('td[rowspan]').forEach(td => {
                 const inputPedido = td.querySelector('input[id$="-pedido"]');
-                if (!inputPedido || td.querySelector('.atlas-btn-apagar-pedido-injetado')) return;
+                if (!inputPedido || td.querySelector('.atlas-btn-apagar-pedido-injetado') || Array.from(td.querySelectorAll('button')).some(botao => String(botao.textContent || '').trim().toLowerCase() === 'apagar pedido')) return;
                 const linha = td.closest('tr');
                 const inputCliente = linha?.querySelector('input[id$="-destino"]');
                 const pedido = inputPedido.value || 'S/N';
