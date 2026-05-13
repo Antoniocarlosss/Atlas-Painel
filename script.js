@@ -16053,7 +16053,10 @@ window.addEventListener('load', () => setTimeout(instalarProtecaoExclusaoSeparad
         const base = grupo.linhas[0] || {};
         const id = `abs-${idKey(grupo.chave)}`;
         return `
-            <td rowspan="${grupo.linhas.length}" class="atlas-mescla-celula"><input id="${id}-pedido" value="${esc(grupo.pedido)}"></td>
+            <td rowspan="${grupo.linhas.length}" class="atlas-mescla-celula">
+                <input id="${id}-pedido" value="${esc(grupo.pedido)}">
+                <button onclick="atlasExcluirPedidoGeralLive('${safe(grupo.pedido)}', '${safe(grupo.destino)}')" style="width:100%; margin-top:8px; background:#7f1d1d; color:white; border:none; padding:9px; border-radius:6px; font-weight:bold;">APAGAR PEDIDO</button>
+            </td>
             <td rowspan="${grupo.linhas.length}" class="atlas-mescla-celula"><input id="${id}-destino" value="${esc(grupo.destino)}"></td>
             <td rowspan="${grupo.linhas.length}" class="atlas-mescla-celula"><select id="${id}-tipo">${options(OPCOES_TIPO_PLANO, base.tipo)}</select></td>
             <td rowspan="${grupo.linhas.length}" class="atlas-mescla-celula"><select id="${id}-esp">${options(OPCOES_ESPESSURA_PLANO, base.espessura, ' mm')}</select></td>
@@ -16140,6 +16143,39 @@ window.addEventListener('load', () => setTimeout(instalarProtecaoExclusaoSeparad
         salvarPlanoLive();
         atualizarTelaPlanoAtual();
         atlasAbrirPlanilhaGeralLive();
+    };
+
+    window.atlasExcluirPedidoGeralLive = function(pedido, destino) {
+        if (!usuarioPodeExcluirModulo('plano')) return alert('Sem permissao para excluir no Plano.');
+        const linhas = pedidosLive().filter(item =>
+            String(item.pedidoNumero || 'S/N') === String(pedido || 'S/N') &&
+            String(item.destino || '') === String(destino || '')
+        );
+        if (!linhas.length) return alert('Pedido nao encontrado.');
+        const total = linhas.reduce((acc, item) => acc + Number(item.totalMetros || 0), 0);
+        const confirmar = confirm(`Apagar o pedido completo?\n\nPedido: ${pedido || 'S/N'}\nCliente: ${destino || '-'}\nLinhas: ${linhas.length}\nTotal: ${total.toFixed(2)} m`);
+        if (!confirmar) return;
+
+        db_plano_live.linhasAbertas = (db_plano_live.linhasAbertas || []).filter(item => !(
+            item.modo === 'pedido' &&
+            String(item.pedidoNumero || 'S/N') === String(pedido || 'S/N') &&
+            String(item.destino || '') === String(destino || '')
+        ));
+
+        if (db_plano_live.pedidoAtual &&
+            String(db_plano_live.pedidoAtual.numero || '') === String(pedido || '') &&
+            String(db_plano_live.pedidoAtual.destino || '') === String(destino || '')) {
+            db_plano_live.pedidoAtual = null;
+        }
+
+        if (typeof window.atlasRegistrarAuditoria === 'function') {
+            window.atlasRegistrarAuditoria('Apagou pedido do plano em andamento', 'plano', `Pedido: ${pedido || 'S/N'} | Cliente: ${destino || '-'} | Linhas: ${linhas.length} | Total: ${total.toFixed(2)} m`);
+        }
+
+        salvarPlanoLive();
+        atualizarTelaPlanoAtual();
+        if (pedidosLive().length) atlasAbrirPlanilhaGeralLive();
+        else atlasFecharPlanilhaGeral();
     };
 
     function garantirBotao() {
