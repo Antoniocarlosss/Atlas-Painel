@@ -1057,6 +1057,7 @@ function atlasUsuarioDigitandoOuEditando() {
 
 function atlasAtualizarTelaAposSyncNuvem(evento) {
     if (!usuarioLogado) return;
+    if (window.atlasGuiasInjecaoEmUso === true) return;
 
     const chavesAtualizadas = evento?.detail?.chaves || [];
     if (chavesAtualizadas.length === 1 && chavesAtualizadas[0] === 'atlas_guias_injecao') return;
@@ -9211,8 +9212,25 @@ document.addEventListener('click', function(evento) {
         return [...new Set(todos)];
     }
 
+    function limparGuiasInjecaoLegado(dados) {
+        Object.keys(dados || {}).forEach(tipo => {
+            if (tipo === '_atlasMeta') return;
+            ['esquerdo', 'direito'].forEach(lado => {
+                if (!Array.isArray(dados[tipo]?.[lado])) return;
+                dados[tipo][lado] = dados[tipo][lado].map(item => {
+                    const limpo = { ...item };
+                    delete limpo.video;
+                    if (limpo.fotoThumb === limpo.foto) limpo.fotoThumb = '';
+                    if (String(limpo.foto || '').startsWith('atlasfsvideo:')) limpo.foto = '';
+                    return limpo;
+                });
+            });
+        });
+        return dados;
+    }
+
     function dadosGuiasInjecao() {
-        const dados = atlasJSONLocal(CHAVE_GUIAS_INJECAO, {});
+        const dados = limparGuiasInjecaoLegado(atlasJSONLocal(CHAVE_GUIAS_INJECAO, {}));
         tiposGuiasInjecao().forEach(tipo => {
             dados[tipo] ||= {};
             dados[tipo].esquerdo ||= [];
@@ -9226,7 +9244,8 @@ document.addEventListener('click', function(evento) {
             atualizadoEmMs: Date.now(),
             atualizadoPor: document.getElementById('user-display')?.innerText || usuarioLogado?.id || 'SISTEMA'
         };
-        localStorage.setItem(CHAVE_GUIAS_INJECAO, JSON.stringify(dados || {}));
+        localStorage.setItem('atlas_guias_editando_ate', String(Date.now() + 20000));
+        localStorage.setItem(CHAVE_GUIAS_INJECAO, JSON.stringify(limparGuiasInjecaoLegado(dados || {})));
     }
 
     function nomeLadoGuia(lado) {
@@ -9255,26 +9274,13 @@ document.addEventListener('click', function(evento) {
         });
     }
 
-    async function prepararArquivoGuia(input, caminhoBase) {
+    async function prepararArquivoGuia(input) {
         const arquivo = input?.files?.[0];
         if (!arquivo) return { url: '', thumb: '' };
 
         if (arquivo.type.startsWith('image/')) {
-            const thumb = await comprimirImagemGuia(arquivo, 520, 0.54);
-            if (typeof window.atlasFirebaseUploadGuiaArquivo === 'function') {
-                try {
-                    const fotoComprimida = await comprimirImagemGuia(arquivo, 1400, 0.76);
-                    const blob = await fetch(fotoComprimida).then(r => r.blob());
-                    const arquivoFinal = new File([blob], 'foto-guia.jpg', { type: 'image/jpeg' });
-                    const url = await window.atlasFirebaseUploadGuiaArquivo(arquivoFinal, caminhoBase);
-                    return { url, thumb };
-                } catch (erroStorage) {
-                    console.warn('Storage bloqueou a foto da guia, salvando foto comprimida nos dados:', erroStorage);
-                    const fotoLeve = await comprimirImagemGuia(arquivo, 900, 0.58);
-                    return { url: fotoLeve, thumb: '' };
-                }
-            }
-            return { url: thumb, thumb };
+            const fotoLeve = await comprimirImagemGuia(arquivo, 720, 0.48);
+            return { url: fotoLeve, thumb: '' };
         }
 
         return { url: '', thumb: '' };
@@ -9311,7 +9317,7 @@ document.addEventListener('click', function(evento) {
                 <div id="guia-preview-midia" style="display:none; margin-bottom:10px; background:#020617; border:1px solid #334155; border-radius:8px; padding:10px; color:#bfdbfe; font-size:13px;"></div>
                 ${editando ? `<label style="display:flex; gap:8px; align-items:center; color:#cbd5e1; font-size:13px; margin-bottom:10px;"><input id="guia-remover-midia" type="checkbox"> remover foto atual</label>` : ''}
                 <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                    <button id="guia-btn-salvar" onclick="atlasSalvarFerroGuiaInjecao('${jsGuia(tipo)}','${lado}')" style="background:#10b981; color:white; border:none; padding:12px 16px; border-radius:8px; font-weight:bold;">SALVAR / PUBLICAR</button>
+                    <button id="guia-btn-salvar" onclick="atlasSalvarFerroGuiaInjecao('${jsGuia(tipo)}','${lado}')" style="background:#10b981; color:white; border:none; padding:12px 16px; border-radius:8px; font-weight:bold;">SALVAR FOTO</button>
                     ${editando ? `<button onclick="atlasAbrirLadoGuiaInjecao('${jsGuia(tipo)}','${lado}')" style="background:#475569; color:white; border:none; padding:12px 16px; border-radius:8px; font-weight:bold;">CANCELAR</button>` : ''}
                 </div>
             </div>
@@ -9497,7 +9503,7 @@ document.addEventListener('click', function(evento) {
         const botaoSalvar = document.getElementById('guia-btn-salvar');
         if (botaoSalvar) {
             botaoSalvar.disabled = true;
-            botaoSalvar.textContent = 'PUBLICANDO...';
+            botaoSalvar.textContent = 'SALVANDO...';
             botaoSalvar.style.opacity = '.75';
         }
 
@@ -9510,7 +9516,7 @@ document.addEventListener('click', function(evento) {
             alert(`Nao foi possivel publicar a foto agora. Detalhe: ${detalhe || 'erro desconhecido'}`);
             if (botaoSalvar) {
                 botaoSalvar.disabled = false;
-                botaoSalvar.textContent = 'SALVAR / PUBLICAR';
+                botaoSalvar.textContent = 'SALVAR FOTO';
                 botaoSalvar.style.opacity = '1';
             }
             return;
@@ -9523,16 +9529,25 @@ document.addEventListener('click', function(evento) {
             nota: document.getElementById('guia-ferro-nota')?.value.trim() || '',
             foto: removerMidia ? '' : (fotoNova.url || atual?.foto || ''),
             fotoThumb: removerMidia ? '' : (fotoNova.thumb || atual?.fotoThumb || ''),
-            video: '',
             atualizadoEm: new Date().toLocaleString('pt-BR'),
             atualizadoPor: document.getElementById('user-display')?.innerText || usuarioLogado?.id || 'SISTEMA'
         };
 
         if (atual) Object.assign(atual, item);
         else lista.push(item);
-        salvarGuiasInjecao(dados);
-        localStorage.setItem('atlas_guias_editando_ate', String(Date.now() + 8000));
-        atlasAbrirLadoGuiaInjecao(tipo, lado);
+        try {
+            salvarGuiasInjecao(dados);
+            localStorage.setItem('atlas_guias_editando_ate', String(Date.now() + 8000));
+            atlasAbrirLadoGuiaInjecao(tipo, lado);
+        } catch (erroSalvar) {
+            console.error('Erro ao salvar guia:', erroSalvar);
+            alert('Nao foi possivel salvar. Apague fotos antigas desta guia e tente novamente.');
+            if (botaoSalvar) {
+                botaoSalvar.disabled = false;
+                botaoSalvar.textContent = 'SALVAR FOTO';
+                botaoSalvar.style.opacity = '1';
+            }
+        }
     };
 
     window.atlasApagarFerroGuiaInjecao = function(tipo, lado, id) {
