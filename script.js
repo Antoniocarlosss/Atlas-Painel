@@ -9650,16 +9650,30 @@ document.addEventListener('click', function(evento) {
     window.atlasAtualizarGuiasInjecaoManual = async function() {
         if (!window.atlasGuiasInjecaoEmUso || window.atlasGuiasInjecaoAtualizandoManual) return;
         window.atlasGuiasInjecaoAtualizandoManual = true;
-        mostrarAvisoGuias('Atualizando guias...');
+        mostrarAvisoGuias('Atualizando sistema...');
         try {
-            const atualizou = typeof window.atlasFirebaseAtualizarGuiasInjecao === 'function'
-                ? await window.atlasFirebaseAtualizarGuiasInjecao()
+            const atualizou = typeof window.atlasFirebaseSincronizarAgora === 'function'
+                ? await window.atlasFirebaseSincronizarAgora()
+                : (typeof window.atlasFirebaseAtualizarGuiasInjecao === 'function'
+                    ? await window.atlasFirebaseAtualizarGuiasInjecao()
+                    : false);
+            if (typeof window.atlasFirebaseAtualizarGuiasInjecao === 'function') {
+                await window.atlasFirebaseAtualizarGuiasInjecao();
+            }
+            if (typeof atlasRecarregarDadosLocaisDaNuvem === 'function') {
+                atlasRecarregarDadosLocaisDaNuvem();
+            }
+            if (typeof aplicarPermissoesUsuario === 'function') aplicarPermissoesUsuario();
+            if (typeof aplicarPreferenciasVisuaisUsuario === 'function') aplicarPreferenciasVisuaisUsuario();
+            atualizarTelaGuiasDaNuvem();
+            mostrarAvisoGuias(atualizou === false ? 'Sistema ja estava atualizado' : 'Sistema atualizado');
+        } catch (erro) {
+            console.error('Erro ao atualizar sistema manualmente:', erro);
+            const atualizouGuias = typeof window.atlasFirebaseAtualizarGuiasInjecao === 'function'
+                ? await window.atlasFirebaseAtualizarGuiasInjecao().catch(() => false)
                 : false;
             atualizarTelaGuiasDaNuvem();
-            mostrarAvisoGuias(atualizou ? 'Guias atualizadas' : 'Guias ja estavam atualizadas');
-        } catch (erro) {
-            console.error('Erro ao atualizar guias manualmente:', erro);
-            mostrarAvisoGuias('Nao foi possivel atualizar agora', '#ef4444');
+            mostrarAvisoGuias(atualizouGuias ? 'Guias atualizadas' : 'Nao foi possivel atualizar agora', atualizouGuias ? '#10b981' : '#ef4444');
         } finally {
             setTimeout(() => { window.atlasGuiasInjecaoAtualizandoManual = false; }, 600);
         }
