@@ -9262,11 +9262,17 @@ document.addEventListener('click', function(evento) {
         if (arquivo.type.startsWith('image/')) {
             const thumb = await comprimirImagemGuia(arquivo, 520, 0.54);
             if (typeof window.atlasFirebaseUploadGuiaArquivo === 'function') {
-                const fotoComprimida = await comprimirImagemGuia(arquivo, 1400, 0.76);
-                const blob = await fetch(fotoComprimida).then(r => r.blob());
-                const arquivoFinal = new File([blob], 'foto-guia.jpg', { type: 'image/jpeg' });
-                const url = await window.atlasFirebaseUploadGuiaArquivo(arquivoFinal, caminhoBase);
-                return { url, thumb };
+                try {
+                    const fotoComprimida = await comprimirImagemGuia(arquivo, 1400, 0.76);
+                    const blob = await fetch(fotoComprimida).then(r => r.blob());
+                    const arquivoFinal = new File([blob], 'foto-guia.jpg', { type: 'image/jpeg' });
+                    const url = await window.atlasFirebaseUploadGuiaArquivo(arquivoFinal, caminhoBase);
+                    return { url, thumb };
+                } catch (erroStorage) {
+                    console.warn('Storage bloqueou a foto da guia, salvando foto comprimida nos dados:', erroStorage);
+                    const fotoLeve = await comprimirImagemGuia(arquivo, 900, 0.58);
+                    return { url: fotoLeve, thumb: '' };
+                }
             }
             return { url: thumb, thumb };
         }
