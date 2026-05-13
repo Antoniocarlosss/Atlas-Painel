@@ -4605,16 +4605,34 @@ function editarAniversarioUsuario(index) {
     }
 
     const atual = usuario.nascimento || usuario.aniversario || '';
-    const novaData = prompt(`Data de nascimento de ${usuario.nome || usuario.id}\n\nUse o formato AAAA-MM-DD. Deixe vazio para remover.`, atual);
-    if (novaData === null) return;
+    const antigo = document.getElementById('modal-aniversario-usuario');
+    if (antigo) antigo.remove();
 
-    const limpa = String(novaData || '').trim();
-    if (limpa && !/^\d{4}-\d{2}-\d{2}$/.test(limpa)) {
-        alert("Formato invalido. Use AAAA-MM-DD, por exemplo 1990-05-13.");
-        return;
-    }
+    const modal = document.createElement('div');
+    modal.id = 'modal-aniversario-usuario';
+    modal.style.cssText = 'position:fixed; inset:0; z-index:99999; background:rgba(2,6,23,.82); display:flex; align-items:center; justify-content:center; padding:14px;';
+    modal.innerHTML = `
+        <div style="width:min(92vw,420px); background:#111827; border:1px solid #334155; border-radius:12px; padding:18px; color:white; box-shadow:0 20px 60px rgba(0,0,0,.45);">
+            <h3 style="margin:0 0 6px;">Aniversario</h3>
+            <div style="color:#94a3b8; margin-bottom:14px;">${textoSeguroPermissoes(usuario.nome || usuario.id)}</div>
+            <label style="display:block; color:#94a3b8; font-size:12px; margin-bottom:6px;">Data de nascimento</label>
+            <input id="campo-aniversario-usuario" type="date" value="${textoSeguroPermissoes(atual)}" style="width:100%; padding:12px; background:#020617; color:white; border:1px solid #334155; border-radius:8px; margin-bottom:14px;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
+                <button onclick="salvarAniversarioUsuario(${index})" style="background:#10b981; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold;">SALVAR</button>
+                <button onclick="document.getElementById('campo-aniversario-usuario').value=''; salvarAniversarioUsuario(${index})" style="background:#7f1d1d; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold;">REMOVER</button>
+            </div>
+            <button onclick="document.getElementById('modal-aniversario-usuario')?.remove()" style="width:100%; background:#334155; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold;">CANCELAR</button>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
 
+function salvarAniversarioUsuario(index) {
+    const usuario = usuariosSistema[index];
+    if (!usuario) return;
+    const limpa = String(document.getElementById('campo-aniversario-usuario')?.value || '').trim();
     const anterior = usuario.nascimento || usuario.aniversario || '';
+
     marcarUsuarioAlteradoAtlas(usuario);
     usuario.nascimento = limpa;
     usuario.aniversario = limpa;
@@ -4623,7 +4641,7 @@ function editarAniversarioUsuario(index) {
         window.atlasRegistrarAuditoria('Alterou aniversario de usuario', 'gestao', `Usuario: ${usuario.id} | Antes: ${anterior || '-'} | Depois: ${limpa || '-'}`);
     }
     if (typeof window.atlasFirebaseSincronizarAgora === 'function') window.atlasFirebaseSincronizarAgora();
-    alert("Aniversario atualizado.");
+    document.getElementById('modal-aniversario-usuario')?.remove();
     listarUsuariosSistema();
 }
 
