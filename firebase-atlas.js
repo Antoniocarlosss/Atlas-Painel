@@ -1059,6 +1059,13 @@ window.atlasFirebaseSincronizarAgora = function() {
     });
 };
 
+window.atlasFirebaseAtualizarGuiasInjecao = function() {
+    return atlasBaixarGuiasInjecaoDireto().catch(erro => {
+        console.error("Erro ao atualizar guias da injecao:", erro);
+        return false;
+    });
+};
+
 window.atlasFirebaseChecarVersaoSistema = function() {
     return atlasFirebaseSincronizarVersaoSistema().catch(erro => {
         console.error("Erro ao checar versao do sistema:", erro);

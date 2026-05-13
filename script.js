@@ -9394,10 +9394,11 @@ document.addEventListener('click', function(evento) {
             <div style="padding:15px; color:white;">
                 <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px;">
                     <button onclick="abrirModulo('injecao')" style="background:none; border:none; color:#94a3b8; font-size:22px; cursor:pointer;"><i class="fas fa-arrow-left"></i></button>
-                    <div>
+                    <div style="flex:1;">
                         <h2 style="margin:0; color:white;">Guias / Ferros da Injecao</h2>
                         <small style="color:#94a3b8;">Selecione o tipo de chapa para ver lado esquerdo e lado direito.</small>
                     </div>
+                    <button onclick="atlasAtualizarGuiasInjecaoManual()" style="background:#334155; color:white; border:none; border-radius:8px; padding:10px 12px; font-weight:bold;">ATUALIZAR</button>
                 </div>
                 ${podeEditar ? `<div style="background:#052e16; color:#bbf7d0; border:1px solid #10b981; border-radius:8px; padding:10px; margin-bottom:15px;">Modo edicao ativo: pode incluir, alterar e apagar fotos.</div>` : ''}
                 <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:12px;">
@@ -9425,10 +9426,11 @@ document.addEventListener('click', function(evento) {
             <div style="padding:15px; color:white;">
                 <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px;">
                     <button onclick="atlasAbrirGuiasInjecao()" style="background:none; border:none; color:#94a3b8; font-size:22px; cursor:pointer;"><i class="fas fa-arrow-left"></i></button>
-                    <div>
+                    <div style="flex:1;">
                         <h2 style="margin:0; color:white;">${escGuia(tipo)}</h2>
                         <small style="color:#94a3b8;">Escolha o lado onde a guia fica posicionada.</small>
                     </div>
+                    <button onclick="atlasAtualizarGuiasInjecaoManual()" style="background:#334155; color:white; border:none; border-radius:8px; padding:10px 12px; font-weight:bold;">ATUALIZAR</button>
                 </div>
                 <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:15px;">
                     ${['esquerdo','direito'].map(lado => `
@@ -9456,10 +9458,11 @@ document.addEventListener('click', function(evento) {
             <div style="padding:15px; color:white;">
                 <div style="display:flex; align-items:center; gap:12px; margin-bottom:18px;">
                     <button onclick="atlasAbrirTipoGuiaInjecao('${jsGuia(tipo)}')" style="background:none; border:none; color:#94a3b8; font-size:22px; cursor:pointer;"><i class="fas fa-arrow-left"></i></button>
-                    <div>
+                    <div style="flex:1;">
                         <h2 style="margin:0; color:white;">${escGuia(tipo)} - ${nomeLadoGuia(lado)}</h2>
                         <small style="color:#94a3b8;">Posicao da guia e ferros para montagem.</small>
                     </div>
+                    <button onclick="atlasAtualizarGuiasInjecaoManual()" style="background:#334155; color:white; border:none; border-radius:8px; padding:10px 12px; font-weight:bold;">ATUALIZAR</button>
                 </div>
                 ${htmlFormGuia(tipo, lado, itemEditando)}
                 <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px;">
@@ -9630,6 +9633,62 @@ document.addEventListener('click', function(evento) {
         window.atlasAbrirGuiasInjecao();
     }
 
+    function mostrarAvisoGuias(texto, cor = '#10b981') {
+        let aviso = document.getElementById('atlas-guias-aviso-sync');
+        if (!aviso) {
+            aviso = document.createElement('div');
+            aviso.id = 'atlas-guias-aviso-sync';
+            aviso.style.cssText = 'position:fixed;left:14px;right:14px;top:12px;z-index:99999;color:white;padding:12px 14px;border-radius:10px;text-align:center;font-weight:bold;box-shadow:0 8px 22px rgba(0,0,0,.35);';
+            document.body.appendChild(aviso);
+        }
+        aviso.style.background = cor;
+        aviso.textContent = texto;
+        clearTimeout(window.atlasGuiasAvisoTimer);
+        window.atlasGuiasAvisoTimer = setTimeout(() => aviso.remove(), 1600);
+    }
+
+    window.atlasAtualizarGuiasInjecaoManual = async function() {
+        if (!window.atlasGuiasInjecaoEmUso || window.atlasGuiasInjecaoAtualizandoManual) return;
+        window.atlasGuiasInjecaoAtualizandoManual = true;
+        mostrarAvisoGuias('Atualizando guias...');
+        try {
+            const atualizou = typeof window.atlasFirebaseAtualizarGuiasInjecao === 'function'
+                ? await window.atlasFirebaseAtualizarGuiasInjecao()
+                : false;
+            atualizarTelaGuiasDaNuvem();
+            mostrarAvisoGuias(atualizou ? 'Guias atualizadas' : 'Guias ja estavam atualizadas');
+        } catch (erro) {
+            console.error('Erro ao atualizar guias manualmente:', erro);
+            mostrarAvisoGuias('Nao foi possivel atualizar agora', '#ef4444');
+        } finally {
+            setTimeout(() => { window.atlasGuiasInjecaoAtualizandoManual = false; }, 600);
+        }
+    };
+
+    function instalarPuxarAtualizarGuias() {
+        if (window.atlasPullGuiasInstalado) return;
+        window.atlasPullGuiasInstalado = true;
+        let inicioY = 0;
+        let puxando = false;
+
+        document.addEventListener('touchstart', function(evento) {
+            if (!window.atlasGuiasInjecaoEmUso) return;
+            if (window.scrollY > 8) return;
+            inicioY = evento.touches?.[0]?.clientY || 0;
+            puxando = inicioY > 0;
+        }, { passive: true });
+
+        document.addEventListener('touchend', function(evento) {
+            if (!puxando || !window.atlasGuiasInjecaoEmUso) return;
+            const fimY = evento.changedTouches?.[0]?.clientY || 0;
+            const distancia = fimY - inicioY;
+            puxando = false;
+            if (window.scrollY <= 8 && distancia > 75) {
+                window.atlasAtualizarGuiasInjecaoManual();
+            }
+        }, { passive: true });
+    }
+
     window.addEventListener('atlasDadosNuvemAtualizados', function(evento) {
         const chaves = evento?.detail?.chaves || [];
         if (!chaves.includes(CHAVE_GUIAS_INJECAO)) return;
@@ -9650,6 +9709,8 @@ document.addEventListener('click', function(evento) {
     window.atlasCompactarFotosGuiasInjecao = async function() {
         return false;
     };
+
+    instalarPuxarAtualizarGuias();
 
     if (window.atlasModuloAtual === 'injecao') setTimeout(inserirCardGuiasInjecao, 0);
 })();
