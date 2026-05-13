@@ -4392,8 +4392,8 @@ function criarUsuarioSistema() {
     const senha = document.getElementById('nova-senha-usuario')?.value.trim();
     const cargo = document.getElementById('novo-cargo-usuario')?.value;
 
-    if (!nome || !aniversario || !id || !senha) {
-        alert("Preencha nome, data de nascimento, ID de entrada e senha.");
+    if (!nome || !id || !senha) {
+        alert("Preencha nome, ID de entrada e senha. A data de nascimento pode ficar em branco e ser colocada depois.");
         return;
     }
 
@@ -4412,7 +4412,15 @@ function criarUsuarioSistema() {
     if (typeof window.atlasFirebaseLimparUsuarioExcluido === 'function') {
         window.atlasFirebaseLimparUsuarioExcluido(idNormalizado);
     }
-    usuariosSistema.push(marcarUsuarioAlteradoAtlas({ nome, nascimento: aniversario, aniversario, id, senha, cargo, bloqueado: false }));
+    usuariosSistema.push(marcarUsuarioAlteradoAtlas({
+        nome,
+        nascimento: aniversario || '',
+        aniversario: aniversario || '',
+        id,
+        senha,
+        cargo,
+        bloqueado: false
+    }));
     salvarUsuariosSistemaAtlas();
     if (typeof window.atlasFirebaseSincronizarAgora === 'function') window.atlasFirebaseSincronizarAgora();
     alert("Usuario criado com sucesso!");
@@ -4552,7 +4560,11 @@ function listarUsuariosSistema() {
                         <div style="background:#0f172a; color:#fbbf24; border:1px solid #334155; padding:10px; border-radius:8px; font-weight:bold; text-align:center;">
                             ADMIN protegido: nao pode bloquear nem excluir
                         </div>
-                    ` : `<div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px;">
+                    ` : `<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; margin-bottom:10px;">
+    <button onclick="editarAniversarioUsuario(${index})" style="background:#3b82f6; color:white; border:none; padding:10px; border-radius:6px; font-weight:bold;">
+        ANIVERSARIO
+    </button>
+
     <button onclick="alternarBloqueioUsuario(${index})" style="background:${u.bloqueado ? '#10b981' : '#f59e0b'}; color:white; border:none; padding:10px; border-radius:6px; font-weight:bold;">
         ${u.bloqueado ? 'DESBLOQUEAR' : 'BLOQUEAR'}
     </button>
@@ -4583,6 +4595,38 @@ function alterarCargoUsuario(index, novoCargo) {
     alert("Cargo atualizado com sucesso.");
     listarUsuariosSistema();
 }
+function editarAniversarioUsuario(index) {
+    const usuario = usuariosSistema[index];
+    if (!usuario) return;
+    if (usuarioProtegidoAdminAtlas(usuario)) {
+        alert("O usuario ADMIN nao pode ser alterado.");
+        listarUsuariosSistema();
+        return;
+    }
+
+    const atual = usuario.nascimento || usuario.aniversario || '';
+    const novaData = prompt(`Data de nascimento de ${usuario.nome || usuario.id}\n\nUse o formato AAAA-MM-DD. Deixe vazio para remover.`, atual);
+    if (novaData === null) return;
+
+    const limpa = String(novaData || '').trim();
+    if (limpa && !/^\d{4}-\d{2}-\d{2}$/.test(limpa)) {
+        alert("Formato invalido. Use AAAA-MM-DD, por exemplo 1990-05-13.");
+        return;
+    }
+
+    const anterior = usuario.nascimento || usuario.aniversario || '';
+    marcarUsuarioAlteradoAtlas(usuario);
+    usuario.nascimento = limpa;
+    usuario.aniversario = limpa;
+    salvarUsuariosSistemaAtlas();
+    if (typeof window.atlasRegistrarAuditoria === 'function') {
+        window.atlasRegistrarAuditoria('Alterou aniversario de usuario', 'gestao', `Usuario: ${usuario.id} | Antes: ${anterior || '-'} | Depois: ${limpa || '-'}`);
+    }
+    if (typeof window.atlasFirebaseSincronizarAgora === 'function') window.atlasFirebaseSincronizarAgora();
+    alert("Aniversario atualizado.");
+    listarUsuariosSistema();
+}
+
 function aplicarPermissoesUsuario() {
     const cardGestao = document.getElementById('card-gestao');
     if (!cardGestao || !usuarioLogado) return;
