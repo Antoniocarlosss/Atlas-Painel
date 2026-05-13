@@ -73,15 +73,11 @@ function atlasFirebaseChaveSincronizada(chave) {
 }
 
 function atlasFirebaseAplicarGuiasInjecao(dados) {
-    if (window.atlasGuiasInjecaoEmUso === true) return false;
-    const bloqueioEdicao = Number(localStorage.getItem("atlas_guias_editando_ate") || 0);
-    if (bloqueioEdicao > Date.now()) return false;
-    if (Date.now() - atlasFirebaseUltimaAlteracaoLocal < 8000) return false;
-
     const localAtual = atlasParseJSON("atlas_guias_injecao", {});
     const localMs = Number(localAtual?._atlasMeta?.atualizadoEmMs || 0);
     const nuvemMs = Number(dados?._atlasMeta?.atualizadoEmMs || 0);
     if (localMs && nuvemMs && localMs >= nuvemMs) return false;
+    if (window.atlasGuiasInjecaoSalvandoLocal === true && (!nuvemMs || localMs >= nuvemMs)) return false;
 
     const novoValor = JSON.stringify(dados || {});
     if (localStorage.getItem("atlas_guias_injecao") === novoValor) return false;

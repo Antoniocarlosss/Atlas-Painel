@@ -9274,12 +9274,49 @@ document.addEventListener('click', function(evento) {
         });
     }
 
+    function comprimirDataUrlGuia(src, max = 520, qualidade = 0.4) {
+        return new Promise(resolve => {
+            if (!String(src || '').startsWith('data:image/')) return resolve(src || '');
+            const img = new Image();
+            img.onload = () => {
+                const escala = Math.min(1, max / Math.max(img.width, img.height));
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.max(1, Math.round(img.width * escala));
+                canvas.height = Math.max(1, Math.round(img.height * escala));
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                resolve(canvas.toDataURL('image/jpeg', qualidade));
+            };
+            img.onerror = () => resolve(src || '');
+            img.src = src;
+        });
+    }
+
+    async function compactarGuiasAntesDeSincronizar(dados) {
+        const tarefas = [];
+        Object.keys(dados || {}).forEach(tipo => {
+            if (tipo === '_atlasMeta') return;
+            ['esquerdo', 'direito'].forEach(lado => {
+                (dados[tipo]?.[lado] || []).forEach(item => {
+                    if (String(item.foto || '').startsWith('data:image/') && String(item.foto).length > 120000) {
+                        tarefas.push(comprimirDataUrlGuia(item.foto).then(foto => {
+                            item.foto = foto;
+                            item.fotoThumb = '';
+                        }));
+                    }
+                });
+            });
+        });
+        await Promise.all(tarefas);
+        return dados;
+    }
+
     async function prepararArquivoGuia(input) {
         const arquivo = input?.files?.[0];
         if (!arquivo) return { url: '', thumb: '' };
 
         if (arquivo.type.startsWith('image/')) {
-            const fotoLeve = await comprimirImagemGuia(arquivo, 720, 0.48);
+            const fotoLeve = await comprimirImagemGuia(arquivo, 520, 0.4);
             return { url: fotoLeve, thumb: '' };
         }
 
@@ -9348,6 +9385,7 @@ document.addEventListener('click', function(evento) {
 
     window.atlasAbrirGuiasInjecao = function() {
         window.atlasGuiasInjecaoEmUso = true;
+        window.atlasGuiasInjecaoTelaAtual = { nivel: 'inicio' };
         const render = document.getElementById('render-modulo');
         if (!render) return;
         const dados = dadosGuiasInjecao();
@@ -9380,6 +9418,7 @@ document.addEventListener('click', function(evento) {
 
     window.atlasAbrirTipoGuiaInjecao = function(tipo) {
         window.atlasGuiasInjecaoEmUso = true;
+        window.atlasGuiasInjecaoTelaAtual = { nivel: 'tipo', tipo };
         const render = document.getElementById('render-modulo');
         const dados = dadosGuiasInjecao();
         render.innerHTML = `
@@ -9406,6 +9445,7 @@ document.addEventListener('click', function(evento) {
 
     window.atlasAbrirLadoGuiaInjecao = function(tipo, lado, editarId = '') {
         window.atlasGuiasInjecaoEmUso = true;
+        window.atlasGuiasInjecaoTelaAtual = { nivel: 'lado', tipo, lado, editarId };
         const render = document.getElementById('render-modulo');
         const dados = dadosGuiasInjecao();
         const lista = dados[tipo]?.[lado] || [];
@@ -9494,6 +9534,7 @@ document.addEventListener('click', function(evento) {
         const id = document.getElementById('guia-ferro-id')?.value || '';
         const nome = document.getElementById('guia-ferro-nome')?.value.trim();
         if (!nome) return alert('Informe o nome do ferro.');
+        window.atlasGuiasInjecaoSalvandoLocal = true;
 
         const lista = dados[tipo][lado];
         const atual = lista.find(item => String(item.id) === String(id));
@@ -9519,6 +9560,7 @@ document.addEventListener('click', function(evento) {
                 botaoSalvar.textContent = 'SALVAR FOTO';
                 botaoSalvar.style.opacity = '1';
             }
+            window.atlasGuiasInjecaoSalvandoLocal = false;
             return;
         }
 
@@ -9536,9 +9578,11 @@ document.addEventListener('click', function(evento) {
         if (atual) Object.assign(atual, item);
         else lista.push(item);
         try {
+            await compactarGuiasAntesDeSincronizar(dados);
             salvarGuiasInjecao(dados);
             localStorage.setItem('atlas_guias_editando_ate', String(Date.now() + 8000));
             atlasAbrirLadoGuiaInjecao(tipo, lado);
+            setTimeout(() => { window.atlasGuiasInjecaoSalvandoLocal = false; }, 500);
         } catch (erroSalvar) {
             console.error('Erro ao salvar guia:', erroSalvar);
             alert('Nao foi possivel salvar. Apague fotos antigas desta guia e tente novamente.');
@@ -9547,18 +9591,61 @@ document.addEventListener('click', function(evento) {
                 botaoSalvar.textContent = 'SALVAR FOTO';
                 botaoSalvar.style.opacity = '1';
             }
+            window.atlasGuiasInjecaoSalvandoLocal = false;
         }
     };
 
-    window.atlasApagarFerroGuiaInjecao = function(tipo, lado, id) {
+    window.atlasApagarFerroGuiaInjecao = async function(tipo, lado, id) {
         if (!podeEditarGuiasInjecao()) return alert('Apenas ADMIN ou SUPERVISOR podem apagar guias.');
         if (!confirm('Apagar este ferro da guia?')) return;
         const dados = dadosGuiasInjecao();
         dados[tipo][lado] = (dados[tipo]?.[lado] || []).filter(item => String(item.id) !== String(id));
         localStorage.setItem('atlas_guias_editando_ate', String(Date.now() + 15000));
+        await compactarGuiasAntesDeSincronizar(dados);
         salvarGuiasInjecao(dados);
         atlasAbrirLadoGuiaInjecao(tipo, lado);
     };
+
+    function formularioGuiaEstaEmUso() {
+        const form = document.getElementById('guia-btn-salvar')?.closest('div[style*="border:1px solid #3b82f6"]');
+        if (!form) return false;
+        const nome = document.getElementById('guia-ferro-nome')?.value.trim() || '';
+        const posicao = document.getElementById('guia-ferro-posicao')?.value.trim() || '';
+        const nota = document.getElementById('guia-ferro-nota')?.value.trim() || '';
+        const arquivo = document.getElementById('guia-ferro-foto')?.files?.length || 0;
+        const editando = !!document.getElementById('guia-ferro-id')?.value;
+        const focoDentro = form.contains(document.activeElement);
+        return Boolean(focoDentro || nome || posicao || nota || arquivo || editando || window.atlasGuiasInjecaoSalvandoLocal);
+    }
+
+    function atualizarTelaGuiasDaNuvem() {
+        if (!window.atlasGuiasInjecaoEmUso) return;
+        const tela = window.atlasGuiasInjecaoTelaAtual || { nivel: 'inicio' };
+        if (formularioGuiaEstaEmUso()) {
+            window.atlasGuiasInjecaoAtualizacaoPendente = true;
+            return;
+        }
+        if (tela.nivel === 'lado') return window.atlasAbrirLadoGuiaInjecao(tela.tipo, tela.lado, '');
+        if (tela.nivel === 'tipo') return window.atlasAbrirTipoGuiaInjecao(tela.tipo);
+        window.atlasAbrirGuiasInjecao();
+    }
+
+    window.addEventListener('atlasDadosNuvemAtualizados', function(evento) {
+        const chaves = evento?.detail?.chaves || [];
+        if (!chaves.includes(CHAVE_GUIAS_INJECAO)) return;
+        clearTimeout(window.atlasGuiasInjecaoTimerNuvem);
+        window.atlasGuiasInjecaoTimerNuvem = setTimeout(atualizarTelaGuiasDaNuvem, 250);
+    });
+
+    document.addEventListener('focusout', function() {
+        if (!window.atlasGuiasInjecaoAtualizacaoPendente) return;
+        clearTimeout(window.atlasGuiasInjecaoTimerPendente);
+        window.atlasGuiasInjecaoTimerPendente = setTimeout(function() {
+            if (formularioGuiaEstaEmUso()) return;
+            window.atlasGuiasInjecaoAtualizacaoPendente = false;
+            atualizarTelaGuiasDaNuvem();
+        }, 600);
+    });
 
     window.atlasCompactarFotosGuiasInjecao = async function() {
         return false;
