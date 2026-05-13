@@ -9252,6 +9252,61 @@ document.addEventListener('click', function(evento) {
         return lado === 'direito' ? 'Lado direito' : 'Lado esquerdo';
     }
 
+    function usuarioAtualGuia() {
+        return document.getElementById('user-display')?.innerText || usuarioLogado?.id || 'SISTEMA';
+    }
+
+    function resumirFotoGuia(valor) {
+        if (!valor) return 'sem foto';
+        return String(valor).startsWith('data:image/') ? 'foto salva no sistema' : 'foto por link';
+    }
+
+    function registrarAuditoriaGuia(acao, detalhes) {
+        if (typeof window.atlasRegistrarAuditoria === 'function') {
+            window.atlasRegistrarAuditoria(acao, 'guias_injecao', detalhes);
+        }
+    }
+
+    function detalhesAlteracoesGuia(antes, depois) {
+        const alteracoes = [];
+        const campos = [
+            ['nome', 'Ferro'],
+            ['posicao', 'Posicao'],
+            ['nota', 'Detalhes']
+        ];
+        campos.forEach(([chave, rotulo]) => {
+            const anterior = String(antes?.[chave] || '').trim();
+            const atual = String(depois?.[chave] || '').trim();
+            if (anterior !== atual) alteracoes.push(`${rotulo}: "${anterior || '-'}" -> "${atual || '-'}"`);
+        });
+
+        const fotoAntes = !!antes?.foto;
+        const fotoDepois = !!depois?.foto;
+        if (!fotoAntes && fotoDepois) alteracoes.push('Foto incluida');
+        else if (fotoAntes && !fotoDepois) alteracoes.push('Foto removida');
+        else if (fotoAntes && fotoDepois && antes.foto !== depois.foto) alteracoes.push('Foto trocada');
+
+        return alteracoes;
+    }
+
+    function registrarSalvarGuia(tipo, lado, antes, depois) {
+        const local = `${tipo} | ${nomeLadoGuia(lado)} | ${depois.nome || 'Ferro'}`;
+        const usuario = usuarioAtualGuia();
+        if (!antes) {
+            registrarAuditoriaGuia('Incluiu guia/ferro', `${local} | Usuario: ${usuario} | Foto: ${resumirFotoGuia(depois.foto)} | Posicao: ${depois.posicao || '-'} | Detalhes: ${depois.nota || '-'}`);
+            return;
+        }
+
+        const alteracoes = detalhesAlteracoesGuia(antes, depois);
+        if (!alteracoes.length) return;
+        registrarAuditoriaGuia('Alterou guia/ferro', `${local} | Usuario: ${usuario} | ${alteracoes.join(' | ')}`);
+    }
+
+    function registrarApagarGuia(tipo, lado, item) {
+        const local = `${tipo} | ${nomeLadoGuia(lado)} | ${item?.nome || 'Ferro'}`;
+        registrarAuditoriaGuia('Apagou guia/ferro', `${local} | Usuario: ${usuarioAtualGuia()} | Foto: ${resumirFotoGuia(item?.foto)} | Posicao: ${item?.posicao || '-'} | Detalhes: ${item?.nota || '-'}`);
+    }
+
     function comprimirImagemGuia(arquivo, max = 1100, qualidade = 0.72) {
         return new Promise(resolve => {
             const img = new Image();
@@ -9541,6 +9596,7 @@ document.addEventListener('click', function(evento) {
 
         const lista = dados[tipo][lado];
         const atual = lista.find(item => String(item.id) === String(id));
+        const antesAuditoria = atual ? { ...atual } : null;
         const itemId = atual?.id || `${Date.now()}-${Math.random().toString(16).slice(2)}`;
         const removerMidia = !!document.getElementById('guia-remover-midia')?.checked;
         localStorage.setItem('atlas_guias_editando_ate', String(Date.now() + 120000));
@@ -9582,6 +9638,8 @@ document.addEventListener('click', function(evento) {
         else lista.push(item);
         try {
             await compactarGuiasAntesDeSincronizar(dados);
+            const depoisAuditoria = lista.find(guia => String(guia.id) === String(itemId)) || item;
+            registrarSalvarGuia(tipo, lado, antesAuditoria, depoisAuditoria);
             salvarGuiasInjecao(dados);
             localStorage.setItem('atlas_guias_editando_ate', String(Date.now() + 8000));
             atlasAbrirLadoGuiaInjecao(tipo, lado);
@@ -9602,9 +9660,11 @@ document.addEventListener('click', function(evento) {
         if (!podeEditarGuiasInjecao()) return alert('Apenas ADMIN ou SUPERVISOR podem apagar guias.');
         if (!confirm('Apagar este ferro da guia?')) return;
         const dados = dadosGuiasInjecao();
+        const itemApagado = (dados[tipo]?.[lado] || []).find(item => String(item.id) === String(id));
         dados[tipo][lado] = (dados[tipo]?.[lado] || []).filter(item => String(item.id) !== String(id));
         localStorage.setItem('atlas_guias_editando_ate', String(Date.now() + 15000));
         await compactarGuiasAntesDeSincronizar(dados);
+        registrarApagarGuia(tipo, lado, itemApagado);
         salvarGuiasInjecao(dados);
         atlasAbrirLadoGuiaInjecao(tipo, lado);
     };
