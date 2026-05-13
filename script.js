@@ -16470,7 +16470,10 @@ window.addEventListener('load', () => setTimeout(instalarProtecaoExclusaoSeparad
         const id = `hist-final-${key(grupo.chave)}`;
         const span = grupo.linhas.length;
         return `
-            <td rowspan="${span}" class="atlas-mescla-celula"><input id="${id}-pedido" value="${esc(item.pedidoNumero || '')}"></td>
+            <td rowspan="${span}" class="atlas-mescla-celula">
+                <input id="${id}-pedido" value="${esc(item.pedidoNumero || '')}">
+                <button onclick="atlasExcluirPedidoGestaoHistoricoPlanilha(${window.atlasHistoricoPlanoAtualIndex ?? 0}, '${js(item.pedidoNumero || 'S/N')}', '${js(item.destino || '')}')" style="width:100%; margin-top:8px; background:#7f1d1d; color:white; border:none; padding:9px; border-radius:6px; font-weight:bold;">APAGAR PEDIDO</button>
+            </td>
             <td rowspan="${span}" class="atlas-mescla-celula"><input id="${id}-destino" value="${esc(item.destino || '')}"></td>
             <td rowspan="${span}" class="atlas-mescla-celula"><select id="${id}-tipo">${opts(OPCOES_TIPO_PLANO, item.tipo)}</select></td>
             <td rowspan="${span}" class="atlas-mescla-celula"><select id="${id}-esp">${opts(OPCOES_ESPESSURA_PLANO, item.espessura, ' mm')}</select></td>
@@ -16480,6 +16483,7 @@ window.addEventListener('load', () => setTimeout(instalarProtecaoExclusaoSeparad
     }
 
     window.renderizarGestaoPlanoHistorico = function(indexPlano) {
+        window.atlasHistoricoPlanoAtualIndex = indexPlano;
         const rel = db_plano_hist[indexPlano];
         const modal = document.getElementById('modal-plano-historico');
         if (!rel || !modal) return;
@@ -16570,6 +16574,46 @@ window.addEventListener('load', () => setTimeout(instalarProtecaoExclusaoSeparad
         listarHistoricoPlano();
     };
 
+    window.atlasExcluirPedidoGestaoHistoricoPlanilha = function(indexPlano, pedidoNumero, destino) {
+        if (!usuarioPodeExcluirModulo('plano')) return alert('Sem permissao para excluir no Plano.');
+        const rel = db_plano_hist[indexPlano];
+        if (!rel) return alert('Plano nao encontrado.');
+        const itens = (rel.itens || []).filter(item =>
+            item.modo === 'pedido' &&
+            String(item.pedidoNumero || 'S/N') === String(pedidoNumero || 'S/N') &&
+            String(item.destino || '') === String(destino || '')
+        );
+        if (!itens.length) return alert('Pedido nao encontrado.');
+        const total = itens.reduce((acc, item) => acc + num(item.totalMetros), 0);
+        const confirmar = confirm(`Apagar o pedido completo?\n\nPedido: ${pedidoNumero || 'S/N'}\nCliente: ${destino || '-'}\nLinhas: ${itens.length}\nTotal: ${total.toFixed(2)} m`);
+        if (!confirmar) return;
+
+        rel.itens = (rel.itens || []).filter(item => !(
+            item.modo === 'pedido' &&
+            String(item.pedidoNumero || 'S/N') === String(pedidoNumero || 'S/N') &&
+            String(item.destino || '') === String(destino || '')
+        ));
+
+        if (!rel.itens.length) {
+            db_plano_hist.splice(indexPlano, 1);
+            localStorage.setItem('atlas_plano_hist', JSON.stringify(db_plano_hist));
+            if (typeof window.atlasRegistrarAuditoria === 'function') {
+                window.atlasRegistrarAuditoria('Apagou pedido completo do plano', 'plano', `Pedido: ${pedidoNumero || 'S/N'} | Cliente: ${destino || '-'} | Linhas: ${itens.length} | Total: ${total.toFixed(2)} m | Plano removido`);
+            }
+            fecharGestaoPlanoHistorico();
+            listarHistoricoPlano();
+            return;
+        }
+
+        recalcular(rel);
+        salvarPlanoHistoricoEditado(indexPlano, rel, `Apagou pedido completo ${pedidoNumero || 'S/N'} - ${destino || '-'}`);
+        if (typeof window.atlasRegistrarAuditoria === 'function') {
+            window.atlasRegistrarAuditoria('Apagou pedido completo do plano', 'plano', `Pedido: ${pedidoNumero || 'S/N'} | Cliente: ${destino || '-'} | Linhas: ${itens.length} | Total: ${total.toFixed(2)} m`);
+        }
+        renderizarGestaoPlanoHistorico(indexPlano);
+        listarHistoricoPlano();
+    };
+
     window.atlasInserirGestaoHistoricoPlanilha = function(indexPlano) {
         const rel = db_plano_hist[indexPlano];
         if (!rel) return;
@@ -16608,4 +16652,68 @@ window.addEventListener('load', () => setTimeout(instalarProtecaoExclusaoSeparad
         renderizarGestaoPlanoHistorico(indexPlano);
         listarHistoricoPlano();
     };
+})();
+
+/* ==========================================================
+   PLANO - GARANTIR BOTAO APAGAR PEDIDO NA PLANILHA GERAL
+   ========================================================== */
+(function() {
+    if (window.atlasGarantirBotaoApagarPedidoPlanoAtivo) return;
+    window.atlasGarantirBotaoApagarPedidoPlanoAtivo = true;
+
+    function injetarBotoesApagarPedidoPlano() {
+        const indexPlano = Number(window.atlasHistoricoPlanoAtualIndex ?? -1);
+
+        [
+            { el: document.getElementById('modal-plano-historico'), tipo: 'historico' },
+            { el: document.getElementById('atlas-plano-geral-modal'), tipo: 'live' }
+        ].forEach(ctx => {
+            const modal = ctx.el;
+            if (!modal || modal.style.display === 'none') return;
+
+            modal.querySelectorAll('td[rowspan]').forEach(td => {
+                const inputPedido = td.querySelector('input[id$="-pedido"]');
+                if (!inputPedido || td.querySelector('.atlas-btn-apagar-pedido-injetado')) return;
+                const linha = td.closest('tr');
+                const inputCliente = linha?.querySelector('input[id$="-destino"]');
+                const pedido = inputPedido.value || 'S/N';
+                const destino = inputCliente?.value || '';
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'atlas-btn-apagar-pedido-injetado';
+                btn.textContent = 'APAGAR PEDIDO';
+                btn.style.cssText = 'width:100%; margin-top:8px; background:#7f1d1d; color:white; border:none; padding:9px; border-radius:6px; font-weight:bold;';
+                btn.onclick = function() {
+                    if (ctx.tipo === 'live' && typeof window.atlasExcluirPedidoGeralLive === 'function') {
+                        window.atlasExcluirPedidoGeralLive(inputPedido.value || pedido, inputCliente?.value || destino);
+                        return;
+                    }
+                    if (!Number.isInteger(indexPlano) || indexPlano < 0) return alert('Plano nao encontrado.');
+                    window.atlasExcluirPedidoGestaoHistoricoPlanilha(indexPlano, inputPedido.value || pedido, inputCliente?.value || destino);
+                };
+                td.appendChild(btn);
+            });
+        });
+    }
+
+    const renderOriginal = window.renderizarGestaoPlanoHistorico;
+    if (typeof renderOriginal === 'function') {
+        window.renderizarGestaoPlanoHistorico = function(indexPlano) {
+            window.atlasHistoricoPlanoAtualIndex = indexPlano;
+            const retorno = renderOriginal.apply(this, arguments);
+            setTimeout(injetarBotoesApagarPedidoPlano, 0);
+            setTimeout(injetarBotoesApagarPedidoPlano, 250);
+            return retorno;
+        };
+        renderizarGestaoPlanoHistorico = window.renderizarGestaoPlanoHistorico;
+    }
+
+    document.addEventListener('click', function(evento) {
+        const alvo = evento.target.closest('button');
+        if (!alvo) return;
+        const texto = String(alvo.textContent || '').trim().toLowerCase();
+        if (texto.includes('gerir') || texto.includes('planilha') || texto.includes('salvar')) {
+            setTimeout(injetarBotoesApagarPedidoPlano, 250);
+        }
+    });
 })();
