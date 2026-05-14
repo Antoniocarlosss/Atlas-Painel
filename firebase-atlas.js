@@ -65,6 +65,8 @@ function atlasFirebaseChaveTemporaria(chave) {
     ].includes(chave)
         || String(chave || "").startsWith("atlas_update_")
         || String(chave || "").startsWith("atlas_sistema_cache_limpo_")
+        || String(chave || "").startsWith("atlas_backup_local_")
+        || String(chave || "") === "atlas_backups_locais_lista"
         || String(chave || "").startsWith("atlas_dispositivo_");
 }
 
@@ -639,15 +641,6 @@ async function atlasEnviarInjecao() {
         });
     });
 
-    if (promessas.length === 0) {
-        const existentes = await getDocsFromServer(collection(atlasFirestore, "injecao")).catch(() => null);
-        if (existentes && existentes.size > 0) {
-            console.warn("Envio vazio da Injecao bloqueado para nao apagar relatorios existentes na nuvem.");
-            return;
-        }
-    }
-
-    await atlasLimparColecao("injecao");
     await Promise.all(promessas);
 }
 
@@ -744,6 +737,27 @@ async function atlasEnviarConferencia() {
     }));
 }
 
+async function atlasEnviarStockFirebase() {
+    const bobinas = atlasParseJSON("atlas_stock_bobinas", []);
+    const filmes = atlasParseJSON("atlas_stock_filmes", []);
+
+    await Promise.all((bobinas || []).map((item, index) => {
+        const id = atlasDocId(item.id || `${item.numero || "bobina"}_${item.ral || ""}_${item.medida || ""}_${index}`);
+        return atlasSetDoc(["stock_bobinas", id], {
+            ...item,
+            id: item.id || id
+        });
+    }));
+
+    await Promise.all((filmes || []).map((item, index) => {
+        const id = atlasDocId(item.id || `${item.tipo || "filme"}_${item.fornecedor || ""}_${index}`);
+        return atlasSetDoc(["stock_filmes", id], {
+            ...item,
+            id: item.id || id
+        });
+    }));
+}
+
 async function atlasEnviarDestinosPlano() {
     const destinos = atlasParseJSON("atlas_plano_destinos", []);
     await atlasSetDoc(["configuracoes", "destinos_plano"], {
@@ -814,6 +828,34 @@ function atlasFirebaseContarDadosLocais() {
     }, 0);
 }
 
+function atlasFirebaseCriarBackupLocalSnapshot(motivo = "snapshot") {
+    const total = atlasFirebaseContarDadosLocais();
+    if (total === 0) return false;
+
+    const dados = {};
+    for (let i = 0; i < localStorage.length; i++) {
+        const chave = localStorage.key(i);
+        if (atlasFirebaseChaveSincronizada(chave) && chave !== "atlas_usuarios" && chave !== "atlas_guias_injecao") {
+            dados[chave] = localStorage.getItem(chave);
+        }
+    }
+
+    const id = `atlas_backup_local_${new Date().toISOString().replace(/[:.]/g, "-")}`;
+    atlasLocalStorageSetItemOriginal.call(localStorage, id, JSON.stringify({
+        motivo,
+        criadoEm: new Date().toISOString(),
+        total,
+        dados
+    }));
+
+    const lista = atlasParseJSON("atlas_backups_locais_lista", []);
+    lista.unshift({ id, motivo, criadoEm: new Date().toISOString(), total });
+    const curta = lista.slice(0, 10);
+    atlasLocalStorageSetItemOriginal.call(localStorage, "atlas_backups_locais_lista", JSON.stringify(curta));
+    lista.slice(10).forEach(item => atlasLocalStorageRemoveItemOriginal.call(localStorage, item.id));
+    return true;
+}
+
 async function atlasEnviarBackupLocalStorage() {
     const backup = {};
     if (!atlasFirebaseBloqueado && !localStorage.getItem(ATLAS_FIREBASE_SYNC_KEY)) {
@@ -839,6 +881,16 @@ async function atlasEnviarBackupLocalStorage() {
     await atlasSetDoc(["backups_localstorage", "ultimo_backup"], {
         dados: backup
     });
+
+    if (atlasFirebaseContarDadosBackup(backup) > 0) {
+        const idHistorico = new Date().toISOString().replace(/[:.]/g, "-");
+        await atlasSetDoc(["backups_localstorage_historico", idHistorico], {
+            dados: backup,
+            totalItens: atlasFirebaseContarDadosBackup(backup),
+            criadoEmISO: new Date().toISOString(),
+            dispositivoId: localStorage.getItem("atlas_dispositivo_id") || ""
+        });
+    }
 }
 
 async function atlasFirebaseEnviarTudoOrganizadoInterno() {
@@ -861,6 +913,7 @@ async function atlasFirebaseEnviarTudoOrganizadoInterno() {
     await atlasEnviarCorte("embalagem", "atlas_emb_hist");
     await atlasEnviarPlanos();
     await atlasEnviarConferencia();
+    await atlasEnviarStockFirebase();
     await atlasEnviarDestinosPlano();
     await atlasEnviarGuiasInjecao().catch(erro => {
         console.error("Erro ao sincronizar guias da injecao:", erro);
@@ -1066,6 +1119,8 @@ window.atlasFirebaseRestaurarRelatoriosDaNuvem = async function() {
         const embalagem = (await atlasFirebaseDocsColecao("embalagem")).map(atlasFirebaseRelatorioCorteDoc);
         const planos = (await atlasFirebaseDocsColecao("planos")).map(atlasFirebaseRelatorioPlanoDoc);
         const conferencia = (await atlasFirebaseDocsColecao("conferencia")).map(atlasFirebaseConferenciaDoc);
+        const stockBobinas = await atlasFirebaseDocsColecao("stock_bobinas");
+        const stockFilmes = await atlasFirebaseDocsColecao("stock_filmes");
 
         atlasLocalStorageSetItemOriginal.call(localStorage, "atlas_db", JSON.stringify(dbInjecao));
         atlasLocalStorageSetItemOriginal.call(localStorage, "historicoBobines", JSON.stringify(bobines));
@@ -1073,13 +1128,15 @@ window.atlasFirebaseRestaurarRelatoriosDaNuvem = async function() {
         atlasLocalStorageSetItemOriginal.call(localStorage, "atlas_emb_hist", JSON.stringify(embalagem));
         atlasLocalStorageSetItemOriginal.call(localStorage, "atlas_plano_hist", JSON.stringify(planos));
         atlasLocalStorageSetItemOriginal.call(localStorage, "atlas_conferencia_serra", JSON.stringify(conferencia));
+        if (stockBobinas.length) atlasLocalStorageSetItemOriginal.call(localStorage, "atlas_stock_bobinas", JSON.stringify(stockBobinas));
+        if (stockFilmes.length) atlasLocalStorageSetItemOriginal.call(localStorage, "atlas_stock_filmes", JSON.stringify(stockFilmes));
         atlasLocalStorageSetItemOriginal.call(localStorage, ATLAS_FIREBASE_SYNC_KEY, String(Date.now()));
 
         atlasFirebaseBloqueado = false;
         if (typeof window.dispatchEvent === "function") {
             window.dispatchEvent(new CustomEvent("atlasDadosNuvemAtualizados", {
                 detail: {
-                    chaves: ["atlas_db", "historicoBobines", "atlas_serra_hist", "atlas_emb_hist", "atlas_plano_hist", "atlas_conferencia_serra"],
+                    chaves: ["atlas_db", "historicoBobines", "atlas_serra_hist", "atlas_emb_hist", "atlas_plano_hist", "atlas_conferencia_serra", "atlas_stock_bobinas", "atlas_stock_filmes"],
                     origem: "restauro_colecoes"
                 }
             }));
@@ -1087,7 +1144,7 @@ window.atlasFirebaseRestaurarRelatoriosDaNuvem = async function() {
 
         await atlasFirebaseEnviarTudoOrganizadoInterno();
 
-        alert(`Restauro concluido. Recuperado: Injecao ${injecaoDocs.length}, Bobines ${bobines.length}, Serra ${serra.length}, Embalagem ${embalagem.length}, Plano ${planos.length}, Conferencia ${conferencia.length}. A pagina vai recarregar.`);
+        alert(`Restauro concluido. Recuperado: Injecao ${injecaoDocs.length}, Bobines ${bobines.length}, Serra ${serra.length}, Embalagem ${embalagem.length}, Plano ${planos.length}, Conferencia ${conferencia.length}, Stock bobinas ${stockBobinas.length}, Stock filmes ${stockFilmes.length}. A pagina vai recarregar.`);
         location.reload();
         return true;
     } catch (erro) {
@@ -1118,7 +1175,13 @@ window.atlasFirebaseDiagnosticarRecuperacao = async function() {
         add("Backup nuvem - Stock bobinas", atlasFirebaseContarItensValor("atlas_stock_bobinas", backupDados.atlas_stock_bobinas));
         add("Backup nuvem - Stock filmes", atlasFirebaseContarItensValor("atlas_stock_filmes", backupDados.atlas_stock_filmes));
 
-        const colecoes = ["injecao", "bobines", "serra", "embalagem", "planos", "conferencia"];
+        const historicoSnap = await getDocsFromServer(collection(atlasFirestore, "backups_localstorage_historico")).catch(() => null);
+        add("Backups versionados na nuvem", historicoSnap ? historicoSnap.size : "erro/sem acesso");
+
+        const snapshotsLocais = atlasParseJSON("atlas_backups_locais_lista", []);
+        add("Snapshots locais neste aparelho", Array.isArray(snapshotsLocais) ? snapshotsLocais.length : 0);
+
+        const colecoes = ["injecao", "bobines", "serra", "embalagem", "planos", "conferencia", "stock_bobinas", "stock_filmes"];
         for (const nome of colecoes) {
             const snap = await getDocsFromServer(collection(atlasFirestore, nome)).catch(() => null);
             add(`Colecao Firebase - ${nome}`, snap ? snap.size : "erro/sem acesso");
@@ -1144,6 +1207,7 @@ function atlasFirebaseAplicarBackupNuvem(dados, opcoes = {}) {
     if (!atlasFirebaseBackupPodeEntrar(dados)) return false;
     if (Date.now() - atlasFirebaseUltimaAlteracaoLocal < 30000 && !opcoes.forcar) return false;
 
+    atlasFirebaseCriarBackupLocalSnapshot(`antes_de_aplicar_${opcoes.origem || "firebase"}`);
     atlasFirebaseBloqueado = true;
 
     chaves.forEach(chave => {
