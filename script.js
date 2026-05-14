@@ -13429,8 +13429,8 @@ function gerarPDF_Injecao_Final(dadosEncoded) {
             ? window.atlasObterConfigMinimoStock()
             : atlasObterConfigMinimoStock();
 
-        Object.entries(atlasContarPor(bobinas.filter(b => b.status !== 'acabada'), 'fornecedor')).forEach(([fornecedor, qtd]) => {
-            if (qtd < minimos.bobinas) lembretes.push({ nivel: 'critico', titulo: `Bobinas baixas - ${fornecedor}`, detalhe: `${qtd} unidade(s) em stock/andamento. Minimo: ${minimos.bobinas}.` });
+        Object.entries(contarBobinasPorChapaRalStock(bobinas.filter(b => b.status !== 'acabada_mes'))).forEach(([chapaRal, qtd]) => {
+            if (qtd < minimos.bobinas) lembretes.push({ nivel: 'critico', titulo: `Bobinas baixas - ${chapaRal}`, detalhe: `${qtd} unidade(s) disponiveis para este tipo de chapa/RAL. Minimo: ${minimos.bobinas}.` });
         });
 
         Object.entries(atlasContarPor(filmes, 'tipo')).forEach(([tipo, qtd]) => {
@@ -14483,10 +14483,26 @@ function textoFiltroStock(item) {
     return normalizarStockAtlas(Object.values(item || {}).filter(v => typeof v !== 'object').join(' '));
 }
 
-function filtrarListaStock(lista, termo) {
-    const busca = normalizarStockAtlas(termo);
-    if (!busca) return lista || [];
-    return (lista || []).filter(item => textoFiltroStock(item).includes(busca));
+function valorFiltroStock(filtro, campo) {
+    if (!filtro || typeof filtro !== 'object') return '';
+    return normalizarStockAtlas(filtro[campo]);
+}
+
+function filtrarListaStock(lista, filtro) {
+    const busca = typeof filtro === 'object' ? normalizarStockAtlas(filtro.texto) : normalizarStockAtlas(filtro);
+    const ral = valorFiltroStock(filtro, 'ral');
+    const espessura = valorFiltroStock(filtro, 'espessura');
+    const fornecedor = valorFiltroStock(filtro, 'fornecedor');
+    const medida = valorFiltroStock(filtro, 'medida');
+
+    return (lista || []).filter(item => {
+        if (busca && !textoFiltroStock(item).includes(busca)) return false;
+        if (ral && normalizarStockAtlas(item.ral) !== ral) return false;
+        if (espessura && normalizarStockAtlas(item.espessura) !== espessura) return false;
+        if (fornecedor && normalizarStockAtlas(item.fornecedor) !== fornecedor) return false;
+        if (medida && normalizarStockAtlas(item.medida) !== medida) return false;
+        return true;
+    });
 }
 
 function htmlDatalistStock(id, valores) {
@@ -14528,8 +14544,23 @@ function contarBobinasStock(lista, campo) {
     }, {});
 }
 
+function chaveBobinaChapaRalStock(item) {
+    const medida = item?.medida || 'SEM CHAPA';
+    const ral = item?.ral || 'SEM RAL';
+    return `${medida} | RAL ${ral}`;
+}
+
+function contarBobinasPorChapaRalStock(lista) {
+    return (lista || []).reduce((acc, item) => {
+        const chave = chaveBobinaChapaRalStock(item);
+        acc[chave] = (acc[chave] || 0) + Number(item.qtd || 0);
+        return acc;
+    }, {});
+}
+
 function htmlResumoBobinasStock(lista) {
     const blocos = [
+        ['Por chapa/RAL', contarBobinasPorChapaRalStock(lista)],
         ['Por fornecedor', contarBobinasStock(lista, 'fornecedor')],
         ['Por RAL', contarBobinasStock(lista, 'ral')],
         ['Por espessura', contarBobinasStock(lista, 'espessura')]
@@ -14538,7 +14569,7 @@ function htmlResumoBobinasStock(lista) {
     return `
         <div style="background:#111827; border:1px solid #334155; border-radius:12px; padding:15px; margin-top:14px;">
             <h3 style="margin:0 0 12px;">Resumo do stock de bobinas</h3>
-            <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px;">
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:10px;">
                 ${blocos.map(([titulo, dados]) => `
                     <div style="background:#0f172a; border:1px solid #334155; border-radius:10px; padding:12px;">
                         <b style="display:block; margin-bottom:8px; color:#93c5fd;">${titulo}</b>
@@ -14592,7 +14623,45 @@ function renderizarAcabadasPorDataStock(lista) {
     `).join('');
 }
 
+function opcoesFiltroStock(valores, selecionado = '', rotulo = 'Todos') {
+    const limpos = [...new Set((valores || []).map(v => String(v || '').trim()).filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+    return [`<option value="">${rotulo}</option>`]
+        .concat(limpos.map(v => `<option value="${textoSeguroConferencia(v)}" ${String(selecionado || '') === String(v) ? 'selected' : ''}>${textoSeguroConferencia(v)}</option>`))
+        .join('');
+}
+
+function filtrosBobinasStockNormalizados(filtro = '') {
+    if (!filtro || typeof filtro !== 'object') return { texto: String(filtro || ''), ral: '', espessura: '', fornecedor: '', medida: '' };
+    return {
+        texto: filtro.texto || '',
+        ral: filtro.ral || '',
+        espessura: filtro.espessura || '',
+        fornecedor: filtro.fornecedor || '',
+        medida: filtro.medida || ''
+    };
+}
+
+function lerFiltrosBobinasStock() {
+    return {
+        texto: document.getElementById('stock-bob-pesquisa')?.value || '',
+        ral: document.getElementById('stock-bob-filtro-ral')?.value || '',
+        espessura: document.getElementById('stock-bob-filtro-esp')?.value || '',
+        fornecedor: document.getElementById('stock-bob-filtro-forn')?.value || '',
+        medida: document.getElementById('stock-bob-filtro-medida')?.value || ''
+    };
+}
+
+function aplicarFiltrosBobinasStock() {
+    renderizarStockBobinasAtlas(lerFiltrosBobinasStock());
+}
+
+function limparFiltrosBobinasStock() {
+    renderizarStockBobinasAtlas('');
+}
+
 function renderizarStockBobinasAtlas(termoBusca = '') {
+    const filtros = filtrosBobinasStockNormalizados(termoBusca);
     atlasStockBobinas = JSON.parse(localStorage.getItem('atlas_stock_bobinas')) || [];
     let migrouBobinas = false;
     atlasStockBobinas.forEach(b => {
@@ -14605,12 +14674,16 @@ function renderizarStockBobinasAtlas(termoBusca = '') {
     const c = document.getElementById('stock-conteudo') || document.getElementById('render-modulo');
     if (!c) return;
 
-    const listaFiltrada = filtrarListaStock(atlasStockBobinas, termoBusca);
+    const listaFiltrada = filtrarListaStock(atlasStockBobinas, filtros);
     const ativas = listaFiltrada.filter(b => b.status === 'andamento');
     const fechadas = listaFiltrada.filter(b => !b.status || b.status === 'fechada');
     const acabadas = listaFiltrada.filter(b => b.status === 'acabada_mes');
     const disponiveisResumo = listaFiltrada.filter(b => b.status !== 'acabada_mes');
     const sugestoesBobinas = atlasStockBobinas.flatMap(b => [b.numero, b.ral, b.espessura, b.fornecedor, b.medida, b.metros, b.peso]);
+    const ralsBobinas = [...(OPCOES_RAL_INF || []), ...(OPCOES_RAL_SUP || []), ...atlasStockBobinas.map(b => b.ral)];
+    const espessurasBobinas = [...(OPCOES_ESP_CHAPA || []), ...atlasStockBobinas.map(b => b.espessura)];
+    const fornecedoresBobinas = [...(OPCOES_FORNECEDORES_STOCK || []), ...atlasStockBobinas.map(b => b.fornecedor)];
+    const medidasBobinas = [...(OPCOES_MEDIDAS_CHAPA_STOCK || []), ...atlasStockBobinas.map(b => b.medida)];
 
     c.innerHTML = `
         <div style="background:#111827; border:1px solid #334155; border-radius:12px; padding:15px;">
@@ -14618,7 +14691,7 @@ function renderizarStockBobinasAtlas(termoBusca = '') {
             <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:8px; margin-bottom:12px;">
                 <input id="stock-bob-num" placeholder="Nº bobina" style="padding:12px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">
                 <select id="stock-bob-ral" style="padding:12px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">${OPCOES_RAL_INF.concat(OPCOES_RAL_SUP).filter((v,i,a)=>a.indexOf(v)===i).map(v=>`<option value="${v}">${v}</option>`).join('')}</select>
-                <select id="stock-bob-medida" style="padding:12px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">${(OPCOES_MEDIDAS_CHAPA_STOCK || []).map(v=>`<option value="${v}">${v}</option>`).join('')}</select>
+                <select id="stock-bob-medida" title="Tipo/tamanho da chapa" style="padding:12px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">${(OPCOES_MEDIDAS_CHAPA_STOCK || []).map(v=>`<option value="${v}">${v}</option>`).join('')}</select>
                 <select id="stock-bob-esp" style="padding:12px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">
                     ${opcoesEspChapaHTML()}
                 </select>
@@ -14636,7 +14709,16 @@ function renderizarStockBobinasAtlas(termoBusca = '') {
 
         ${htmlResumoBobinasStock(disponiveisResumo)}
         <div style="margin-top:14px;">
-            <input id="stock-bob-pesquisa" list="stock-bob-sugestoes" value="${textoSeguroConferencia(termoBusca)}" oninput="renderizarStockBobinasAtlas(this.value)" placeholder="Pesquisar por bobina, RAL, espessura ou fornecedor" style="width:100%; padding:14px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; font-size:16px;">
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:8px; margin-bottom:8px;">
+                <select id="stock-bob-filtro-ral" onchange="aplicarFiltrosBobinasStock()" style="padding:12px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">${opcoesFiltroStock(ralsBobinas, filtros.ral, 'Todos os RAL')}</select>
+                <select id="stock-bob-filtro-esp" onchange="aplicarFiltrosBobinasStock()" style="padding:12px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">${opcoesFiltroStock(espessurasBobinas, filtros.espessura, 'Todas as esp.')}</select>
+                <select id="stock-bob-filtro-forn" onchange="aplicarFiltrosBobinasStock()" style="padding:12px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">${opcoesFiltroStock(fornecedoresBobinas, filtros.fornecedor, 'Todos fornecedores')}</select>
+                <select id="stock-bob-filtro-medida" onchange="aplicarFiltrosBobinasStock()" style="padding:12px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">${opcoesFiltroStock(medidasBobinas, filtros.medida, 'Todos tamanhos')}</select>
+            </div>
+            <div style="display:flex; gap:8px; align-items:stretch;">
+                <input id="stock-bob-pesquisa" list="stock-bob-sugestoes" value="${textoSeguroConferencia(filtros.texto)}" oninput="aplicarFiltrosBobinasStock()" placeholder="Pesquisar livre: bobina, RAL, espessura, fornecedor ou tamanho" style="flex:1; min-width:0; padding:14px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px; font-size:16px;">
+                <button onclick="limparFiltrosBobinasStock()" style="background:#334155; color:white; border:none; padding:0 14px; border-radius:8px; font-weight:bold;">LIMPAR</button>
+            </div>
             ${htmlDatalistStock('stock-bob-sugestoes', sugestoesBobinas)}
         </div>
         <details open style="margin-top:18px;">
@@ -14652,7 +14734,7 @@ function renderizarStockBobinasAtlas(termoBusca = '') {
             ${renderizarAcabadasPorDataStock(acabadas)}
         </details>
     `;
-    if (termoBusca) setTimeout(() => {
+    if (filtros.texto) setTimeout(() => {
         const input = document.getElementById('stock-bob-pesquisa');
         if (input) {
             input.focus();
@@ -14670,13 +14752,13 @@ function renderizarListaBobinasStock(lista, rotuloVazio) {
         return `
         <div style="background:#1e293b; border:1px solid #334155; border-radius:10px; margin-bottom:10px; overflow:hidden;">
             <div style="padding:10px; font-weight:bold; color:white; background:#0f172a;">
-                ${textoSeguroConferencia(grupo.fornecedor)} | Medida ${textoSeguroConferencia(grupo.medida)} | RAL ${textoSeguroConferencia(grupo.ral)}
+                ${textoSeguroConferencia(grupo.fornecedor)} | Chapa ${textoSeguroConferencia(grupo.medida)} | RAL ${textoSeguroConferencia(grupo.ral)}
             </div>
             ${grupo.itens.map(item => `
                 <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; padding:10px; border-top:1px solid #334155; flex-wrap:wrap;">
                     <span style="flex:1; min-width:240px;">
                         <b>Bobina ${textoSeguroConferencia(item.numero)}</b><br>
-                        <small style="color:#94a3b8;">Medida ${textoSeguroConferencia(item.medida || '-')} | RAL ${textoSeguroConferencia(item.ral)} | Esp. ${textoSeguroConferencia(item.espessura || '-')}${item.metros ? ' | ' + textoSeguroConferencia(item.metros) + ' m' : ''}${item.peso ? ' | ' + textoSeguroConferencia(item.peso) + ' kg' : ''}</small>
+                        <small style="color:#94a3b8;">Chapa ${textoSeguroConferencia(item.medida || '-')} | RAL ${textoSeguroConferencia(item.ral)} | Esp. ${textoSeguroConferencia(item.espessura || '-')}${item.metros ? ' | ' + textoSeguroConferencia(item.metros) + ' m' : ''}${item.peso ? ' | ' + textoSeguroConferencia(item.peso) + ' kg' : ''}</small>
                         <details style="margin-top:6px;">
                             <summary style="cursor:pointer; color:#93c5fd; font-size:12px;">Historico da bobina</summary>
                             <div style="margin-top:6px; color:#cbd5e1; font-size:12px;">
