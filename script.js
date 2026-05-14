@@ -6148,6 +6148,14 @@ function abrirAjustesBackup() {
                 </button>
             </div>
         </div>
+
+        <div style="background:#3b1d1d; border:1px solid #ef4444; border-radius:12px; padding:20px; margin-top:15px;">
+            <h3 style="margin-top:0; margin-bottom:10px; color:#fecaca;">Recuperacao de emergencia</h3>
+            <p style="color:#fecaca; font-size:13px; margin-bottom:15px;">Tenta recuperar relatorios salvos nas colecoes do Firebase quando o backup principal ficou vazio.</p>
+            <button onclick="window.atlasFirebaseRestaurarRelatoriosDaNuvem ? window.atlasFirebaseRestaurarRelatoriosDaNuvem() : alert('Firebase ainda nao carregou. Aguarde alguns segundos e tente novamente.')" style="width:100%; background:#dc2626; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold;">
+                RESTAURAR RELATORIOS DA NUVEM
+            </button>
+        </div>
     `;
 }
 

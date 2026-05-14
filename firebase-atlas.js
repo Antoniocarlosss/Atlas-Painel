@@ -760,6 +760,53 @@ async function atlasBaixarGuiasInjecaoDireto() {
     return true;
 }
 
+const ATLAS_CHAVES_DADOS_PRINCIPAIS = [
+    "atlas_db",
+    "historicoBobines",
+    "atlas_serra_hist",
+    "atlas_emb_hist",
+    "atlas_plano_hist",
+    "atlas_conferencia_serra",
+    "atlas_stock_bobinas",
+    "atlas_stock_filmes"
+];
+
+function atlasFirebaseContarItensValor(chave, valorBruto) {
+    let valor = valorBruto;
+    if (typeof valorBruto === "string") {
+        try {
+            valor = JSON.parse(valorBruto);
+        } catch (erro) {
+            return valorBruto.trim() ? 1 : 0;
+        }
+    }
+
+    if (Array.isArray(valor)) return valor.length;
+    if (!valor || typeof valor !== "object") return 0;
+
+    if (chave === "atlas_db") {
+        return Object.values(valor).reduce((totalAno, meses) => {
+            return totalAno + Object.values(meses || {}).reduce((totalMes, lista) => {
+                return totalMes + (Array.isArray(lista) ? lista.length : 0);
+            }, 0);
+        }, 0);
+    }
+
+    return Object.keys(valor).length;
+}
+
+function atlasFirebaseContarDadosBackup(dados) {
+    return ATLAS_CHAVES_DADOS_PRINCIPAIS.reduce((total, chave) => {
+        return total + atlasFirebaseContarItensValor(chave, dados?.[chave]);
+    }, 0);
+}
+
+function atlasFirebaseContarDadosLocais() {
+    return ATLAS_CHAVES_DADOS_PRINCIPAIS.reduce((total, chave) => {
+        return total + atlasFirebaseContarItensValor(chave, localStorage.getItem(chave));
+    }, 0);
+}
+
 async function atlasEnviarBackupLocalStorage() {
     const backup = {};
     if (!atlasFirebaseBloqueado && !localStorage.getItem(ATLAS_FIREBASE_SYNC_KEY)) {
@@ -773,6 +820,15 @@ async function atlasEnviarBackupLocalStorage() {
         }
     }
 
+    if (atlasFirebaseContarDadosBackup(backup) === 0) {
+        const snapAtual = await getDoc(doc(atlasFirestore, "backups_localstorage", "ultimo_backup")).catch(() => null);
+        const dadosAtuais = snapAtual?.exists() ? (snapAtual.data()?.dados || {}) : {};
+        if (atlasFirebaseContarDadosBackup(dadosAtuais) > 0) {
+            console.warn("Backup vazio bloqueado para proteger dados existentes na nuvem.");
+            return;
+        }
+    }
+
     await atlasSetDoc(["backups_localstorage", "ultimo_backup"], {
         dados: backup
     });
@@ -780,6 +836,15 @@ async function atlasEnviarBackupLocalStorage() {
 
 async function atlasFirebaseEnviarTudoOrganizadoInterno() {
     if (atlasFirebaseBloqueado) return;
+
+    if (atlasFirebaseContarDadosLocais() === 0) {
+        const snapAtual = await getDoc(doc(atlasFirestore, "backups_localstorage", "ultimo_backup")).catch(() => null);
+        const dadosAtuais = snapAtual?.exists() ? (snapAtual.data()?.dados || {}) : {};
+        if (atlasFirebaseContarDadosBackup(dadosAtuais) > 0) {
+            console.warn("Sincronizacao vazia bloqueada para proteger dados existentes na nuvem.");
+            return;
+        }
+    }
 
     await atlasEnviarUsuariosExcluidos();
     await atlasEnviarUsuarios();
@@ -886,9 +951,153 @@ window.atlasFirebaseStatus = {
     db: atlasFirestore
 };
 
+function atlasFirebaseRelatorioInjecaoDoc(dados) {
+    return {
+        id: dados.id || String(Date.now()),
+        modulo: "injecao",
+        data: dados.data || "",
+        operador: dados.operador || "",
+        itens: dados.itens || [],
+        editadoPor: dados.editadoPor || "",
+        editadoEm: dados.editadoEm || "",
+        historicoEdicoes: dados.historicoEdicoes || []
+    };
+}
+
+function atlasFirebaseRelatorioBobinesDoc(dados) {
+    return {
+        id: dados.id || String(Date.now()),
+        data: dados.data || "",
+        dia: dados.dia || null,
+        mes: dados.mes || null,
+        ano: dados.ano || null,
+        hora: dados.hora || "",
+        operador: dados.operador || "",
+        itens: dados.itens || [],
+        editadoPor: dados.editadoPor || "",
+        editadoEm: dados.editadoEm || "",
+        historicoEdicoes: dados.historicoEdicoes || []
+    };
+}
+
+function atlasFirebaseRelatorioCorteDoc(dados) {
+    return {
+        id: dados.id || String(Date.now()),
+        data: dados.data || "",
+        dia: dados.dia || null,
+        mes: dados.mes || null,
+        ano: dados.ano || null,
+        operador: dados.operador || "",
+        totalGeral: Number(dados.totalGeral || 0),
+        itens: dados.itens || [],
+        editadoPor: dados.editadoPor || "",
+        editadoEm: dados.editadoEm || "",
+        historicoEdicoes: dados.historicoEdicoes || []
+    };
+}
+
+function atlasFirebaseRelatorioPlanoDoc(dados) {
+    return {
+        id: dados.id || String(Date.now()),
+        data: dados.data || "",
+        dataISO: dados.dataISO || "",
+        dia: dados.dia || null,
+        mes: dados.mes || null,
+        ano: dados.ano || null,
+        operador: dados.operador || "",
+        totalGeral: Number(dados.totalGeral || 0),
+        tiposLancamento: dados.tiposLancamento || [],
+        resumo: dados.resumo || {},
+        itens: dados.itens || [],
+        editadoPor: dados.editadoPor || "",
+        editadoEm: dados.editadoEm || "",
+        historicoEdicoes: dados.historicoEdicoes || []
+    };
+}
+
+function atlasFirebaseConferenciaDoc(dados) {
+    return {
+        id: dados.id || String(Date.now()),
+        chavePedido: dados.chavePedido || "",
+        pedidoNumero: dados.pedidoNumero || "",
+        data: dados.data || "",
+        dia: dados.dia || null,
+        mes: dados.mes || null,
+        ano: dados.ano || null,
+        operadorSerra: dados.operadorSerra || "",
+        status: dados.status || "aberto",
+        finalizadoPor: dados.finalizadoPor || "",
+        finalizadoEm: dados.finalizadoEm || "",
+        unidades: dados.unidades || []
+    };
+}
+
+async function atlasFirebaseDocsColecao(nomeColecao) {
+    const snap = await getDocsFromServer(collection(atlasFirestore, nomeColecao)).catch(() => null);
+    return snap ? snap.docs.map(d => d.data() || {}) : [];
+}
+
+window.atlasFirebaseRestaurarRelatoriosDaNuvem = async function() {
+    const confirmar = confirm("Tentar restaurar relatorios salvos nas colecoes do Firebase? Isto vai preencher novamente os historicos deste aparelho e reenviar o backup recuperado.");
+    if (!confirmar) return false;
+
+    try {
+        atlasFirebaseBloqueado = true;
+
+        const injecaoDocs = await atlasFirebaseDocsColecao("injecao");
+        const dbInjecao = {};
+        injecaoDocs.forEach(dados => {
+            const ano = String(dados.ano || atlasDataPartes(dados.data).ano || new Date().getFullYear());
+            const mesNome = dados.mesNome || String(dados.mes || atlasDataPartes(dados.data).mes || "SEM_MES");
+            dbInjecao[ano] ||= {};
+            dbInjecao[ano][mesNome] ||= [];
+            dbInjecao[ano][mesNome].push(atlasFirebaseRelatorioInjecaoDoc(dados));
+        });
+
+        const bobines = (await atlasFirebaseDocsColecao("bobines")).map(atlasFirebaseRelatorioBobinesDoc);
+        const serra = (await atlasFirebaseDocsColecao("serra")).map(atlasFirebaseRelatorioCorteDoc);
+        const embalagem = (await atlasFirebaseDocsColecao("embalagem")).map(atlasFirebaseRelatorioCorteDoc);
+        const planos = (await atlasFirebaseDocsColecao("planos")).map(atlasFirebaseRelatorioPlanoDoc);
+        const conferencia = (await atlasFirebaseDocsColecao("conferencia")).map(atlasFirebaseConferenciaDoc);
+
+        atlasLocalStorageSetItemOriginal.call(localStorage, "atlas_db", JSON.stringify(dbInjecao));
+        atlasLocalStorageSetItemOriginal.call(localStorage, "historicoBobines", JSON.stringify(bobines));
+        atlasLocalStorageSetItemOriginal.call(localStorage, "atlas_serra_hist", JSON.stringify(serra));
+        atlasLocalStorageSetItemOriginal.call(localStorage, "atlas_emb_hist", JSON.stringify(embalagem));
+        atlasLocalStorageSetItemOriginal.call(localStorage, "atlas_plano_hist", JSON.stringify(planos));
+        atlasLocalStorageSetItemOriginal.call(localStorage, "atlas_conferencia_serra", JSON.stringify(conferencia));
+        atlasLocalStorageSetItemOriginal.call(localStorage, ATLAS_FIREBASE_SYNC_KEY, String(Date.now()));
+
+        atlasFirebaseBloqueado = false;
+        if (typeof window.dispatchEvent === "function") {
+            window.dispatchEvent(new CustomEvent("atlasDadosNuvemAtualizados", {
+                detail: {
+                    chaves: ["atlas_db", "historicoBobines", "atlas_serra_hist", "atlas_emb_hist", "atlas_plano_hist", "atlas_conferencia_serra"],
+                    origem: "restauro_colecoes"
+                }
+            }));
+        }
+
+        await atlasFirebaseEnviarTudoOrganizadoInterno();
+
+        alert(`Restauro concluido. Recuperado: Injecao ${injecaoDocs.length}, Bobines ${bobines.length}, Serra ${serra.length}, Embalagem ${embalagem.length}, Plano ${planos.length}, Conferencia ${conferencia.length}. A pagina vai recarregar.`);
+        location.reload();
+        return true;
+    } catch (erro) {
+        atlasFirebaseBloqueado = false;
+        console.error("Erro ao restaurar relatorios da nuvem:", erro);
+        alert("Erro ao restaurar relatorios da nuvem: " + erro.message);
+        return false;
+    }
+};
+
 function atlasFirebaseAplicarBackupNuvem(dados, opcoes = {}) {
     const chaves = Object.keys(dados || {}).filter(chave => chave !== "atlas_guias_injecao");
     if (chaves.length === 0) return false;
+    if (atlasFirebaseContarDadosBackup(dados) === 0 && atlasFirebaseContarDadosLocais() > 0) {
+        console.warn("Backup vazio da nuvem ignorado para proteger dados locais.");
+        return false;
+    }
     if (!atlasFirebaseBackupPodeEntrar(dados)) return false;
     if (Date.now() - atlasFirebaseUltimaAlteracaoLocal < 30000 && !opcoes.forcar) return false;
 
