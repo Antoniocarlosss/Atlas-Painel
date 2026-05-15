@@ -2287,7 +2287,8 @@ function setLado(lado) {
         setQtd(1);
     } else {
         areaDet.innerHTML = `
-            <input type="text" id="num_bobine" placeholder="Nº DA BOBINA" class="input-style">
+            <input type="text" id="num_bobine" list="lista-bobinas-stock" placeholder="Nº DA BOBINA" class="input-style" autocomplete="off">
+            <datalist id="lista-bobinas-stock">${opcoesBobinasStockDatalist()}</datalist>
             <div id="info-bobine-stock"></div>
             <select id="ral_chapa" class="input-style">
                 <option value="">SELECIONE O RAL</option>
@@ -2325,22 +2326,49 @@ function buscarBobinaStockPorNumero(numero) {
     return bobinas.find(b => b.status !== 'acabada_mes' && normalizarStockAtlas(b.numero) === alvo) || null;
 }
 
+function buscarBobinasStockPorNumeroParcial(numero) {
+    const alvo = normalizarStockAtlas(numero);
+    if (!alvo) return [];
+    const bobinas = JSON.parse(localStorage.getItem('atlas_stock_bobinas')) || [];
+    const disponiveis = bobinas.filter(b => b.status !== 'acabada_mes');
+    const exatas = disponiveis.filter(b => normalizarStockAtlas(b.numero) === alvo);
+    if (exatas.length) return exatas;
+    const comeca = disponiveis.filter(b => normalizarStockAtlas(b.numero).startsWith(alvo));
+    if (comeca.length) return comeca;
+    return disponiveis.filter(b => normalizarStockAtlas(b.numero).includes(alvo));
+}
+
+function opcoesBobinasStockDatalist() {
+    const bobinas = JSON.parse(localStorage.getItem('atlas_stock_bobinas')) || [];
+    return [...new Set(bobinas.filter(b => b.status !== 'acabada_mes').map(b => String(b.numero || '').trim()).filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }))
+        .map(numero => `<option value="${textoSeguroConferencia(numero)}"></option>`)
+        .join('');
+}
+
 function preencherInfoBobinaLancamento() {
     const numero = document.getElementById('num_bobine')?.value;
     const info = document.getElementById('info-bobine-stock');
     const ralSelect = document.getElementById('ral_chapa');
-    const bobina = buscarBobinaStockPorNumero(numero);
+    const candidatas = buscarBobinasStockPorNumeroParcial(numero);
+    const bobina = candidatas.length === 1 ? candidatas[0] : buscarBobinaStockPorNumero(numero);
 
     if (!info) return;
     if (!bobina) {
         info.innerHTML = numero ? `
             <div style="background:#451a03; color:#fed7aa; border:1px solid #f97316; border-radius:8px; padding:10px; margin-bottom:12px; font-size:12px;">
-                Bobina nao encontrada no Stock. Confira o numero ou cadastre antes.
+                ${candidatas.length > 1
+                    ? `Encontradas ${candidatas.length} bobinas. Continue digitando ou escolha uma sugestao: ${candidatas.slice(0, 5).map(b => textoSeguroConferencia(b.numero)).join(', ')}`
+                    : 'Bobina nao encontrada no Stock. Confira o numero ou cadastre antes.'}
             </div>
         ` : '';
         return;
     }
 
+    const inputBobine = document.getElementById('num_bobine');
+    if (inputBobine && normalizarStockAtlas(inputBobine.value) !== normalizarStockAtlas(bobina.numero)) {
+        inputBobine.value = bobina.numero || inputBobine.value;
+    }
     if (ralSelect) ralSelect.value = bobina.ral || '';
     lancamentoAtual.ral = bobina.ral || '';
     lancamentoAtual.medida = bobina.medida || '';
@@ -2353,8 +2381,7 @@ function preencherInfoBobinaLancamento() {
             Fornecedor: ${textoSeguroConferencia(bobina.fornecedor || '-')} |
             Medida: ${textoSeguroConferencia(bobina.medida || '-')} |
             RAL: ${textoSeguroConferencia(bobina.ral || '-')} |
-            Esp.: ${textoSeguroConferencia(bobina.espessura || '-')} |
-            Qtd: ${Number(bobina.qtd || 0)} un.
+            Esp.: ${textoSeguroConferencia(bobina.espessura || '-')}
         </div>
     `;
 }
@@ -2367,14 +2394,20 @@ function adicionarAoLancamento() {
     } else {
         lancamentoAtual.numBobine = document.getElementById('num_bobine').value;
         lancamentoAtual.ral = document.getElementById('ral_chapa').value;
-        const bobinaStock = buscarBobinaStockPorNumero(lancamentoAtual.numBobine);
+        const candidatas = buscarBobinasStockPorNumeroParcial(lancamentoAtual.numBobine);
+        const bobinaStock = candidatas.length === 1 ? candidatas[0] : buscarBobinaStockPorNumero(lancamentoAtual.numBobine);
         if (bobinaStock) {
+            lancamentoAtual.numBobine = bobinaStock.numero || lancamentoAtual.numBobine;
             lancamentoAtual.ral = bobinaStock.ral || lancamentoAtual.ral;
             lancamentoAtual.medida = bobinaStock.medida || '';
             lancamentoAtual.espessura = bobinaStock.espessura || '';
             lancamentoAtual.fornecedor = bobinaStock.fornecedor || '';
             const ralSelect = document.getElementById('ral_chapa');
             if (ralSelect) ralSelect.value = lancamentoAtual.ral;
+        }
+        if (!bobinaStock) {
+            alert('Bobina nao encontrada no Stock. Cadastre a bobina antes de inserir no relatorio.');
+            return;
         }
         if(!lancamentoAtual.numBobine || !lancamentoAtual.ral || !lancamentoAtual.status) {
             alert('Preencha todos os campos!'); return;
@@ -14553,7 +14586,7 @@ function bobinaAcabadaNoMesAtualStock(item) {
 function contarBobinasStock(lista, campo) {
     return (lista || []).reduce((acc, item) => {
         const chave = item[campo] || 'SEM INFO';
-        acc[chave] = (acc[chave] || 0) + Number(item.qtd || 0);
+        acc[chave] = (acc[chave] || 0) + Number(item.qtd ?? 1);
         return acc;
     }, {});
 }
@@ -14567,7 +14600,7 @@ function chaveBobinaChapaRalStock(item) {
 function contarBobinasPorChapaRalStock(lista) {
     return (lista || []).reduce((acc, item) => {
         const chave = chaveBobinaChapaRalStock(item);
-        acc[chave] = (acc[chave] || 0) + Number(item.qtd || 0);
+        acc[chave] = (acc[chave] || 0) + Number(item.qtd ?? 1);
         return acc;
     }, {});
 }
@@ -14674,11 +14707,26 @@ function limparFiltrosBobinasStock() {
     renderizarStockBobinasAtlas('');
 }
 
+function avisoBobinaStockDuplicada() {
+    const input = document.getElementById('stock-bob-num');
+    const aviso = document.getElementById('stock-bob-aviso-duplicada');
+    if (!input || !aviso) return;
+    const numero = input.value.trim();
+    const duplicada = atlasStockBobinas.find(b => normalizarStockAtlas(b.numero) === normalizarStockAtlas(numero) && b.status !== 'acabada_mes');
+    aviso.innerHTML = numero && duplicada
+        ? `<div style="background:#451a03; color:#fed7aa; border:1px solid #f97316; border-radius:8px; padding:10px; font-size:12px;">A bobina ${textoSeguroConferencia(numero)} ja esta cadastrada.</div>`
+        : '';
+}
+
 function renderizarStockBobinasAtlas(termoBusca = '') {
     const filtros = filtrosBobinasStockNormalizados(termoBusca);
     atlasStockBobinas = JSON.parse(localStorage.getItem('atlas_stock_bobinas')) || [];
     let migrouBobinas = false;
     atlasStockBobinas.forEach(b => {
+        if (!b.qtd) {
+            b.qtd = 1;
+            migrouBobinas = true;
+        }
         if (b.status === 'andamento' && !b.origemAndamento) {
             b.status = 'fechada';
             migrouBobinas = true;
@@ -14694,6 +14742,7 @@ function renderizarStockBobinasAtlas(termoBusca = '') {
     const acabadas = listaFiltrada.filter(b => b.status === 'acabada_mes');
     const disponiveisResumo = listaFiltrada.filter(b => b.status !== 'acabada_mes');
     const sugestoesBobinas = atlasStockBobinas.flatMap(b => [b.numero, b.ral, b.espessura, b.fornecedor, b.medida, b.metros, b.peso]);
+    const sugestoesNumerosBobinas = atlasStockBobinas.map(b => b.numero);
     const ralsBobinas = [...(OPCOES_RAL_INF || []), ...(OPCOES_RAL_SUP || []), ...atlasStockBobinas.map(b => b.ral)];
     const espessurasBobinas = [...(OPCOES_ESP_CHAPA || []), ...atlasStockBobinas.map(b => b.espessura)];
     const fornecedoresBobinas = [...(OPCOES_FORNECEDORES_STOCK || []), ...atlasStockBobinas.map(b => b.fornecedor)];
@@ -14703,14 +14752,14 @@ function renderizarStockBobinasAtlas(termoBusca = '') {
         <div style="background:#111827; border:1px solid #334155; border-radius:12px; padding:15px;">
             <h3 style="margin-top:0;">Bobinas</h3>
             <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:8px; margin-bottom:12px;">
-                <input id="stock-bob-num" placeholder="Nº bobina" style="padding:12px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">
+                <input id="stock-bob-num" list="stock-bob-num-sugestoes" oninput="avisoBobinaStockDuplicada()" placeholder="Nº bobina" autocomplete="off" style="padding:12px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">
+                ${htmlDatalistStock('stock-bob-num-sugestoes', sugestoesNumerosBobinas)}
                 <select id="stock-bob-ral" style="padding:12px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">${OPCOES_RAL_INF.concat(OPCOES_RAL_SUP).filter((v,i,a)=>a.indexOf(v)===i).map(v=>`<option value="${v}">${v}</option>`).join('')}</select>
                 <select id="stock-bob-medida" title="Tipo/tamanho da chapa" style="padding:12px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">${(OPCOES_MEDIDAS_CHAPA_STOCK || []).map(v=>`<option value="${v}">${v}</option>`).join('')}</select>
                 <select id="stock-bob-esp" style="padding:12px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">
                     ${opcoesEspChapaHTML()}
                 </select>
                 <select id="stock-bob-forn" style="padding:12px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">${(OPCOES_FORNECEDORES_STOCK || []).map(v=>`<option value="${v}">${v}</option>`).join('')}</select>
-                <input id="stock-bob-qtd" type="number" value="1" min="1" placeholder="Qtd" style="padding:12px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">
                 <select id="stock-bob-status" style="padding:12px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">
                     <option value="fechada">Fechada</option>
                     <option value="andamento">Em andamento</option>
@@ -14718,6 +14767,7 @@ function renderizarStockBobinasAtlas(termoBusca = '') {
                 <input id="stock-bob-peso" type="number" step="0.01" placeholder="Peso opcional" style="padding:12px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">
                 <input id="stock-bob-metros" type="number" step="0.01" placeholder="Metros opcional" style="padding:12px; background:#0f172a; color:white; border:1px solid #334155; border-radius:8px;">
             </div>
+            <div id="stock-bob-aviso-duplicada" style="margin-bottom:12px;"></div>
             <button onclick="cadastrarBobinaStockAtlas()" style="width:100%; background:#10b981; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold;">CADASTRAR BOBINA</button>
         </div>
 
@@ -14785,7 +14835,7 @@ function renderizarListaBobinasStock(lista, rotuloVazio) {
                             </div>
                         </details>
                     </span>
-                    <b style="color:${corQtdStock(item.qtd)};">${Number(item.qtd || 0)} un.</b>
+                    <b style="color:${corQtdStock(item.qtd ?? 1)};">1 un.</b>
                     <div style="display:flex; gap:8px;">
                         ${item.status !== 'acabada_mes' ? `<button onclick="baixarBobinaStockAtlas('${item.id}')" style="background:#3b82f6; color:white; border:none; padding:8px 10px; border-radius:6px; font-weight:bold;">BAIXAR</button><button onclick="fecharBobinaStockAtlas('${item.id}')" style="background:#64748b; color:white; border:none; padding:8px 10px; border-radius:6px; font-weight:bold;">ACABOU</button>` : ''}
                         <button onclick="editarBobinaStockAtlas('${item.id}')" style="background:#f59e0b; color:white; border:none; padding:8px 10px; border-radius:6px; font-weight:bold;">EDITAR</button>
@@ -14805,15 +14855,17 @@ function cadastrarBobinaStockAtlas() {
     const medida = document.getElementById('stock-bob-medida')?.value;
     const espessura = document.getElementById('stock-bob-esp')?.value.trim();
     const fornecedor = document.getElementById('stock-bob-forn')?.value.trim();
-    const qtd = Number(document.getElementById('stock-bob-qtd')?.value || 1);
     const status = document.getElementById('stock-bob-status')?.value || 'fechada';
     const peso = document.getElementById('stock-bob-peso')?.value.trim() || '';
     const metros = document.getElementById('stock-bob-metros')?.value.trim() || '';
     if (!numero || !ral || !medida || !fornecedor) return alert('Informe numero, RAL, medida e fornecedor.');
-    const nova = { id: String(Date.now()), numero, ral, medida, espessura, fornecedor, qtd, status, peso, metros, origemAndamento: status === 'andamento' ? 'cadastro_stock' : '', criadoPor: atlasUsuarioAtualNome(), criadoEm: new Date().toLocaleString('pt-BR') };
+    const duplicada = atlasStockBobinas.find(b => normalizarStockAtlas(b.numero) === normalizarStockAtlas(numero) && b.status !== 'acabada_mes');
+    if (duplicada) return alert(`A bobina ${numero} ja esta cadastrada no Stock.`);
+    const nova = { id: String(Date.now()), numero, ral, medida, espessura, fornecedor, qtd: 1, status, peso, metros, origemAndamento: status === 'andamento' ? 'cadastro_stock' : '', criadoPor: atlasUsuarioAtualNome(), criadoEm: new Date().toLocaleString('pt-BR') };
     registrarHistoricoBobinaStock(nova, 'Bobina cadastrada no Stock', nova.criadoPor, nova.criadoEm);
     atlasStockBobinas.unshift(nova);
     salvarStockAtlas();
+    alert(`Bobina ${numero} cadastrada.`);
     renderizarStockBobinasAtlas();
 }
 
@@ -14821,17 +14873,15 @@ function baixarBobinaStockAtlas(id) {
     if (!usuarioPodeEditarModulo('stock')) return alert('Sem permissao para editar Stock.');
     const item = atlasStockBobinas.find(b => String(b.id) === String(id));
     if (!item) return;
-    item.qtd = Math.max(0, Number(item.qtd || 0) - 1);
-    item.status = item.qtd === 0 ? 'acabada_mes' : 'fechada';
+    item.qtd = 0;
+    item.status = 'acabada_mes';
     item.origemAndamento = '';
     item.ultimaBaixaPor = atlasUsuarioAtualNome();
     item.ultimaBaixaEm = new Date().toLocaleString('pt-BR');
     registrarHistoricoBobinaStock(item, 'Baixa manual no Stock', item.ultimaBaixaPor, item.ultimaBaixaEm);
-    if (item.status === 'acabada_mes') {
-        item.acabadaPor = item.ultimaBaixaPor;
-        item.acabadaEm = item.ultimaBaixaEm;
-        item.acabadaMesISO = new Date().toISOString().slice(0, 7);
-    }
+    item.acabadaPor = item.ultimaBaixaPor;
+    item.acabadaEm = item.ultimaBaixaEm;
+    item.acabadaMesISO = new Date().toISOString().slice(0, 7);
     salvarStockAtlas();
     renderizarStockBobinasAtlas();
 }
@@ -14850,14 +14900,18 @@ function editarBobinaStockAtlas(id) {
     if (espessura === null) return;
     const fornecedor = prompt('Fornecedor:', item.fornecedor || '');
     if (fornecedor === null) return;
-    const qtd = prompt('Quantidade:', item.qtd || 0);
-    if (qtd === null) return;
     const status = prompt('Status (fechada ou andamento):', item.status || 'fechada');
     if (status === null) return;
     const peso = prompt('Peso opcional:', item.peso || '');
     if (peso === null) return;
     const metros = prompt('Metros opcionais:', item.metros || '');
     if (metros === null) return;
+    const duplicada = atlasStockBobinas.find(b =>
+        String(b.id) !== String(id) &&
+        b.status !== 'acabada_mes' &&
+        normalizarStockAtlas(b.numero) === normalizarStockAtlas(numero)
+    );
+    if (duplicada) return alert(`A bobina ${numero} ja esta cadastrada no Stock.`);
 
     Object.assign(item, {
         numero: numero.trim(),
@@ -14865,7 +14919,7 @@ function editarBobinaStockAtlas(id) {
         medida: medida.trim(),
         espessura: espessura.trim(),
         fornecedor: fornecedor.trim(),
-        qtd: Math.max(0, Number(qtd) || 0),
+        qtd: 1,
         status: normalizarStockAtlas(status).includes('and') ? 'andamento' : 'fechada',
         origemAndamento: normalizarStockAtlas(status).includes('and') ? (item.origemAndamento || 'cadastro_stock') : '',
         peso: peso.trim(),
