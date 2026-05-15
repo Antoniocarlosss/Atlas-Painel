@@ -14611,30 +14611,61 @@ function contarBobinasPorRalChapaEspStatusStock(lista) {
         const medida = item.medida || 'SEM CHAPA';
         const espessura = item.espessura || 'SEM ESP.';
         const chave = `${ral} / ${medida} / ${espessura}`;
-        if (!acc[chave]) acc[chave] = { fechada: 0, aberta: 0, total: 0 };
+        if (!acc[chave]) acc[chave] = { fechada: 0, aberta: 0, total: 0, fechadas: [], abertas: [] };
         const qtd = Number(item.qtd ?? 1);
-        if (item.status === 'andamento') acc[chave].aberta += qtd;
-        else acc[chave].fechada += qtd;
+        if (item.status === 'andamento') {
+            acc[chave].aberta += qtd;
+            acc[chave].abertas.push(item);
+        } else {
+            acc[chave].fechada += qtd;
+            acc[chave].fechadas.push(item);
+        }
         acc[chave].total += qtd;
         return acc;
     }, {});
 }
 
+function mostrarBobinasResumoStock(chave, status) {
+    const grupo = window.atlasResumoBobinasStatus?.[chave];
+    const lista = status === 'aberta' ? (grupo?.abertas || []) : (grupo?.fechadas || []);
+    const titulo = `${chave} - ${status === 'aberta' ? 'abertas' : 'fechadas'}`;
+
+    if (!lista.length) return alert(`${titulo}\n\nNenhuma bobina.`);
+
+    const numeros = lista
+        .slice()
+        .sort((a, b) => String(a.numero || '').localeCompare(String(b.numero || ''), 'pt-BR', { numeric: true }))
+        .map(item => {
+            const partes = [
+                `Bobina ${item.numero || '-'}`,
+                item.fornecedor ? `Fornecedor ${item.fornecedor}` : '',
+                item.peso ? `${item.peso} kg` : '',
+                item.metros ? `${item.metros} m` : ''
+            ].filter(Boolean);
+            return partes.join(' | ');
+        })
+        .join('\n');
+
+    alert(`${titulo}\n\n${numeros}`);
+}
+
 function htmlResumoRalChapaEspStock(lista) {
     const dados = contarBobinasPorRalChapaEspStatusStock(lista);
     const chaves = Object.keys(dados).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+    window.atlasResumoBobinasStatus = dados;
 
     return `
         <div style="background:#0f172a; border:1px solid #334155; border-radius:10px; padding:12px; margin-bottom:10px;">
             <b style="display:block; margin-bottom:8px; color:#93c5fd;">Por RAL / chapa / espessura</b>
             ${chaves.map(chave => {
                 const item = dados[chave];
+                const chaveClick = textoSeguroConferencia(chave).replace(/'/g, "&#39;");
                 return `
                     <div style="display:flex; justify-content:space-between; gap:10px; border-top:1px solid #1e293b; padding:8px 0; flex-wrap:wrap;">
                         <span>${textoSeguroConferencia(chave)}</span>
                         <span style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end;">
-                            <b style="color:#10b981;">${item.fechada} un. fechada</b>
-                            <b style="color:#f59e0b;">${item.aberta} un. aberta</b>
+                            <button onclick="mostrarBobinasResumoStock('${chaveClick}', 'fechada')" style="background:transparent; border:none; color:#10b981; font-weight:bold; cursor:pointer; padding:0;">${item.fechada} un. fechada</button>
+                            <button onclick="mostrarBobinasResumoStock('${chaveClick}', 'aberta')" style="background:transparent; border:none; color:#f59e0b; font-weight:bold; cursor:pointer; padding:0;">${item.aberta} un. aberta</button>
                             <b style="color:#93c5fd;">${item.total} total</b>
                         </span>
                     </div>
