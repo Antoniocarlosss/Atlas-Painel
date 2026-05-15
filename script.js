@@ -6158,6 +6158,9 @@ function abrirAjustesBackup() {
             <button onclick="window.atlasFirebaseDiagnosticarRecuperacao ? window.atlasFirebaseDiagnosticarRecuperacao() : alert('Firebase ainda nao carregou. Aguarde alguns segundos e tente novamente.')" style="width:100%; background:#7f1d1d; color:white; border:1px solid #fca5a5; padding:12px; border-radius:8px; font-weight:bold; margin-top:10px;">
                 VER DIAGNOSTICO DE DADOS
             </button>
+            <button onclick="window.atlasFirebaseRestaurarUltimoSnapshotLocal ? window.atlasFirebaseRestaurarUltimoSnapshotLocal() : alert('Firebase ainda nao carregou. Aguarde alguns segundos e tente novamente.')" style="width:100%; background:#991b1b; color:white; border:1px solid #fecaca; padding:12px; border-radius:8px; font-weight:bold; margin-top:10px;">
+                RESTAURAR SNAPSHOT LOCAL
+            </button>
         </div>
     `;
 }
