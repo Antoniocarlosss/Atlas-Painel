@@ -14605,6 +14605,45 @@ function contarBobinasPorChapaRalStock(lista) {
     }, {});
 }
 
+function contarBobinasPorRalChapaEspStatusStock(lista) {
+    return (lista || []).reduce((acc, item) => {
+        const ral = item.ral || 'SEM RAL';
+        const medida = item.medida || 'SEM CHAPA';
+        const espessura = item.espessura || 'SEM ESP.';
+        const chave = `${ral} / ${medida} / ${espessura}`;
+        if (!acc[chave]) acc[chave] = { fechada: 0, aberta: 0, total: 0 };
+        const qtd = Number(item.qtd ?? 1);
+        if (item.status === 'andamento') acc[chave].aberta += qtd;
+        else acc[chave].fechada += qtd;
+        acc[chave].total += qtd;
+        return acc;
+    }, {});
+}
+
+function htmlResumoRalChapaEspStock(lista) {
+    const dados = contarBobinasPorRalChapaEspStatusStock(lista);
+    const chaves = Object.keys(dados).sort((a, b) => a.localeCompare(b, 'pt-BR', { numeric: true }));
+
+    return `
+        <div style="background:#0f172a; border:1px solid #334155; border-radius:10px; padding:12px; margin-bottom:10px;">
+            <b style="display:block; margin-bottom:8px; color:#93c5fd;">Por RAL / chapa / espessura</b>
+            ${chaves.map(chave => {
+                const item = dados[chave];
+                return `
+                    <div style="display:flex; justify-content:space-between; gap:10px; border-top:1px solid #1e293b; padding:8px 0; flex-wrap:wrap;">
+                        <span>${textoSeguroConferencia(chave)}</span>
+                        <span style="display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end;">
+                            <b style="color:#10b981;">${item.fechada} un. fechada</b>
+                            <b style="color:#f59e0b;">${item.aberta} un. aberta</b>
+                            <b style="color:#93c5fd;">${item.total} total</b>
+                        </span>
+                    </div>
+                `;
+            }).join('') || `<small style="color:#94a3b8;">Sem bobinas.</small>`}
+        </div>
+    `;
+}
+
 function htmlResumoBobinasStock(lista) {
     const blocos = [
         ['Por chapa/RAL', contarBobinasPorChapaRalStock(lista)],
@@ -14616,6 +14655,7 @@ function htmlResumoBobinasStock(lista) {
     return `
         <div style="background:#111827; border:1px solid #334155; border-radius:12px; padding:15px; margin-top:14px;">
             <h3 style="margin:0 0 12px;">Resumo do stock de bobinas</h3>
+            ${htmlResumoRalChapaEspStock(lista)}
             <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:10px;">
                 ${blocos.map(([titulo, dados]) => `
                     <div style="background:#0f172a; border:1px solid #334155; border-radius:10px; padding:12px;">
