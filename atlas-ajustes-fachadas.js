@@ -339,7 +339,7 @@
         } else {
             container.innerHTML = `
                 <select id="s-qualidade-serra" style="width:100%; margin-bottom:10px; padding:10px; background:#1e293b; color:white; border:1px solid #334155; border-radius:5px;">
-                    <option value="P1">P1</option><option value="P2">P2</option><option value="Descarte">Descarte</option>
+                    <option value="P1">P1</option><option value="P2">P2</option><option value="PPC">PPC</option><option value="Descarte">Descarte</option>
                 </select>
                 ${rals}
                 ${htmlCamposDetalhesPainel("serra-linha", { acabamentoInferior:"Canelada", acabamentoSuperior:"Canelada" })}
@@ -510,7 +510,7 @@
         } else {
             container.innerHTML = `
                 <select id="s-qualidade" style="width:100%; margin-bottom:10px; padding:10px; background:#1e293b; color:white; border:1px solid #334155; border-radius:5px;">
-                    <option value="P1">P1</option><option value="P2">P2</option><option value="Descarte">Descarte</option>
+                    <option value="P1">P1</option><option value="P2">P2</option><option value="PPC">PPC</option><option value="Descarte">Descarte</option>
                 </select>
                 ${rals}
                 ${htmlCamposDetalhesPainel("emb-linha", { acabamentoInferior:"Canelada", acabamentoSuperior:"Canelada" })}
