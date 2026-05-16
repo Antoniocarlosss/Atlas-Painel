@@ -1104,11 +1104,11 @@ function atlasMelhorarCardsHome() {
         bobines: ['Bobines', 'Bobines, filmes, historico e calculos.', 'Operacional'],
         serra: ['Serra', 'Pedidos, stock, metros e fecho do dia.', 'Producao'],
         embalagem: ['Embalagem', 'Separacao, PPC e controlo de expedicao.', 'Producao'],
-        gestao: ['Relatorios', 'Historicos, analises, PDFs e impressao.', 'Gestao'],
+        gestao: ['Usuarios', 'Cadastrar novos usuarios e consultar equipe.', 'Cadastros'],
         config: ['Ajustes', 'Preferencias, sincronizacao e sistema.', 'Sistema'],
         plano: ['Plano', 'Planeamento, prioridades e acompanhamento.', 'Planeamento'],
         stock: ['Stock', 'Entradas, saidas, bobines e movimentacoes.', 'Controlo'],
-        permissoes: ['Gestao de Pessoas', 'Utilizadores, acessos e permissoes.', 'Admin'],
+        permissoes: ['Permissoes', 'Controlar acessos por modulo e cargo.', 'Admin'],
         conferencia: ['Conferencia', 'Validacao e controlo dos processos.', 'Qualidade'],
         lixeira: ['Lixeira', 'Recuperacao de registos removidos.', 'Admin'],
         pesquisa_encomenda: ['Pesquisa', 'Pesquisa rapida de encomenda e pedido.', 'Consulta'],
@@ -1174,6 +1174,10 @@ function atlasPolirMenusModulos() {
             'histor': 'Planos fechados',
             'stock': 'Planeamento por stock',
             'pedido': 'Planeamento por encomenda'
+        },
+        gestao: {
+            'criar': 'Cadastrar novo usuario',
+            'lista': 'Ver usuarios cadastrados'
         }
     };
 

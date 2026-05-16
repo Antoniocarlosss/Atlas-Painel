@@ -714,6 +714,141 @@ header {
     }
 }
 
+/* --- ATLAS INDUSTRIAL V157: CARDS MAIS LEGIVEIS E GUIAS ATUALIZADAS --- */
+#render-modulo > .atlas-menu-modulo,
+#render-modulo > div[style*="display:grid"]:has(> .card) {
+    width: min(1500px, calc(100% - 72px)) !important;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)) !important;
+    gap: 18px !important;
+}
+
+#render-modulo .atlas-menu-modulo-card,
+#render-modulo > div[style*="display:grid"]:has(> .card) > .card {
+    min-height: 136px !important;
+    padding: 22px 24px !important;
+    display: grid !important;
+    grid-template-columns: 62px minmax(0, 1fr) !important;
+    grid-template-rows: auto auto !important;
+    align-content: center !important;
+    align-items: center !important;
+    column-gap: 18px !important;
+    row-gap: 6px !important;
+}
+
+#render-modulo .atlas-menu-modulo-card i,
+#render-modulo > div[style*="display:grid"]:has(> .card) > .card i {
+    grid-column: 1 !important;
+    grid-row: 1 / span 2 !important;
+    width: 54px !important;
+    min-width: 54px !important;
+    height: 54px !important;
+    font-size: 23px !important;
+}
+
+#render-modulo .atlas-menu-modulo-card span,
+#render-modulo > div[style*="display:grid"]:has(> .card) > .card span {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    max-width: 100% !important;
+    font-size: 18px !important;
+    line-height: 1.18 !important;
+    white-space: normal !important;
+    word-break: normal !important;
+    overflow-wrap: normal !important;
+    hyphens: none !important;
+}
+
+#render-modulo .atlas-menu-modulo-card small,
+#render-modulo > div[style*="display:grid"]:has(> .card) > .card small {
+    grid-column: 2 !important;
+    grid-row: 2 !important;
+    max-width: 100% !important;
+    font-size: 14px !important;
+    line-height: 1.28 !important;
+    white-space: normal !important;
+    word-break: normal !important;
+}
+
+#render-modulo [onclick^="atlasAbrirTipoGuiaInjecao"],
+#render-modulo [onclick^="atlasAbrirLadoGuiaInjecao"] {
+    min-height: 132px !important;
+    padding: 22px !important;
+    background: #172033 !important;
+    border: 1px solid #3b475c !important;
+    border-left: 4px solid var(--atlas-red) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, .22) !important;
+    display: grid !important;
+    grid-template-columns: 58px minmax(0, 1fr) !important;
+    grid-template-rows: auto auto !important;
+    align-content: center !important;
+    align-items: center !important;
+    column-gap: 16px !important;
+    text-align: left !important;
+}
+
+#render-modulo [onclick^="atlasAbrirTipoGuiaInjecao"]:hover,
+#render-modulo [onclick^="atlasAbrirLadoGuiaInjecao"]:hover {
+    background: #1d293d !important;
+    border-color: #64748b !important;
+    border-left-color: #ff2d35 !important;
+}
+
+#render-modulo [onclick^="atlasAbrirTipoGuiaInjecao"] i,
+#render-modulo [onclick^="atlasAbrirLadoGuiaInjecao"] i {
+    grid-column: 1 !important;
+    grid-row: 1 / span 2 !important;
+    width: 52px !important;
+    height: 52px !important;
+    margin: 0 !important;
+    border-radius: 8px !important;
+    background: #0b1120 !important;
+    border: 1px solid #475569 !important;
+    color: #fff !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 22px !important;
+}
+
+#render-modulo [onclick^="atlasAbrirTipoGuiaInjecao"] b,
+#render-modulo [onclick^="atlasAbrirLadoGuiaInjecao"] b {
+    grid-column: 2 !important;
+    grid-row: 1 !important;
+    color: #fff !important;
+    font-size: 18px !important;
+    line-height: 1.18 !important;
+    word-break: normal !important;
+    overflow-wrap: normal !important;
+}
+
+#render-modulo [onclick^="atlasAbrirTipoGuiaInjecao"] small,
+#render-modulo [onclick^="atlasAbrirLadoGuiaInjecao"] small {
+    grid-column: 2 !important;
+    grid-row: 2 !important;
+    color: #b6c4d8 !important;
+    margin: 4px 0 0 !important;
+    font-size: 14px !important;
+    line-height: 1.25 !important;
+}
+
+@media (max-width: 768px) {
+    #render-modulo > .atlas-menu-modulo,
+    #render-modulo > div[style*="display:grid"]:has(> .card) {
+        width: calc(100% - 24px) !important;
+        grid-template-columns: 1fr !important;
+    }
+
+    #render-modulo .atlas-menu-modulo-card,
+    #render-modulo > div[style*="display:grid"]:has(> .card) > .card,
+    #render-modulo [onclick^="atlasAbrirTipoGuiaInjecao"],
+    #render-modulo [onclick^="atlasAbrirLadoGuiaInjecao"] {
+        min-height: 112px !important;
+        padding: 16px !important;
+        grid-template-columns: 54px minmax(0, 1fr) !important;
+    }
+}
+
 @media (min-width: 769px) and (max-width: 1024px) {
     .grid-container { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 25px; }
 }
