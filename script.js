@@ -9688,6 +9688,228 @@ document.addEventListener('click', function(evento) {
 })();
 
 /* ==========================================================
+   ROTAS INTERNAS POR PAGINA (?modulo=...&pagina=...)
+   ========================================================== */
+(function() {
+    if (window.atlasRotasInternasAtivas) return;
+    window.atlasRotasInternasAtivas = true;
+
+    const ROTAS_PAGINAS = {
+        gestao: {
+            'criar-id': () => { renderizarMenuGestao(); exibirCriarUsuario(); atlasOcultarMenusInternos(['menu-gestao']); },
+            usuarios: () => { renderizarMenuGestao(); listarUsuariosSistema(); atlasOcultarMenusInternos(['menu-gestao']); }
+        },
+        bobines: {
+            'criar-relatorio': () => moduloBobine('novo'),
+            historico: () => moduloBobine('historico'),
+            calculadora: () => moduloBobine('calculadora'),
+            'calculadora-agro': () => moduloBobine('calculadora_agro')
+        },
+        injecao: {
+            'criar-relatorio': () => exibirFormulario('injecao'),
+            historico: () => exibirHistoricoModulo('injecao'),
+            'guias-ferros': () => typeof atlasAbrirGuiasInjecao === 'function' ? atlasAbrirGuiasInjecao() : null
+        },
+        serra: {
+            'criar-relatorio': () => exibirSetupSerra(),
+            historico: () => listarHistoricoSerra(),
+            pacotes: () => typeof abrirPacotesSerraPlano === 'function' ? abrirPacotesSerraPlano() : null
+        },
+        embalagem: {
+            'criar-relatorio': () => exibirSetupEmbalagem(),
+            historico: () => listarHistoricoEmbalagem()
+        },
+        plano: {
+            criar: () => exibirMenuCriacaoPlano(),
+            historico: () => listarHistoricoPlano(),
+            comprador: () => typeof abrirMenuHistoricoComprador === 'function' ? abrirMenuHistoricoComprador() : null
+        },
+        stock: {
+            bobinas: () => renderizarStockBobinasAtlas(),
+            filmes: () => renderizarStockFilmesAtlas()
+        },
+        config: {
+            usuario: () => abrirAjustesUsuario(),
+            backup: () => abrirAjustesBackup(),
+            atualizacao: () => abrirAtualizacaoUsuarioAtlas(),
+            sistema: () => abrirAjustesSistema()
+        }
+    };
+
+    const ACOES_PARA_ROTAS = [
+        [/exibirCriarUsuario\(/, 'gestao', 'criar-id'],
+        [/listarUsuariosSistema\(/, 'gestao', 'usuarios'],
+        [/moduloBobine\('novo'\)/, 'bobines', 'criar-relatorio'],
+        [/moduloBobine\('historico'\)/, 'bobines', 'historico'],
+        [/moduloBobine\('calculadora'\)/, 'bobines', 'calculadora'],
+        [/moduloBobine\('calculadora_agro'\)/, 'bobines', 'calculadora-agro'],
+        [/exibirFormulario\('injecao'\)/, 'injecao', 'criar-relatorio'],
+        [/exibirHistoricoModulo\('injecao'\)/, 'injecao', 'historico'],
+        [/atlasAbrirGuiasInjecao\(/, 'injecao', 'guias-ferros'],
+        [/exibirSetupSerra\(/, 'serra', 'criar-relatorio'],
+        [/listarHistoricoSerra\(/, 'serra', 'historico'],
+        [/abrirPacotesSerraPlano\(/, 'serra', 'pacotes'],
+        [/exibirSetupEmbalagem\(/, 'embalagem', 'criar-relatorio'],
+        [/listarHistoricoEmbalagem\(/, 'embalagem', 'historico'],
+        [/exibirMenuCriacaoPlano\(/, 'plano', 'criar'],
+        [/listarHistoricoPlano\(/, 'plano', 'historico'],
+        [/abrirMenuHistoricoComprador\(/, 'plano', 'comprador'],
+        [/renderizarStockBobinasAtlas\(/, 'stock', 'bobinas'],
+        [/renderizarStockFilmesAtlas\(/, 'stock', 'filmes'],
+        [/abrirAjustesUsuario\(/, 'config', 'usuario'],
+        [/abrirAjustesBackup\(/, 'config', 'backup'],
+        [/abrirAtualizacaoUsuarioAtlas\(/, 'config', 'atualizacao'],
+        [/abrirAjustesSistema\(/, 'config', 'sistema']
+    ];
+
+    function atlasOcultarMenusInternos(ids) {
+        ids.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        });
+    }
+
+    function atlasParametrosRota() {
+        const params = new URLSearchParams(location.search);
+        const modulo = params.get('modulo') || params.get('atlas_modulo') || '';
+        const pagina = params.get('pagina') || '';
+        return { modulo, pagina };
+    }
+
+    function atlasAtualizarUrlRota(modulo, pagina = '', substituir = false) {
+        const url = new URL(location.href);
+        url.searchParams.delete('atlas_modulo');
+        url.searchParams.delete('atlas_nocache');
+        if (modulo) url.searchParams.set('modulo', modulo);
+        else url.searchParams.delete('modulo');
+        if (pagina) url.searchParams.set('pagina', pagina);
+        else url.searchParams.delete('pagina');
+        const metodo = substituir ? 'replaceState' : 'pushState';
+        history[metodo]({}, '', url);
+    }
+
+    function atlasRestaurarSessaoParaRota() {
+        if (usuarioLogado) return true;
+        const idSessao = localStorage.getItem('atlas_sessao_usuario_id');
+        if (!idSessao) return false;
+        const usuarioSessao = String(idSessao).toLowerCase() === 'admin'
+            ? garantirAdminSistemaAtlas()
+            : (usuariosSistema || []).find(usuario => String(usuario.id).toLowerCase() === String(idSessao).toLowerCase());
+        if (!usuarioSessao) return false;
+
+        usuarioLogado = usuarioSessao;
+        window.usuarioLogado = usuarioLogado;
+        document.getElementById('tela-login').style.display = 'none';
+        document.getElementById('app-principal').style.display = 'block';
+        document.getElementById('user-display').innerText = String(usuarioLogado.id || 'OPERADOR').toUpperCase();
+        aplicarPermissoesUsuario();
+        aplicarPreferenciasVisuaisUsuario();
+        if (typeof atlasInicializarDashboardHome === 'function') atlasInicializarDashboardHome();
+        return true;
+    }
+
+    function atlasAbrirModuloNaMesmaPagina(modulo) {
+        const antes = window.atlasModuloEmAbaExterna;
+        window.atlasModuloEmAbaExterna = true;
+        try {
+            return window.atlasAbrirModuloBaseRota(modulo);
+        } finally {
+            window.atlasModuloEmAbaExterna = antes;
+        }
+    }
+
+    function atlasAplicarRotaAtual(substituir = true) {
+        const { modulo, pagina } = atlasParametrosRota();
+        if (!modulo) return;
+        if (!atlasRestaurarSessaoParaRota()) return;
+
+        window.atlasModuloEmAbaExterna = true;
+        atlasAtualizarUrlRota(modulo, pagina, substituir);
+        atlasAbrirModuloNaMesmaPagina(modulo);
+
+        const renderPagina = ROTAS_PAGINAS[modulo]?.[pagina];
+        if (pagina && typeof renderPagina === 'function') {
+            setTimeout(() => {
+                renderPagina();
+                if (typeof atlasPolirMenusModulos === 'function') atlasPolirMenusModulos();
+            }, 60);
+        }
+    }
+
+    function atlasNavegarPaginaModulo(modulo, pagina) {
+        if (!modulo) return;
+        atlasAtualizarUrlRota(modulo, pagina, false);
+        atlasAplicarRotaAtual(true);
+    }
+
+    function atlasRotaPorOnclick(onclick) {
+        const texto = String(onclick || '');
+        const achou = ACOES_PARA_ROTAS.find(([regex]) => regex.test(texto));
+        return achou ? { modulo: achou[1], pagina: achou[2] } : null;
+    }
+
+    document.addEventListener('click', function(evento) {
+        const alvo = evento.target.closest('#render-modulo [onclick]');
+        if (!alvo) return;
+        const rota = atlasRotaPorOnclick(alvo.getAttribute('onclick'));
+        if (!rota) return;
+
+        evento.preventDefault();
+        evento.stopPropagation();
+        evento.stopImmediatePropagation();
+        atlasNavegarPaginaModulo(rota.modulo, rota.pagina);
+    }, true);
+
+    const abrirModuloAnterior = window.abrirModulo;
+    window.atlasAbrirModuloBaseRota = function(modulo) {
+        const antes = window.atlasModuloEmAbaExterna;
+        window.atlasModuloEmAbaExterna = true;
+        try {
+            return abrirModuloAnterior.apply(this, arguments);
+        } finally {
+            window.atlasModuloEmAbaExterna = antes;
+        }
+    };
+
+    window.abrirModulo = function(modulo) {
+        const { modulo: moduloAtual } = atlasParametrosRota();
+        const naHome = document.getElementById('grid-home')?.style.display !== 'none';
+        if (!moduloAtual && naHome && !window.atlasModuloEmAbaExterna) {
+            if (usuarioLogado?.id) localStorage.setItem('atlas_sessao_usuario_id', usuarioLogado.id);
+            const url = new URL(location.href);
+            url.searchParams.delete('atlas_modulo');
+            url.searchParams.delete('atlas_nocache');
+            url.searchParams.set('modulo', modulo);
+            const nova = window.open(url.toString(), '_blank');
+            if (!nova) alert('Autorize pop-ups para o Atlas abrir o modulo em nova pagina.');
+            else { try { nova.focus(); } catch (erro) {} }
+            return;
+        }
+        atlasAtualizarUrlRota(modulo, '', false);
+        return atlasAbrirModuloNaMesmaPagina(modulo);
+    };
+    abrirModulo = window.abrirModulo;
+
+    const voltarOriginal = window.voltarHome || voltarHome;
+    window.voltarHome = function() {
+        const { modulo, pagina } = atlasParametrosRota();
+        if (modulo && pagina) {
+            atlasAtualizarUrlRota(modulo, '', false);
+            atlasAplicarRotaAtual(true);
+            return;
+        }
+        if (modulo) {
+            atlasAtualizarUrlRota('', '', false);
+        }
+        return voltarOriginal.apply(this, arguments);
+    };
+    voltarHome = window.voltarHome;
+
+    window.addEventListener('popstate', () => atlasAplicarRotaAtual(true));
+    window.addEventListener('load', () => setTimeout(() => atlasAplicarRotaAtual(true), 260));
+})();
+
+/* ==========================================================
    NAVEGACAO: MODULOS DA HOME EM NOVA ABA
    ========================================================== */
 (function() {
