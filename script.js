@@ -882,6 +882,7 @@ async function fazerLogin() {
         document.getElementById('user-display').innerText = 'ADMIN';
         aplicarPermissoesUsuario();
         aplicarPreferenciasVisuaisUsuario();
+        atlasInicializarDashboardHome();
         atlasRegistrarDispositivoAtual();
         setTimeout(atlasRegistrarDispositivoAtual, 1500);
         setTimeout(atlasRegistrarDispositivoAtual, 5000);
@@ -937,6 +938,7 @@ async function fazerLogin() {
 
 aplicarPermissoesUsuario();
 aplicarPreferenciasVisuaisUsuario();
+atlasInicializarDashboardHome();
 verificarAniversarioNoLoginAtlas(usuarioEncontrado);
 atlasRegistrarDispositivoAtual();
 setTimeout(atlasRegistrarDispositivoAtual, 1500);
@@ -973,6 +975,176 @@ function voltarHome() {
     document.getElementById('conteudo-modulo').style.display = 'none';
     aplicarPermissoesUsuario();
     aplicarPreferenciasVisuaisUsuario();
+    atlasInicializarDashboardHome();
+}
+
+function atlasHomeJSON(chave, fallback) {
+    try {
+        const bruto = localStorage.getItem(chave);
+        if (!bruto) return fallback;
+        return JSON.parse(bruto);
+    } catch (erro) {
+        return fallback;
+    }
+}
+
+function atlasHomeDataISOHoje() {
+    const hoje = new Date();
+    return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}-${String(hoje.getDate()).padStart(2, '0')}`;
+}
+
+function atlasHomeDataBRParaISO(data) {
+    const texto = String(data || '');
+    const partes = texto.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (partes) return `${partes[3]}-${String(partes[2]).padStart(2, '0')}-${String(partes[1]).padStart(2, '0')}`;
+    if (/^\d{4}-\d{2}-\d{2}/.test(texto)) return texto.slice(0, 10);
+    return '';
+}
+
+function atlasHomeDefinirTexto(id, valor) {
+    const el = document.getElementById(id);
+    if (el) el.innerText = valor;
+}
+
+function atlasHomeContarLista(chave) {
+    const valor = atlasHomeJSON(chave, []);
+    return Array.isArray(valor) ? valor.length : 0;
+}
+
+function atlasHomeContarInjecaoHoje(dataISO) {
+    const db = atlasHomeJSON('atlas_db', {});
+    let total = 0;
+    Object.values(db || {}).forEach(meses => {
+        Object.values(meses || {}).forEach(lista => {
+            (Array.isArray(lista) ? lista : []).forEach(rel => {
+                if (rel?.modulo === 'injecao' && atlasHomeDataBRParaISO(rel.data) === dataISO) total++;
+            });
+        });
+    });
+    return total;
+}
+
+function atlasHomeContarHistoricoHoje(chave, dataISO) {
+    return (atlasHomeJSON(chave, []) || []).filter(rel => atlasHomeDataBRParaISO(rel?.data) === dataISO).length;
+}
+
+function atlasHomeContarUsuariosAtivos() {
+    const dispositivos = atlasHomeJSON('atlas_dispositivos_online', {});
+    const agora = Date.now();
+    const ativos = Object.values(dispositivos || {}).filter(item => {
+        const visto = Date.parse(item?.ultimaAtividadeISO || item?.dataHora || '') || Number(item?.ultimaAtividade || 0) || 0;
+        return !visto || (agora - visto) < 120000;
+    });
+    return Math.max(ativos.length, usuarioLogado ? 1 : 0);
+}
+
+function atlasAtualizarRelogioHome() {
+    const agora = new Date();
+    const hora = agora.getHours();
+    const saudacao = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
+    const nome = usuarioLogado?.nome || usuarioLogado?.id || 'Operador';
+    const identificacao = usuarioLogado?.id || document.getElementById('user-display')?.innerText || 'OPERADOR';
+
+    atlasHomeDefinirTexto('atlas-home-saudacao', `${saudacao}, ${nome}`);
+    atlasHomeDefinirTexto('atlas-home-datahora', agora.toLocaleString('pt-PT', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    }));
+
+    const userDisplay = document.getElementById('user-display');
+    if (userDisplay && identificacao) userDisplay.innerText = String(identificacao).toUpperCase();
+}
+
+function atlasAtualizarDashboardHome() {
+    const dataISO = atlasHomeDataISOHoje();
+    const abertos = atlasHomeContarLista('atlas_serra_live')
+        + atlasHomeContarLista('atlas_emb_live')
+        + (typeof lancamentosTemporarios !== 'undefined' && Array.isArray(lancamentosTemporarios) ? lancamentosTemporarios.length : 0);
+
+    const finalizados = atlasHomeContarInjecaoHoje(dataISO)
+        + atlasHomeContarHistoricoHoje('historicoBobines', dataISO)
+        + atlasHomeContarHistoricoHoje('atlas_serra_hist', dataISO)
+        + atlasHomeContarHistoricoHoje('atlas_emb_hist', dataISO)
+        + atlasHomeContarHistoricoHoje('atlas_plano_hist', dataISO);
+
+    const pendentes = typeof window.atlasLembretesAutomaticos === 'function'
+        ? window.atlasLembretesAutomaticos().length
+        : 0;
+
+    const ultimaSync = Number(localStorage.getItem('atlas_sync_local_updated_ms') || 0);
+    const ultimaTexto = ultimaSync
+        ? new Date(ultimaSync).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })
+        : 'Agora';
+
+    atlasHomeDefinirTexto('atlas-home-relatorios-abertos', String(abertos));
+    atlasHomeDefinirTexto('atlas-home-relatorios-pendentes', String(pendentes));
+    atlasHomeDefinirTexto('atlas-home-producao-finalizada', String(finalizados));
+    atlasHomeDefinirTexto('atlas-home-usuarios-ativos', String(atlasHomeContarUsuariosAtivos()));
+    atlasHomeDefinirTexto('atlas-home-ultima-atualizacao', ultimaTexto);
+}
+
+function atlasMelhorarCardsHome() {
+    const descricoes = {
+        injecao: ['Injecao', 'Producao, metros, quimicos e paragens.', 'Operacional'],
+        bobines: ['Bobines', 'Bobines, filmes, historico e calculos.', 'Operacional'],
+        serra: ['Serra', 'Pedidos, stock, metros e fecho do dia.', 'Producao'],
+        embalagem: ['Embalagem', 'Separacao, PPC e controlo de expedicao.', 'Producao'],
+        gestao: ['Relatorios', 'Historicos, analises, PDFs e impressao.', 'Gestao'],
+        config: ['Ajustes', 'Preferencias, sincronizacao e sistema.', 'Sistema'],
+        plano: ['Plano', 'Planeamento, prioridades e acompanhamento.', 'Planeamento'],
+        stock: ['Stock', 'Entradas, saidas, bobines e movimentacoes.', 'Controlo'],
+        permissoes: ['Gestao de Pessoas', 'Utilizadores, acessos e permissoes.', 'Admin'],
+        conferencia: ['Conferencia', 'Validacao e controlo dos processos.', 'Qualidade'],
+        lixeira: ['Lixeira', 'Recuperacao de registos removidos.', 'Admin']
+    };
+
+    document.querySelectorAll('#grid-home > .card').forEach(card => {
+        const onclick = card.getAttribute('onclick') || '';
+        const chave = (onclick.match(/abrirModulo\('([^']+)'\)/) || [])[1];
+        const dados = descricoes[chave];
+        if (!dados) return;
+
+        card.classList.add('atlas-module-card');
+        const icone = card.querySelector('i')?.outerHTML || '';
+        card.innerHTML = `${icone}<span>${dados[0]}</span><small>${dados[1]}</small><em>${dados[2]}</em>`;
+    });
+}
+
+function atlasInicializarDashboardHome() {
+    atlasMelhorarCardsHome();
+    atlasAtualizarRelogioHome();
+    atlasAtualizarDashboardHome();
+
+    if (!window.atlasHomeDashboardTimer) {
+        window.atlasHomeDashboardTimer = setInterval(() => {
+            atlasAtualizarRelogioHome();
+            atlasAtualizarDashboardHome();
+        }, 30000);
+    }
+}
+
+function atlasAtalhoExportarPDF() {
+    abrirModulo('gestao');
+    setTimeout(() => {
+        if (typeof mostrarToast === 'function') mostrarToast('Escolha um historico para exportar em PDF.');
+    }, 150);
+}
+
+function atlasAtalhoCalculadoraBobine() {
+    abrirModulo('bobines');
+    setTimeout(() => {
+        if (typeof moduloBobine === 'function') moduloBobine('calculadora');
+    }, 150);
+}
+
+function atlasAtalhoScannerFoto() {
+    if (typeof abrirModulo === 'function') abrirModulo('conferencia');
+    setTimeout(() => {
+        if (typeof mostrarToast === 'function') mostrarToast('Use a conferencia ou as guias para anexar foto quando disponivel.');
+    }, 150);
 }
 
 function fecharModal() {

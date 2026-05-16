@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v151-limpo';
+const CACHE_NAME = 'atlas-v153-dashboard';
 const assets = [
   './',
   './index.html',
@@ -7,6 +7,16 @@ const assets = [
   './historicos-admin.js',
   './atlas-ajustes-fachadas.js',
   './firebase-atlas.js',
+  './js/main.js',
+  './js/auth.js',
+  './js/serra.js',
+  './js/bobines.js',
+  './js/injecao.js',
+  './js/stock.js',
+  './js/pdf.js',
+  './js/firebase.js',
+  './js/permissoes.js',
+  './js/ui.js',
   './manifest.json',
   './logo.png'
 ];

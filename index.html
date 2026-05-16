@@ -9,7 +9,7 @@
     <title>Atlas Painel - Gestão</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20260511-build-151-limpo">
+    <link rel="stylesheet" href="style.css?v=20260516-dashboard-153">
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
@@ -41,26 +41,87 @@
     </section>
 
     <div id="app-principal" style="display:none;">
-        <header>
-            <div class="logo-container-css header-logo-scale">
-                <div class="logo-bars-css">
-                    <div class="bar-css"></div>
-                    <div class="bar-css"></div>
+        <header class="atlas-topbar">
+            <div class="atlas-topbar-brand">
+                <div class="logo-container-css header-logo-scale">
+                    <div class="logo-bars-css">
+                        <div class="bar-css"></div>
+                        <div class="bar-css"></div>
+                    </div>
+                    <div class="logo-text-css">
+                        <span class="atlas-text">ATLAS</span>
+                        <span class="painel-text">P A I N E L</span>
+                    </div>
                 </div>
-                <div class="logo-text-css">
-                    <span class="atlas-text">ATLAS</span>
-                    <span class="painel-text">P A I N E L</span>
+                <div class="atlas-system-title">
+                    <strong>Atlas Painel</strong>
+                    <span>Gestao industrial</span>
                 </div>
             </div>
 
-            <div class="user-info">
-                <span id="user-display">OPERADOR</span>
+            <div class="user-info atlas-user-panel">
+                <div class="atlas-user-copy">
+                    <span id="atlas-home-saudacao">Bom trabalho</span>
+                    <strong id="user-display">OPERADOR</strong>
+                </div>
+                <div class="atlas-header-clock" id="atlas-home-datahora">--/--/---- --:--</div>
+                <button onclick="abrirModulo('config')" class="atlas-header-action" title="Configuracoes">
+                    <i class="fas fa-gear"></i>
+                </button>
                 <button onclick="atlasSairSistema()" class="btn-logout">Sair</button>
             </div>
         </header>
 
         <main>
-            <section id="grid-home" class="grid-container">
+            <section id="grid-home" class="grid-container atlas-dashboard">
+                <div class="atlas-dashboard-hero">
+                    <div>
+                        <span class="atlas-kicker">Painel operacional</span>
+                        <h1>Controle diario da fabrica</h1>
+                        <p>Acesse os modulos principais, acompanhe o andamento do dia e execute as acoes mais usadas em poucos toques.</p>
+                    </div>
+                    <div class="atlas-hero-badge">
+                        <i class="fas fa-industry"></i>
+                        <span>Sistema online</span>
+                    </div>
+                </div>
+
+                <div class="atlas-status-grid">
+                    <div class="atlas-status-card">
+                        <span>Relatorios abertos</span>
+                        <strong id="atlas-home-relatorios-abertos">0</strong>
+                    </div>
+                    <div class="atlas-status-card">
+                        <span>Relatorios pendentes</span>
+                        <strong id="atlas-home-relatorios-pendentes">0</strong>
+                    </div>
+                    <div class="atlas-status-card">
+                        <span>Producao finalizada</span>
+                        <strong id="atlas-home-producao-finalizada">0</strong>
+                    </div>
+                    <div class="atlas-status-card">
+                        <span>Usuarios ativos</span>
+                        <strong id="atlas-home-usuarios-ativos">1</strong>
+                    </div>
+                    <div class="atlas-status-card atlas-status-wide">
+                        <span>Ultima atualizacao</span>
+                        <strong id="atlas-home-ultima-atualizacao">Agora</strong>
+                    </div>
+                </div>
+
+                <div class="atlas-quick-actions">
+                    <button onclick="abrirModulo('injecao')"><i class="fas fa-plus"></i><span>Criar relatorio</span></button>
+                    <button onclick="abrirModulo('gestao')"><i class="fas fa-clock-rotate-left"></i><span>Ver historico</span></button>
+                    <button onclick="atlasAtalhoExportarPDF()"><i class="fas fa-file-pdf"></i><span>Exportar PDF</span></button>
+                    <button onclick="atlasAtalhoCalculadoraBobine()"><i class="fas fa-calculator"></i><span>Calculadora</span></button>
+                    <button onclick="atlasAtalhoScannerFoto()"><i class="fas fa-camera"></i><span>Scanner/foto</span></button>
+                    <button onclick="abrirModulo('config')"><i class="fas fa-sliders"></i><span>Configuracoes</span></button>
+                </div>
+
+                <div class="atlas-modules-title">
+                    <h2>Modulos</h2>
+                    <span>Escolha a area de trabalho</span>
+                </div>
     <div class="card" onclick="abrirModulo('injecao')"><i class="fas fa-microchip"></i><span>Injeção</span></div>
     <div class="card" onclick="abrirModulo('bobines')"><i class="fas fa-compact-disc"></i><span>Bobines</span></div>
     <div class="card" onclick="abrirModulo('serra')"><i class="fas fa-layer-group"></i><span>Serra</span></div>
@@ -117,8 +178,8 @@
             });
         })();
 
-        window.ATLAS_SISTEMA_VERSAO = '20260511-build-151-limpo';
-        window.ATLAS_SISTEMA_BUILD = 151;
+        window.ATLAS_SISTEMA_VERSAO = '20260516-dashboard-153';
+        window.ATLAS_SISTEMA_BUILD = 153;
         window.atlasMostrarTelaAtualizacao = function atlasMostrarTelaAtualizacao(opcoes = {}) {
             const finalizado = opcoes.finalizado === true;
             let overlay = document.getElementById('atlas-update-screen');
@@ -289,10 +350,10 @@
             Promise.allSettled([limparCaches, atualizarWorker]);
         })();
     </script>
-    <script src="script.js?v=20260511-build-151-limpo"></script>
-    <script src="historicos-admin.js?v=20260511-build-151-limpo"></script>
-    <script src="atlas-ajustes-fachadas.js?v=20260427-permissao-excluir"></script>
-    <script type="module" src="firebase-atlas.js?v=20260511-build-151-limpo"></script>
+    <script src="script.js?v=20260516-dashboard-153"></script>
+    <script src="historicos-admin.js?v=20260516-dashboard-153"></script>
+    <script src="atlas-ajustes-fachadas.js?v=20260516-dashboard-153"></script>
+    <script type="module" src="js/main.js?v=20260516-dashboard-153"></script>
     <script>
         if ('serviceWorker' in navigator) {
             let atlasAtualizandoPWA = false;
@@ -303,7 +364,7 @@
             });
 
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=20260511-build-151-limpo')
+                navigator.serviceWorker.register('sw.js?v=20260516-dashboard-153')
                     .then(reg => {
                         console.log('Atlas PWA: Ativo!');
                         reg.update();
