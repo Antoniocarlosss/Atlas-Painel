@@ -464,6 +464,7 @@ async function atlasSairSistema() {
         clearInterval(window.atlasTimerDispositivoAtual);
         window.atlasTimerDispositivoAtual = null;
     }
+    localStorage.removeItem('atlas_sessao_usuario_id');
     atlasMarcarDispositivoOffline().catch(erro => {
         console.warn('Nao foi possivel marcar offline antes de sair:', erro);
     });
@@ -877,6 +878,7 @@ async function fazerLogin() {
     if (idLogin === 'admin' && senhaInput === '123') {
         usuarioLogado = garantirAdminSistemaAtlas();
         window.usuarioLogado = usuarioLogado;
+        localStorage.setItem('atlas_sessao_usuario_id', usuarioLogado.id || 'admin');
         document.getElementById('tela-login').style.display = 'none';
         document.getElementById('app-principal').style.display = 'block';
         document.getElementById('user-display').innerText = 'ADMIN';
@@ -932,6 +934,7 @@ async function fazerLogin() {
 
         usuarioLogado = usuarioEncontrado;
         window.usuarioLogado = usuarioLogado;
+        localStorage.setItem('atlas_sessao_usuario_id', usuarioLogado.id || usuarioEncontrado.id);
         document.getElementById('tela-login').style.display = 'none';
         document.getElementById('app-principal').style.display = 'block';
         document.getElementById('user-display').innerText = usuarioEncontrado.id.toUpperCase();
@@ -1282,6 +1285,7 @@ function atlasAbrirPendenciasHome() {
 
 function atlasAbrirSecaoPendente(chave) {
     abrirModulo(chave);
+    if (window.atlasModuloAbriuNovaAbaAgora) return;
     setTimeout(() => {
         if (chave === 'injecao' && typeof exibirFormulario === 'function') exibirFormulario('injecao');
         if (chave === 'bobines' && typeof moduloBobine === 'function') moduloBobine('novo');
@@ -1335,6 +1339,7 @@ function atlasAbrirEscolhaHome(tipo) {
 function atlasExecutarEscolhaHome(tipo, chave) {
     if (tipo === 'criar') {
         abrirModulo(chave);
+        if (window.atlasModuloAbriuNovaAbaAgora) return;
         setTimeout(() => {
             if (chave === 'injecao' && typeof exibirFormulario === 'function') exibirFormulario('injecao');
             if (chave === 'bobines' && typeof moduloBobine === 'function') moduloBobine('novo');
@@ -1345,6 +1350,7 @@ function atlasExecutarEscolhaHome(tipo, chave) {
 
     if (tipo === 'historico') {
         abrirModulo(chave === 'injecao' ? 'injecao' : chave);
+        if (window.atlasModuloAbriuNovaAbaAgora) return;
         setTimeout(() => {
             if (chave === 'injecao' && typeof exibirHistoricoModulo === 'function') exibirHistoricoModulo('injecao');
             if (chave === 'bobines' && typeof moduloBobine === 'function') moduloBobine('historico');
@@ -1357,6 +1363,7 @@ function atlasExecutarEscolhaHome(tipo, chave) {
 
     if (tipo === 'calculadora') {
         abrirModulo('bobines');
+        if (window.atlasModuloAbriuNovaAbaAgora) return;
         setTimeout(() => {
             if (typeof moduloBobine === 'function') moduloBobine(chave === 'agro' ? 'calculadora_agro' : 'calculadora');
         }, 150);
@@ -9678,6 +9685,95 @@ document.addEventListener('click', function(evento) {
 
         return janela;
     };
+})();
+
+/* ==========================================================
+   NAVEGACAO: MODULOS DA HOME EM NOVA ABA
+   ========================================================== */
+(function() {
+    if (window.atlasModulosNovaAbaAtivo) return;
+    window.atlasModulosNovaAbaAtivo = true;
+
+    function atlasModuloUrl(nome) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('atlas_modulo', nome);
+        url.searchParams.set('atlas_nocache', Date.now());
+        return url.toString();
+    }
+
+    function atlasEstaNaHome() {
+        const grid = document.getElementById('grid-home');
+        const conteudo = document.getElementById('conteudo-modulo');
+        return Boolean(grid && grid.style.display !== 'none' && (!conteudo || conteudo.style.display === 'none'));
+    }
+
+    function atlasDeveAbrirModuloNovaAba(nome) {
+        if (!nome || window.atlasModuloEmAbaExterna) return false;
+        if (new URLSearchParams(location.search).has('atlas_modulo')) return false;
+        return atlasEstaNaHome();
+    }
+
+    function atlasAbrirModuloNovaAba(nome) {
+        window.atlasModuloAbriuNovaAbaAgora = true;
+        setTimeout(() => { window.atlasModuloAbriuNovaAbaAgora = false; }, 500);
+        if (usuarioLogado?.id) localStorage.setItem('atlas_sessao_usuario_id', usuarioLogado.id);
+        const nova = window.open(atlasModuloUrl(nome), '_blank');
+        if (!nova) {
+            alert('O navegador bloqueou a nova aba. Autorize pop-ups para o Atlas e tente novamente.');
+            return;
+        }
+        try { nova.focus(); } catch (erro) {}
+    }
+
+    function atlasRestaurarUsuarioSessao() {
+        const idSessao = localStorage.getItem('atlas_sessao_usuario_id');
+        if (!idSessao) return null;
+        if (String(idSessao).toLowerCase() === 'admin') return garantirAdminSistemaAtlas();
+        return (usuariosSistema || []).find(usuario => String(usuario.id).toLowerCase() === String(idSessao).toLowerCase()) || null;
+    }
+
+    function atlasEntrarDiretoModuloUrl() {
+        const params = new URLSearchParams(location.search);
+        const modulo = params.get('atlas_modulo');
+        if (!modulo) return;
+
+        const usuarioSessao = atlasRestaurarUsuarioSessao();
+        if (!usuarioSessao) return;
+
+        window.atlasModuloEmAbaExterna = true;
+        usuarioLogado = usuarioSessao;
+        window.usuarioLogado = usuarioLogado;
+
+        const login = document.getElementById('tela-login');
+        const app = document.getElementById('app-principal');
+        const display = document.getElementById('user-display');
+        if (login) login.style.display = 'none';
+        if (app) app.style.display = 'block';
+        if (display) display.innerText = String(usuarioLogado.id || 'OPERADOR').toUpperCase();
+
+        if (typeof aplicarPermissoesUsuario === 'function') aplicarPermissoesUsuario();
+        if (typeof aplicarPreferenciasVisuaisUsuario === 'function') aplicarPreferenciasVisuaisUsuario();
+        if (typeof atlasInicializarDashboardHome === 'function') atlasInicializarDashboardHome();
+
+        setTimeout(() => {
+            if (typeof window.atlasAbrirModuloMesmaAba === 'function') window.atlasAbrirModuloMesmaAba(modulo);
+        }, 80);
+    }
+
+    const original = window.abrirModulo || abrirModulo;
+    window.atlasAbrirModuloMesmaAba = function(nome) {
+        return original.apply(this, arguments);
+    };
+    window.abrirModulo = function(nome) {
+        if (atlasDeveAbrirModuloNovaAba(nome)) {
+            atlasAbrirModuloNovaAba(nome);
+            return;
+        }
+        return original.apply(this, arguments);
+    };
+    abrirModulo = window.abrirModulo;
+
+    window.addEventListener('load', () => setTimeout(atlasEntrarDiretoModuloUrl, 150));
 })();
 
 /* ==========================================================
