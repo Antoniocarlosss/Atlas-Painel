@@ -787,6 +787,39 @@ header {
     color: #111827 !important;
 }
 
+#render-modulo button.atlas-guia-btn-editar,
+#render-modulo button.atlas-guia-btn-editar[onclick^="atlasAbrirLadoGuiaInjecao"] {
+    display: inline-flex !important;
+    grid-column: auto !important;
+    grid-row: auto !important;
+    width: auto !important;
+    min-width: 74px !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    padding: 0 12px !important;
+    background: #fbbf24 !important;
+    color: #111827 !important;
+    border: 1px solid #fde68a !important;
+    border-left: 1px solid #fde68a !important;
+    border-radius: 7px !important;
+    box-shadow: none !important;
+    font-size: 12px !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    opacity: 1 !important;
+    transform: none !important;
+}
+
+#render-modulo button.atlas-guia-btn-editar:hover,
+#render-modulo button.atlas-guia-btn-editar[onclick^="atlasAbrirLadoGuiaInjecao"]:hover {
+    background: #f59e0b !important;
+    color: #111827 !important;
+    border-color: #fbbf24 !important;
+}
+
 #render-modulo .atlas-guia-btn-apagar {
     background: #ef4444 !important;
     color: #fff !important;
