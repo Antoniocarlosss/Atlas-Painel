@@ -9917,12 +9917,6 @@ document.addEventListener('click', function(evento) {
         evento.stopPropagation();
         evento.stopImmediatePropagation();
 
-        const atual = atlasParametrosRota();
-        if (atual.modulo && !atual.pagina) {
-            atlasAbrirPaginaModuloNovaAba(rota.modulo, rota.pagina);
-            return;
-        }
-
         atlasNavegarPaginaModulo(rota.modulo, rota.pagina);
     }, true);
 
@@ -9942,14 +9936,8 @@ document.addEventListener('click', function(evento) {
         const naHome = document.getElementById('grid-home')?.style.display !== 'none';
         if (!moduloAtual && naHome && !window.atlasModuloEmAbaExterna) {
             if (usuarioLogado?.id) localStorage.setItem('atlas_sessao_usuario_id', usuarioLogado.id);
-            const url = new URL(location.href);
-            url.searchParams.delete('atlas_modulo');
-            url.searchParams.delete('atlas_nocache');
-            url.searchParams.set('modulo', modulo);
-            const nova = window.open(url.toString(), '_blank');
-            if (!nova) alert('Autorize pop-ups para o Atlas abrir o modulo em nova pagina.');
-            else { try { nova.focus(); } catch (erro) {} }
-            return;
+            atlasAtualizarUrlRota(modulo, '', false);
+            return atlasAbrirModuloNaMesmaPagina(modulo);
         }
         atlasAtualizarUrlRota(modulo, '', false);
         return atlasAbrirModuloNaMesmaPagina(modulo);
