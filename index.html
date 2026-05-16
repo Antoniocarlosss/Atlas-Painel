@@ -18,7 +18,7 @@
         html.atlas-route-loading #tela-login { display: none !important; }
         html.atlas-route-loading #app-principal { display: block !important; }
     </style>
-    <link rel="stylesheet" href="style.css?v=20260516-rotas-165">
+    <link rel="stylesheet" href="style.css?v=20260516-sem-abas-install-166">
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
@@ -79,6 +79,10 @@
                 </button>
                 <button onclick="abrirModulo('config')" class="atlas-header-action" title="Configuracoes">
                     <i class="fas fa-gear"></i>
+                </button>
+                <button id="atlas-install-app-btn" onclick="atlasInstalarAppAtlas()" class="atlas-install-button" style="display:none;" title="Baixar aplicativo">
+                    <i class="fas fa-download"></i>
+                    <span>Baixar app</span>
                 </button>
                 <button onclick="atlasSairSistema()" class="btn-logout">Sair</button>
             </div>
@@ -180,8 +184,8 @@
             });
         })();
 
-        window.ATLAS_SISTEMA_VERSAO = '20260516-rotas-165';
-        window.ATLAS_SISTEMA_BUILD = 165;
+        window.ATLAS_SISTEMA_VERSAO = '20260516-sem-abas-install-166';
+        window.ATLAS_SISTEMA_BUILD = 166;
         window.atlasMostrarTelaAtualizacao = function atlasMostrarTelaAtualizacao(opcoes = {}) {
             const finalizado = opcoes.finalizado === true;
             let overlay = document.getElementById('atlas-update-screen');
@@ -328,6 +332,49 @@
         window.addEventListener('atlasAtualizacaoGlobalAtualizada', window.atlasChecarAvisoVersaoPublicada);
         window.addEventListener('load', () => setTimeout(window.atlasChecarAvisoVersaoPublicada, 2500));
 
+        window.atlasInstallPromptPendente = null;
+        window.atlasAppEstaInstalado = function atlasAppEstaInstalado() {
+            return window.matchMedia('(display-mode: standalone)').matches
+                || window.navigator.standalone === true
+                || document.referrer.startsWith('android-app://');
+        };
+
+        window.atlasAtualizarBotaoInstalar = function atlasAtualizarBotaoInstalar() {
+            const botao = document.getElementById('atlas-install-app-btn');
+            if (!botao) return;
+            botao.style.display = window.atlasAppEstaInstalado() ? 'none' : 'inline-flex';
+        };
+
+        window.atlasInstalarAppAtlas = async function atlasInstalarAppAtlas() {
+            if (window.atlasAppEstaInstalado()) {
+                window.atlasAtualizarBotaoInstalar();
+                return;
+            }
+
+            if (window.atlasInstallPromptPendente) {
+                const promptInstalacao = window.atlasInstallPromptPendente;
+                window.atlasInstallPromptPendente = null;
+                promptInstalacao.prompt();
+                await promptInstalacao.userChoice.catch(() => null);
+                window.atlasAtualizarBotaoInstalar();
+                return;
+            }
+
+            alert('Para baixar o Atlas, use o menu do navegador e escolha "Instalar aplicativo" ou "Adicionar a tela inicial".');
+        };
+
+        window.addEventListener('beforeinstallprompt', evento => {
+            evento.preventDefault();
+            window.atlasInstallPromptPendente = evento;
+            window.atlasAtualizarBotaoInstalar();
+        });
+
+        window.addEventListener('appinstalled', () => {
+            window.atlasInstallPromptPendente = null;
+            window.atlasAtualizarBotaoInstalar();
+        });
+        window.addEventListener('load', () => setTimeout(window.atlasAtualizarBotaoInstalar, 500));
+
         (function prepararAtualizacaoAtlas() {
             const chaveVersao = 'atlas_sistema_versao';
             const chaveAviso = 'atlas_sistema_mostrar_atualizado';
@@ -352,10 +399,10 @@
             Promise.allSettled([limparCaches, atualizarWorker]);
         })();
     </script>
-    <script src="script.js?v=20260516-rotas-165"></script>
-    <script src="historicos-admin.js?v=20260516-rotas-165"></script>
-    <script src="atlas-ajustes-fachadas.js?v=20260516-rotas-165"></script>
-    <script type="module" src="js/main.js?v=20260516-rotas-165"></script>
+    <script src="script.js?v=20260516-sem-abas-install-166"></script>
+    <script src="historicos-admin.js?v=20260516-sem-abas-install-166"></script>
+    <script src="atlas-ajustes-fachadas.js?v=20260516-sem-abas-install-166"></script>
+    <script type="module" src="js/main.js?v=20260516-sem-abas-install-166"></script>
     <script>
         if ('serviceWorker' in navigator) {
             let atlasAtualizandoPWA = false;
@@ -366,7 +413,7 @@
             });
 
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=20260516-rotas-165')
+                navigator.serviceWorker.register('sw.js?v=20260516-sem-abas-install-166')
                     .then(reg => {
                         console.log('Atlas PWA: Ativo!');
                         reg.update();

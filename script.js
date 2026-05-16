@@ -9848,6 +9848,7 @@ document.addEventListener('click', function(evento) {
         if (window.atlasModuloAtual !== 'injecao') return;
         if (typeof window.atlasAbrirGuiasInjecao !== 'function') return;
         const render = document.getElementById('render-modulo');
+        if (render?.querySelector('input, select, textarea')) return;
         const grid = render?.querySelector('div[style*="grid-template-columns"], .atlas-menu-modulo');
         if (!grid || document.getElementById('atlas-card-guias-injecao')) return;
 
@@ -10289,6 +10290,7 @@ document.addEventListener('click', function(evento) {
     function inserirCardGuiasInjecao() {
         if (window.atlasModuloAtual !== 'injecao') return;
         const render = document.getElementById('render-modulo');
+        if (render?.querySelector('input, select, textarea')) return;
         const grid = render?.querySelector('div[style*="grid-template-columns"]');
         if (!grid || document.getElementById('atlas-card-guias-injecao')) return;
         grid.style.gridTemplateColumns = 'repeat(auto-fit, minmax(260px, 1fr))';

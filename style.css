@@ -297,6 +297,29 @@ header {
     color: #fff;
 }
 
+.atlas-install-button {
+    height: 44px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid #22c55e;
+    border-radius: 8px;
+    background: #064e3b;
+    color: #fff;
+    padding: 0 14px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.atlas-install-button i {
+    font-size: 15px;
+}
+
+.atlas-install-button:hover {
+    background: #047857;
+    border-color: #34d399;
+}
+
 #grid-home.atlas-dashboard {
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 18px;
@@ -2680,6 +2703,17 @@ table {
 }
 
 @media (max-width: 520px) {
+    .atlas-install-button span {
+        display: none;
+    }
+
+    .atlas-install-button {
+        width: 44px;
+        min-width: 44px;
+        justify-content: center;
+        padding: 0;
+    }
+
     #grid-home.atlas-dashboard {
         grid-template-columns: 1fr;
         gap: 14px;
