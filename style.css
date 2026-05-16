@@ -776,6 +776,15 @@ header {
 #render-modulo .atlas-guia-btn-editar {
     background: #f59e0b !important;
     color: #111827 !important;
+    border: 1px solid #fbbf24 !important;
+    font-weight: 900 !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
+}
+
+#render-modulo .atlas-guia-btn-editar,
+#render-modulo .atlas-guia-btn-editar * {
+    color: #111827 !important;
 }
 
 #render-modulo .atlas-guia-btn-apagar {
