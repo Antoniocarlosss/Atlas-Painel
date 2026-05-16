@@ -1147,6 +1147,35 @@ function atlasInicializarDashboardHome() {
 function atlasPolirMenusModulos() {
     const render = document.getElementById('render-modulo');
     if (!render) return;
+    const moduloAtual = String(window.atlasModuloAtual || document.getElementById('titulo-modulo')?.innerText || '').toLowerCase();
+    const descricoes = {
+        injecao: {
+            'novo relat': 'Abrir apontamento de producao',
+            'histor': 'Consultar dias finalizados',
+            'guias': 'Guias, ferros e fotos tecnicas'
+        },
+        bobines: {
+            'criar': 'Lancamentos de bobines e filmes',
+            'histor': 'Relatorios fechados',
+            'calc. bobina': 'Metros e tempo de bobina',
+            'calc. agro': 'Calculo Agropainel'
+        },
+        serra: {
+            'novo relat': 'Corte, pedidos e metros',
+            'histor': 'Historico da serra',
+            'pacotes': 'Montagem por encomenda'
+        },
+        embalagem: {
+            'novo relat': 'Separacao, PPC e paletes',
+            'histor': 'Historico da embalagem'
+        },
+        plano: {
+            'novo': 'Criar ou retomar planeamento',
+            'histor': 'Planos fechados',
+            'stock': 'Planeamento por stock',
+            'pedido': 'Planeamento por encomenda'
+        }
+    };
 
     render.querySelectorAll(':scope > div').forEach(bloco => {
         const cards = bloco.querySelectorAll(':scope > .card');
@@ -1160,6 +1189,17 @@ function atlasPolirMenusModulos() {
                     el.removeAttribute('style');
                 }
             });
+
+            if (!card.querySelector('small')) {
+                const texto = String(card.querySelector('span')?.innerText || card.innerText || '').toLowerCase();
+                const grupo = descricoes[moduloAtual] || {};
+                const chave = Object.keys(grupo).find(k => texto.includes(k));
+                if (chave) {
+                    const small = document.createElement('small');
+                    small.innerText = grupo[chave];
+                    card.appendChild(small);
+                }
+            }
         });
     });
 }
