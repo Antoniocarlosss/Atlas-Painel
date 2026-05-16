@@ -715,6 +715,10 @@ header {
 }
 
 /* --- ATLAS INDUSTRIAL V158: GUIAS / FERROS MAIS COMPACTO --- */
+.atlas-rota-menu-oculto {
+    display: none !important;
+}
+
 #render-modulo .atlas-guia-form {
     width: min(900px, 100%) !important;
     margin: 0 auto 18px !important;

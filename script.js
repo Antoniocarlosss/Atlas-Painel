@@ -9765,8 +9765,22 @@ document.addEventListener('click', function(evento) {
     function atlasOcultarMenusInternos(ids) {
         ids.forEach(id => {
             const el = document.getElementById(id);
-            if (el) el.style.display = 'none';
+            if (el) {
+                el.style.display = 'none';
+                el.classList.add('atlas-rota-menu-oculto');
+            }
         });
+    }
+
+    function atlasOcultarMenuModuloAtual(modulo) {
+        const ids = {
+            gestao: ['menu-gestao'],
+            serra: ['menu-inicial-serra'],
+            embalagem: ['container-menu-emb'],
+            plano: ['container-menu-plano'],
+            stock: ['stock-menu-atlas']
+        };
+        atlasOcultarMenusInternos(ids[modulo] || []);
     }
 
     function atlasParametrosRota() {
@@ -9853,6 +9867,7 @@ document.addEventListener('click', function(evento) {
         if (pagina && typeof renderPagina === 'function') {
             setTimeout(() => {
                 renderPagina();
+                atlasOcultarMenuModuloAtual(modulo);
                 if (typeof atlasPolirMenusModulos === 'function') atlasPolirMenusModulos();
             }, 60);
         }
@@ -9862,6 +9877,21 @@ document.addEventListener('click', function(evento) {
         if (!modulo) return;
         atlasAtualizarUrlRota(modulo, pagina, false);
         atlasAplicarRotaAtual(true);
+    }
+
+    function atlasAbrirPaginaModuloNovaAba(modulo, pagina) {
+        if (usuarioLogado?.id) localStorage.setItem('atlas_sessao_usuario_id', usuarioLogado.id);
+        const url = new URL(location.href);
+        url.searchParams.delete('atlas_modulo');
+        url.searchParams.delete('atlas_nocache');
+        url.searchParams.set('modulo', modulo);
+        url.searchParams.set('pagina', pagina);
+        const nova = window.open(url.toString(), '_blank');
+        if (!nova) {
+            alert('O navegador bloqueou a nova aba. Autorize pop-ups para o Atlas e tente novamente.');
+            return;
+        }
+        try { nova.focus(); } catch (erro) {}
     }
 
     function atlasRotaPorOnclick(onclick) {
@@ -9879,6 +9909,13 @@ document.addEventListener('click', function(evento) {
         evento.preventDefault();
         evento.stopPropagation();
         evento.stopImmediatePropagation();
+
+        const atual = atlasParametrosRota();
+        if (atual.modulo && !atual.pagina) {
+            atlasAbrirPaginaModuloNovaAba(rota.modulo, rota.pagina);
+            return;
+        }
+
         atlasNavegarPaginaModulo(rota.modulo, rota.pagina);
     }, true);
 
