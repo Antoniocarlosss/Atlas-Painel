@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v164-rotas';
+const CACHE_NAME = 'atlas-v165-rotas';
 const assets = [
   './',
   './index.html',

@@ -856,6 +856,13 @@ header {
     }
 }
 
+/* Ultima regra: paginas por rota nao devem mostrar o menu do modulo junto. */
+#render-modulo .atlas-rota-menu-oculto,
+#render-modulo > .atlas-rota-menu-oculto,
+.atlas-rota-menu-oculto {
+    display: none !important;
+}
+
 /* --- ATLAS INDUSTRIAL V157: CARDS MAIS LEGIVEIS E GUIAS ATUALIZADAS --- */
 #render-modulo > .atlas-menu-modulo,
 #render-modulo > div[style*="display:grid"]:has(> .card) {

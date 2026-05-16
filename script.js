@@ -9805,14 +9805,21 @@ document.addEventListener('click', function(evento) {
     function atlasRestaurarSessaoParaRota() {
         if (usuarioLogado) return true;
         const idSessao = localStorage.getItem('atlas_sessao_usuario_id');
-        if (!idSessao) return false;
+        if (!idSessao) {
+            document.documentElement.classList.remove('atlas-route-loading');
+            return false;
+        }
         const usuarioSessao = String(idSessao).toLowerCase() === 'admin'
             ? garantirAdminSistemaAtlas()
             : (usuariosSistema || []).find(usuario => String(usuario.id).toLowerCase() === String(idSessao).toLowerCase());
-        if (!usuarioSessao) return false;
+        if (!usuarioSessao) {
+            document.documentElement.classList.remove('atlas-route-loading');
+            return false;
+        }
 
         usuarioLogado = usuarioSessao;
         window.usuarioLogado = usuarioLogado;
+        document.documentElement.classList.remove('atlas-route-loading');
         document.getElementById('tela-login').style.display = 'none';
         document.getElementById('app-principal').style.display = 'block';
         document.getElementById('user-display').innerText = String(usuarioLogado.id || 'OPERADOR').toUpperCase();
@@ -9972,7 +9979,7 @@ document.addEventListener('click', function(evento) {
    NAVEGACAO: MODULOS DA HOME EM NOVA ABA
    ========================================================== */
 (function() {
-    if (window.atlasModulosNovaAbaAtivo) return;
+    if (window.atlasModulosNovaAbaAtivo || window.atlasRotasInternasAtivas) return;
     window.atlasModulosNovaAbaAtivo = true;
 
     function atlasModuloUrl(nome) {
