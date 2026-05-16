@@ -1132,6 +1132,7 @@ function atlasInicializarDashboardHome() {
     atlasAplicarVisualHome();
     atlasMelhorarCardsHome();
     setTimeout(atlasMelhorarCardsHome, 500);
+    atlasAtivarPolimentoModulos();
     atlasAtualizarRelogioHome();
     atlasAtualizarDashboardHome();
 
@@ -1141,6 +1142,38 @@ function atlasInicializarDashboardHome() {
             atlasAtualizarDashboardHome();
         }, 1000);
     }
+}
+
+function atlasPolirMenusModulos() {
+    const render = document.getElementById('render-modulo');
+    if (!render) return;
+
+    render.querySelectorAll(':scope > div').forEach(bloco => {
+        const cards = bloco.querySelectorAll(':scope > .card');
+        if (!cards.length) return;
+
+        bloco.classList.add('atlas-menu-modulo');
+        cards.forEach(card => {
+            card.classList.add('atlas-menu-modulo-card');
+            card.querySelectorAll('[style]').forEach(el => {
+                if (el.tagName === 'I' || el.tagName === 'SPAN' || el.tagName === 'SMALL') {
+                    el.removeAttribute('style');
+                }
+            });
+        });
+    });
+}
+
+function atlasAtivarPolimentoModulos() {
+    const render = document.getElementById('render-modulo');
+    if (!render || window.atlasObserverPolimentoModulos) return;
+
+    window.atlasObserverPolimentoModulos = new MutationObserver(() => {
+        clearTimeout(window.atlasTimerPolimentoModulos);
+        window.atlasTimerPolimentoModulos = setTimeout(atlasPolirMenusModulos, 30);
+    });
+    window.atlasObserverPolimentoModulos.observe(render, { childList: true, subtree: false });
+    atlasPolirMenusModulos();
 }
 
 function atlasAplicarVisualHome() {

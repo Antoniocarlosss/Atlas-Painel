@@ -2448,3 +2448,89 @@ body.tema-claro #grid-home.atlas-dashboard > .card i,
 body.tema-claro .atlas-user-copy strong {
     color: #0f172a;
 }
+
+/* --- PADRAO NOVO PARA MENUS INTERNOS DOS MODULOS --- */
+#render-modulo > .atlas-menu-modulo,
+#render-modulo > div[style*="display:grid"]:has(> .card) {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) !important;
+    gap: 14px !important;
+    padding: 26px 4% !important;
+    align-items: stretch !important;
+}
+
+#render-modulo .atlas-menu-modulo-card,
+#render-modulo > div[style*="display:grid"]:has(> .card) > .card {
+    min-height: 118px !important;
+    height: auto !important;
+    padding: 18px !important;
+    border-radius: 8px !important;
+    background: #111827 !important;
+    border: 1px solid #334155 !important;
+    box-shadow: none !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 16px !important;
+    text-align: left !important;
+    transform: none;
+}
+
+#render-modulo .atlas-menu-modulo-card:hover,
+#render-modulo > div[style*="display:grid"]:has(> .card) > .card:hover {
+    border-color: var(--atlas-red) !important;
+    background: #162033 !important;
+    transform: translateY(-2px) !important;
+}
+
+#render-modulo .atlas-menu-modulo-card i,
+#render-modulo > div[style*="display:grid"]:has(> .card) > .card i {
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 44px !important;
+    margin: 0 !important;
+    border-radius: 8px !important;
+    background: #0b1120 !important;
+    color: #f8fafc !important;
+    border: 1px solid #334155 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 21px !important;
+}
+
+#render-modulo .atlas-menu-modulo-card span,
+#render-modulo > div[style*="display:grid"]:has(> .card) > .card span {
+    color: #fff !important;
+    display: block !important;
+    margin: 0 !important;
+    font-size: 15px !important;
+    line-height: 1.2 !important;
+    font-weight: 800 !important;
+    text-align: left !important;
+    text-transform: uppercase !important;
+}
+
+#render-modulo .atlas-menu-modulo-card small,
+#render-modulo > div[style*="display:grid"]:has(> .card) > .card small {
+    color: #94a3b8 !important;
+    display: block !important;
+    font-size: 12px !important;
+    margin-top: 4px !important;
+    text-align: left !important;
+}
+
+@media (max-width: 768px) {
+    #render-modulo > .atlas-menu-modulo,
+    #render-modulo > div[style*="display:grid"]:has(> .card) {
+        grid-template-columns: 1fr !important;
+        padding: 14px !important;
+    }
+
+    #render-modulo .atlas-menu-modulo-card,
+    #render-modulo > div[style*="display:grid"]:has(> .card) > .card {
+        min-height: 86px !important;
+        padding: 14px !important;
+    }
+}
