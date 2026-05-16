@@ -9895,13 +9895,13 @@ document.addEventListener('click', function(evento) {
         if (!podeEditarGuiasInjecao()) return '';
         const editando = !!item;
         return `
-            <div style="background:#111827; border:1px solid #3b82f6; border-radius:10px; padding:14px; margin-bottom:15px;">
+            <div class="atlas-guia-form" style="background:#111827; border:1px solid #3b82f6; border-radius:10px; padding:14px; margin-bottom:15px;">
                 <h3 style="margin:0 0 12px; color:white; font-size:16px;">${editando ? 'Editar ferro' : 'Adicionar ferro'}</h3>
                 <input id="guia-ferro-id" type="hidden" value="${escGuia(item?.id || '')}">
                 <input id="guia-ferro-nome" value="${escGuia(item?.nome || '')}" placeholder="Ex: Ferro 1" style="width:100%; padding:12px; background:#020617; color:white; border:1px solid #334155; border-radius:8px; margin-bottom:10px;">
                 <input id="guia-ferro-posicao" value="${escGuia(item?.posicao || '')}" placeholder="Posicao da guia / observacao curta" style="width:100%; padding:12px; background:#020617; color:white; border:1px solid #334155; border-radius:8px; margin-bottom:10px;">
                 <textarea id="guia-ferro-nota" placeholder="Detalhes de montagem" style="width:100%; min-height:75px; padding:12px; background:#020617; color:white; border:1px solid #334155; border-radius:8px; margin-bottom:10px;">${escGuia(item?.nota || '')}</textarea>
-                <label style="display:block; color:#94a3b8; font-size:12px; margin-bottom:10px;">Foto
+                <label class="atlas-guia-file-label" style="display:block; color:#94a3b8; font-size:12px; margin-bottom:10px;">Foto
                     <input id="guia-ferro-foto" type="file" accept="image/*" onchange="atlasPreviewArquivoGuia(this)" style="width:100%; margin-top:5px; color:white;">
                 </label>
                 <div id="guia-preview-midia" style="display:none; margin-bottom:10px; background:#020617; border:1px solid #334155; border-radius:8px; padding:10px; color:#bfdbfe; font-size:13px;"></div>
@@ -10020,15 +10020,15 @@ document.addEventListener('click', function(evento) {
                 ${htmlFormGuia(tipo, lado, itemEditando)}
                 <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:12px;">
                     ${lista.length ? lista.map(item => `
-                        <div style="background:#1e293b; border:1px solid #334155; border-radius:10px; padding:14px;">
-                            <div style="display:flex; justify-content:space-between; gap:8px; align-items:flex-start;">
+                        <div class="atlas-guia-ferro-card" style="background:#1e293b; border:1px solid #334155; border-radius:10px; padding:14px;">
+                            <div class="atlas-guia-ferro-topo" style="display:flex; justify-content:space-between; gap:8px; align-items:flex-start;">
                                 <div>
                                     <b style="font-size:16px;">${escGuia(item.nome || 'Ferro')}</b><br>
                                     <small style="color:#60a5fa;">${escGuia(item.posicao || 'Sem posicao informada')}</small>
                                 </div>
-                                ${podeEditar ? `<div style="display:flex; gap:6px;">
-                                    <button onclick="atlasAbrirLadoGuiaInjecao('${jsGuia(tipo)}','${lado}','${jsGuia(item.id)}')" style="background:#f59e0b; color:black; border:none; border-radius:6px; padding:8px; font-weight:bold;">EDITAR</button>
-                                    <button onclick="atlasApagarFerroGuiaInjecao('${jsGuia(tipo)}','${lado}','${jsGuia(item.id)}')" style="background:#ef4444; color:white; border:none; border-radius:6px; padding:8px; font-weight:bold;">X</button>
+                                ${podeEditar ? `<div class="atlas-guia-acoes" style="display:flex; gap:6px;">
+                                    <button class="atlas-guia-btn-editar" onclick="atlasAbrirLadoGuiaInjecao('${jsGuia(tipo)}','${lado}','${jsGuia(item.id)}')" style="background:#f59e0b; color:black; border:none; border-radius:6px; padding:8px; font-weight:bold;">EDITAR</button>
+                                    <button class="atlas-guia-btn-apagar" onclick="atlasApagarFerroGuiaInjecao('${jsGuia(tipo)}','${lado}','${jsGuia(item.id)}')" style="background:#ef4444; color:white; border:none; border-radius:6px; padding:8px; font-weight:bold;">X</button>
                                 </div>` : ''}
                             </div>
                             ${item.nota ? `<div style="color:#cbd5e1; font-size:13px; margin-top:10px; line-height:1.45;">${escGuia(item.nota)}</div>` : ''}

@@ -714,6 +714,102 @@ header {
     }
 }
 
+/* --- ATLAS INDUSTRIAL V158: GUIAS / FERROS MAIS COMPACTO --- */
+#render-modulo .atlas-guia-form {
+    width: min(900px, 100%) !important;
+    margin: 0 auto 18px !important;
+    background: #172033 !important;
+    border-color: #3b475c !important;
+    border-left: 4px solid var(--atlas-red) !important;
+    border-radius: 8px !important;
+}
+
+#render-modulo .atlas-guia-file-label input[type="file"] {
+    min-height: 42px !important;
+    padding: 8px 10px !important;
+    border-radius: 8px !important;
+    font-size: 14px !important;
+}
+
+#render-modulo .atlas-guia-ferro-card {
+    min-height: auto !important;
+    background: #172033 !important;
+    border: 1px solid #3b475c !important;
+    border-radius: 8px !important;
+    padding: 14px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 10px !important;
+}
+
+#render-modulo .atlas-guia-ferro-topo {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto !important;
+    align-items: start !important;
+    gap: 10px !important;
+}
+
+#render-modulo .atlas-guia-acoes {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+}
+
+#render-modulo .atlas-guia-acoes button,
+#render-modulo .atlas-guia-btn-editar,
+#render-modulo .atlas-guia-btn-apagar {
+    width: auto !important;
+    min-width: 42px !important;
+    max-width: none !important;
+    height: 34px !important;
+    min-height: 34px !important;
+    padding: 0 10px !important;
+    border-radius: 7px !important;
+    font-size: 12px !important;
+    line-height: 1 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    flex: 0 0 auto !important;
+}
+
+#render-modulo .atlas-guia-btn-editar {
+    background: #f59e0b !important;
+    color: #111827 !important;
+}
+
+#render-modulo .atlas-guia-btn-apagar {
+    background: #ef4444 !important;
+    color: #fff !important;
+}
+
+#render-modulo .atlas-guia-ferro-card [style*="grid-template-columns:repeat(auto-fit,minmax(130px,1fr))"] {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+    margin-top: 4px !important;
+}
+
+#render-modulo .atlas-guia-ferro-card button[onclick^="atlasAbrirMidiaGuia"] {
+    min-height: 128px !important;
+    height: 128px !important;
+    border-radius: 8px !important;
+    padding: 0 !important;
+}
+
+#render-modulo .atlas-guia-ferro-card button[onclick^="atlasAbrirMidiaGuia"] img {
+    height: 128px !important;
+}
+
+@media (max-width: 768px) {
+    #render-modulo .atlas-guia-ferro-topo {
+        grid-template-columns: 1fr !important;
+    }
+
+    #render-modulo .atlas-guia-acoes {
+        justify-content: flex-start !important;
+    }
+}
+
 /* --- ATLAS INDUSTRIAL V157: CARDS MAIS LEGIVEIS E GUIAS ATUALIZADAS --- */
 #render-modulo > .atlas-menu-modulo,
 #render-modulo > div[style*="display:grid"]:has(> .card) {
