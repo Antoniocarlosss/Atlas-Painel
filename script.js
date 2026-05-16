@@ -9812,10 +9812,32 @@ document.addEventListener('click', function(evento) {
         const antes = window.atlasModuloEmAbaExterna;
         window.atlasModuloEmAbaExterna = true;
         try {
-            return window.atlasAbrirModuloBaseRota(modulo);
+            const retorno = window.atlasAbrirModuloBaseRota(modulo);
+            if (modulo === 'injecao') {
+                setTimeout(atlasGarantirCardGuiasInjecaoRota, 80);
+                setTimeout(atlasGarantirCardGuiasInjecaoRota, 350);
+            }
+            return retorno;
         } finally {
             window.atlasModuloEmAbaExterna = antes;
         }
+    }
+
+    function atlasGarantirCardGuiasInjecaoRota() {
+        if (window.atlasModuloAtual !== 'injecao') return;
+        if (typeof window.atlasAbrirGuiasInjecao !== 'function') return;
+        const render = document.getElementById('render-modulo');
+        const grid = render?.querySelector('div[style*="grid-template-columns"], .atlas-menu-modulo');
+        if (!grid || document.getElementById('atlas-card-guias-injecao')) return;
+
+        grid.insertAdjacentHTML('beforeend', `
+            <div id="atlas-card-guias-injecao" class="card atlas-menu-modulo-card" onclick="atlasAbrirGuiasInjecao()">
+                <i class="fas fa-grip-lines"></i>
+                <span>Guias / Ferros</span>
+                <small>Guias, ferros e fotos tecnicas</small>
+            </div>
+        `);
+        if (typeof atlasPolirMenusModulos === 'function') atlasPolirMenusModulos();
     }
 
     function atlasAplicarRotaAtual(substituir = true) {
