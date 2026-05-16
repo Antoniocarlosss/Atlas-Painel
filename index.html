@@ -9,7 +9,7 @@
     <title>Atlas Painel - Gestão</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css?v=20260516-dashboard-153">
+    <link rel="stylesheet" href="style.css?v=20260516-dashboard-154">
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
@@ -65,6 +65,9 @@
                     <strong id="user-display">OPERADOR</strong>
                 </div>
                 <div class="atlas-header-clock" id="atlas-home-datahora">--/--/---- --:--</div>
+                <button onclick="atlasAlternarVisualHome()" class="atlas-header-action" title="Alternar visual da Home">
+                    <i class="fas fa-table-cells-large"></i>
+                </button>
                 <button onclick="abrirModulo('config')" class="atlas-header-action" title="Configuracoes">
                     <i class="fas fa-gear"></i>
                 </button>
@@ -77,44 +80,34 @@
                 <div class="atlas-dashboard-hero">
                     <div>
                         <span class="atlas-kicker">Painel operacional</span>
-                        <h1>Controle diario da fabrica</h1>
-                        <p>Acesse os modulos principais, acompanhe o andamento do dia e execute as acoes mais usadas em poucos toques.</p>
+                        <h1>Atlas - operacao de fabrica</h1>
+                        <p>Navegacao direta para producao, stock, relatorios, pesquisa e controlo diario.</p>
                     </div>
                     <div class="atlas-hero-badge">
                         <i class="fas fa-industry"></i>
-                        <span>Sistema online</span>
+                        <span>Turno em andamento</span>
                     </div>
                 </div>
 
                 <div class="atlas-status-grid">
-                    <div class="atlas-status-card">
-                        <span>Relatorios abertos</span>
-                        <strong id="atlas-home-relatorios-abertos">0</strong>
-                    </div>
-                    <div class="atlas-status-card">
+                    <button type="button" class="atlas-status-card atlas-status-click" onclick="atlasAbrirPendenciasHome()">
                         <span>Relatorios pendentes</span>
                         <strong id="atlas-home-relatorios-pendentes">0</strong>
-                    </div>
-                    <div class="atlas-status-card">
-                        <span>Producao finalizada</span>
-                        <strong id="atlas-home-producao-finalizada">0</strong>
-                    </div>
-                    <div class="atlas-status-card">
-                        <span>Usuarios ativos</span>
-                        <strong id="atlas-home-usuarios-ativos">1</strong>
-                    </div>
-                    <div class="atlas-status-card atlas-status-wide">
-                        <span>Ultima atualizacao</span>
-                        <strong id="atlas-home-ultima-atualizacao">Agora</strong>
+                        <small>Clique para ver as secoes abertas</small>
+                    </button>
+                    <div class="atlas-status-card atlas-clock-card">
+                        <span>Hora atual</span>
+                        <strong id="atlas-home-relogio">--:--:--</strong>
+                        <small id="atlas-home-data-curta">--/--/----</small>
                     </div>
                 </div>
 
                 <div class="atlas-quick-actions">
-                    <button onclick="abrirModulo('injecao')"><i class="fas fa-plus"></i><span>Criar relatorio</span></button>
-                    <button onclick="abrirModulo('gestao')"><i class="fas fa-clock-rotate-left"></i><span>Ver historico</span></button>
-                    <button onclick="atlasAtalhoExportarPDF()"><i class="fas fa-file-pdf"></i><span>Exportar PDF</span></button>
-                    <button onclick="atlasAtalhoCalculadoraBobine()"><i class="fas fa-calculator"></i><span>Calculadora</span></button>
-                    <button onclick="atlasAtalhoScannerFoto()"><i class="fas fa-camera"></i><span>Scanner/foto</span></button>
+                    <button onclick="atlasAbrirEscolhaHome('criar')"><i class="fas fa-plus"></i><span>Criar relatorio</span></button>
+                    <button onclick="atlasAbrirEscolhaHome('historico')"><i class="fas fa-clock-rotate-left"></i><span>Ver historico</span></button>
+                    <button onclick="atlasAbrirEscolhaHome('calculadora')"><i class="fas fa-calculator"></i><span>Calculadora</span></button>
+                    <button onclick="abrirModulo('conferencia')"><i class="fas fa-clipboard-check"></i><span>Conferencia</span></button>
+                    <button onclick="abrirModulo('pesquisa_encomenda')"><i class="fas fa-search"></i><span>Pesquisa</span></button>
                     <button onclick="abrirModulo('config')"><i class="fas fa-sliders"></i><span>Configuracoes</span></button>
                 </div>
 
@@ -178,8 +171,8 @@
             });
         })();
 
-        window.ATLAS_SISTEMA_VERSAO = '20260516-dashboard-153';
-        window.ATLAS_SISTEMA_BUILD = 153;
+        window.ATLAS_SISTEMA_VERSAO = '20260516-dashboard-154';
+        window.ATLAS_SISTEMA_BUILD = 154;
         window.atlasMostrarTelaAtualizacao = function atlasMostrarTelaAtualizacao(opcoes = {}) {
             const finalizado = opcoes.finalizado === true;
             let overlay = document.getElementById('atlas-update-screen');
@@ -350,10 +343,10 @@
             Promise.allSettled([limparCaches, atualizarWorker]);
         })();
     </script>
-    <script src="script.js?v=20260516-dashboard-153"></script>
-    <script src="historicos-admin.js?v=20260516-dashboard-153"></script>
-    <script src="atlas-ajustes-fachadas.js?v=20260516-dashboard-153"></script>
-    <script type="module" src="js/main.js?v=20260516-dashboard-153"></script>
+    <script src="script.js?v=20260516-dashboard-154"></script>
+    <script src="historicos-admin.js?v=20260516-dashboard-154"></script>
+    <script src="atlas-ajustes-fachadas.js?v=20260516-dashboard-154"></script>
+    <script type="module" src="js/main.js?v=20260516-dashboard-154"></script>
     <script>
         if ('serviceWorker' in navigator) {
             let atlasAtualizandoPWA = false;
@@ -364,7 +357,7 @@
             });
 
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=20260516-dashboard-153')
+                navigator.serviceWorker.register('sw.js?v=20260516-dashboard-154')
                     .then(reg => {
                         console.log('Atlas PWA: Ativo!');
                         reg.update();

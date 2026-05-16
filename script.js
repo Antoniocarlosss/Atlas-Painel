@@ -1038,6 +1038,34 @@ function atlasHomeContarUsuariosAtivos() {
     return Math.max(ativos.length, usuarioLogado ? 1 : 0);
 }
 
+function atlasHomeContarPlanoAberto() {
+    const plano = atlasHomeJSON('atlas_plano_live', null);
+    if (!plano) return 0;
+    return (plano.linhasAbertas || []).length + (plano.gruposFinalizados || []).reduce((acc, grupo) => acc + (grupo.itens || []).length, 0);
+}
+
+function atlasHomeSecoesPendentes() {
+    const secoes = [
+        {
+            chave: 'injecao',
+            nome: 'Injecao',
+            icone: 'fas fa-microchip',
+            qtd: typeof producoesDoDia !== 'undefined' && Array.isArray(producoesDoDia) ? producoesDoDia.length : 0
+        },
+        {
+            chave: 'bobines',
+            nome: 'Bobines',
+            icone: 'fas fa-compact-disc',
+            qtd: typeof lancamentosTemporarios !== 'undefined' && Array.isArray(lancamentosTemporarios) ? lancamentosTemporarios.length : 0
+        },
+        { chave: 'serra', nome: 'Serra', icone: 'fas fa-layer-group', qtd: atlasHomeContarLista('atlas_serra_live') },
+        { chave: 'embalagem', nome: 'Embalagem', icone: 'fas fa-boxes-packing', qtd: atlasHomeContarLista('atlas_emb_live') },
+        { chave: 'plano', nome: 'Plano', icone: 'fas fa-clipboard-list', qtd: atlasHomeContarPlanoAberto() }
+    ];
+
+    return secoes.filter(secao => secao.qtd > 0 && usuarioPodeVerModulo(secao.chave));
+}
+
 function atlasAtualizarRelogioHome() {
     const agora = new Date();
     const hora = agora.getHours();
@@ -1051,39 +1079,23 @@ function atlasAtualizarRelogioHome() {
         month: '2-digit',
         year: 'numeric',
         hour: '2-digit',
-        minute: '2-digit'
+        minute: '2-digit',
+        second: '2-digit'
     }));
+    atlasHomeDefinirTexto('atlas-home-relogio', agora.toLocaleTimeString('pt-PT', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    }));
+    atlasHomeDefinirTexto('atlas-home-data-curta', agora.toLocaleDateString('pt-PT'));
 
     const userDisplay = document.getElementById('user-display');
     if (userDisplay && identificacao) userDisplay.innerText = String(identificacao).toUpperCase();
 }
 
 function atlasAtualizarDashboardHome() {
-    const dataISO = atlasHomeDataISOHoje();
-    const abertos = atlasHomeContarLista('atlas_serra_live')
-        + atlasHomeContarLista('atlas_emb_live')
-        + (typeof lancamentosTemporarios !== 'undefined' && Array.isArray(lancamentosTemporarios) ? lancamentosTemporarios.length : 0);
-
-    const finalizados = atlasHomeContarInjecaoHoje(dataISO)
-        + atlasHomeContarHistoricoHoje('historicoBobines', dataISO)
-        + atlasHomeContarHistoricoHoje('atlas_serra_hist', dataISO)
-        + atlasHomeContarHistoricoHoje('atlas_emb_hist', dataISO)
-        + atlasHomeContarHistoricoHoje('atlas_plano_hist', dataISO);
-
-    const pendentes = typeof window.atlasLembretesAutomaticos === 'function'
-        ? window.atlasLembretesAutomaticos().length
-        : 0;
-
-    const ultimaSync = Number(localStorage.getItem('atlas_sync_local_updated_ms') || 0);
-    const ultimaTexto = ultimaSync
-        ? new Date(ultimaSync).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })
-        : 'Agora';
-
-    atlasHomeDefinirTexto('atlas-home-relatorios-abertos', String(abertos));
+    const pendentes = atlasHomeSecoesPendentes().reduce((acc, secao) => acc + secao.qtd, 0);
     atlasHomeDefinirTexto('atlas-home-relatorios-pendentes', String(pendentes));
-    atlasHomeDefinirTexto('atlas-home-producao-finalizada', String(finalizados));
-    atlasHomeDefinirTexto('atlas-home-usuarios-ativos', String(atlasHomeContarUsuariosAtivos()));
-    atlasHomeDefinirTexto('atlas-home-ultima-atualizacao', ultimaTexto);
 }
 
 function atlasMelhorarCardsHome() {
@@ -1098,7 +1110,10 @@ function atlasMelhorarCardsHome() {
         stock: ['Stock', 'Entradas, saidas, bobines e movimentacoes.', 'Controlo'],
         permissoes: ['Gestao de Pessoas', 'Utilizadores, acessos e permissoes.', 'Admin'],
         conferencia: ['Conferencia', 'Validacao e controlo dos processos.', 'Qualidade'],
-        lixeira: ['Lixeira', 'Recuperacao de registos removidos.', 'Admin']
+        lixeira: ['Lixeira', 'Recuperacao de registos removidos.', 'Admin'],
+        pesquisa_encomenda: ['Pesquisa', 'Pesquisa rapida de encomenda e pedido.', 'Consulta'],
+        lembretes: ['Lembretes', 'Alertas de stock e relatorios pendentes.', 'Controlo'],
+        auditoria: ['Registros', 'Registos de alteracoes e atividade.', 'Admin']
     };
 
     document.querySelectorAll('#grid-home > .card').forEach(card => {
@@ -1114,7 +1129,9 @@ function atlasMelhorarCardsHome() {
 }
 
 function atlasInicializarDashboardHome() {
+    atlasAplicarVisualHome();
     atlasMelhorarCardsHome();
+    setTimeout(atlasMelhorarCardsHome, 500);
     atlasAtualizarRelogioHome();
     atlasAtualizarDashboardHome();
 
@@ -1122,29 +1139,151 @@ function atlasInicializarDashboardHome() {
         window.atlasHomeDashboardTimer = setInterval(() => {
             atlasAtualizarRelogioHome();
             atlasAtualizarDashboardHome();
-        }, 30000);
+        }, 1000);
     }
 }
 
-function atlasAtalhoExportarPDF() {
-    abrirModulo('gestao');
+function atlasAplicarVisualHome() {
+    const visual = localStorage.getItem('atlas_home_visual') || 'novo';
+    document.body.classList.toggle('atlas-home-classico', visual === 'classico');
+}
+
+function atlasAlternarVisualHome() {
+    const atual = localStorage.getItem('atlas_home_visual') || 'novo';
+    const proximo = atual === 'novo' ? 'classico' : 'novo';
+    localStorage.setItem('atlas_home_visual', proximo);
+    atlasAplicarVisualHome();
+}
+
+function atlasFecharModalHome() {
+    document.getElementById('atlas-modal-home')?.remove();
+}
+
+function atlasModalHome(titulo, subtitulo, botoes) {
+    atlasFecharModalHome();
+    const modal = document.createElement('div');
+    modal.id = 'atlas-modal-home';
+    modal.className = 'atlas-modal-home';
+    modal.innerHTML = `
+        <div class="atlas-modal-home-box">
+            <div class="atlas-modal-home-top">
+                <div>
+                    <h2>${titulo}</h2>
+                    <p>${subtitulo || ''}</p>
+                </div>
+                <button onclick="atlasFecharModalHome()" title="Fechar"><i class="fas fa-xmark"></i></button>
+            </div>
+            <div class="atlas-modal-home-grid">
+                ${botoes.map(botao => `
+                    <button onclick="atlasFecharModalHome(); ${botao.acao};">
+                        <i class="${botao.icone}"></i>
+                        <span>${botao.nome}${botao.info ? `<small>${botao.info}</small>` : ''}</span>
+                    </button>
+                `).join('')}
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+}
+
+function atlasAbrirPendenciasHome() {
+    const pendentes = atlasHomeSecoesPendentes();
+    if (!pendentes.length) {
+        atlasModalHome('Relatorios pendentes', 'Nao existe secao aberta neste momento.', [
+            { nome: 'Criar relatorio', icone: 'fas fa-plus', acao: "atlasAbrirEscolhaHome('criar')" }
+        ]);
+        return;
+    }
+
+    atlasModalHome('Relatorios pendentes', 'Escolha a secao aberta para continuar de onde parou.', pendentes.map(secao => ({
+        nome: secao.nome,
+        icone: secao.icone,
+        info: `${secao.qtd} item(ns) em aberto`,
+        acao: `atlasAbrirSecaoPendente('${secao.chave}')`
+    })));
+}
+
+function atlasAbrirSecaoPendente(chave) {
+    abrirModulo(chave);
     setTimeout(() => {
-        if (typeof mostrarToast === 'function') mostrarToast('Escolha um historico para exportar em PDF.');
+        if (chave === 'injecao' && typeof exibirFormulario === 'function') exibirFormulario('injecao');
+        if (chave === 'bobines' && typeof moduloBobine === 'function') moduloBobine('novo');
+        if (chave === 'plano' && typeof retomarPlanoEmAndamento === 'function') retomarPlanoEmAndamento();
     }, 150);
 }
 
-function atlasAtalhoCalculadoraBobine() {
-    abrirModulo('bobines');
-    setTimeout(() => {
-        if (typeof moduloBobine === 'function') moduloBobine('calculadora');
-    }, 150);
+function atlasAbrirEscolhaHome(tipo) {
+    const opcoes = {
+        criar: {
+            titulo: 'Criar relatorio',
+            subtitulo: 'Escolha a secao onde o relatorio sera entregue.',
+            botoes: [
+                { nome: 'Injecao', icone: 'fas fa-microchip', acao: "atlasExecutarEscolhaHome('criar','injecao')" },
+                { nome: 'Bobines', icone: 'fas fa-compact-disc', acao: "atlasExecutarEscolhaHome('criar','bobines')" },
+                { nome: 'Serra', icone: 'fas fa-layer-group', acao: "atlasExecutarEscolhaHome('criar','serra')" },
+                { nome: 'Embalagem', icone: 'fas fa-boxes-packing', acao: "atlasExecutarEscolhaHome('criar','embalagem')" },
+                { nome: 'Plano', icone: 'fas fa-clipboard-list', acao: "atlasExecutarEscolhaHome('criar','plano')" }
+            ]
+        },
+        historico: {
+            titulo: 'Ver historico',
+            subtitulo: 'Escolha a secao que deseja consultar.',
+            botoes: [
+                { nome: 'Injecao', icone: 'fas fa-microchip', acao: "atlasExecutarEscolhaHome('historico','injecao')" },
+                { nome: 'Bobines', icone: 'fas fa-compact-disc', acao: "atlasExecutarEscolhaHome('historico','bobines')" },
+                { nome: 'Serra', icone: 'fas fa-layer-group', acao: "atlasExecutarEscolhaHome('historico','serra')" },
+                { nome: 'Embalagem', icone: 'fas fa-boxes-packing', acao: "atlasExecutarEscolhaHome('historico','embalagem')" },
+                { nome: 'Plano', icone: 'fas fa-clipboard-list', acao: "atlasExecutarEscolhaHome('historico','plano')" }
+            ]
+        },
+        calculadora: {
+            titulo: 'Calculadora',
+            subtitulo: 'Escolha qual calculadora deseja usar.',
+            botoes: [
+                { nome: 'Bobina', icone: 'fas fa-calculator', acao: "atlasExecutarEscolhaHome('calculadora','bobina')" },
+                { nome: 'Agro', icone: 'fas fa-seedling', acao: "atlasExecutarEscolhaHome('calculadora','agro')" }
+            ]
+        }
+    };
+
+    const grupo = opcoes[tipo];
+    if (!grupo) return;
+    atlasModalHome(grupo.titulo, grupo.subtitulo, grupo.botoes.filter(botao => {
+        const chave = (botao.acao.match(/,'([^']+)'\)/) || [])[1];
+        if (!chave || chave === 'bobina' || chave === 'agro') return true;
+        return usuarioPodeVerModulo(chave);
+    }));
 }
 
-function atlasAtalhoScannerFoto() {
-    if (typeof abrirModulo === 'function') abrirModulo('conferencia');
-    setTimeout(() => {
-        if (typeof mostrarToast === 'function') mostrarToast('Use a conferencia ou as guias para anexar foto quando disponivel.');
-    }, 150);
+function atlasExecutarEscolhaHome(tipo, chave) {
+    if (tipo === 'criar') {
+        abrirModulo(chave);
+        setTimeout(() => {
+            if (chave === 'injecao' && typeof exibirFormulario === 'function') exibirFormulario('injecao');
+            if (chave === 'bobines' && typeof moduloBobine === 'function') moduloBobine('novo');
+            if (chave === 'plano' && typeof abrirFormularioPlano === 'function') abrirFormularioPlano('pedido');
+        }, 150);
+        return;
+    }
+
+    if (tipo === 'historico') {
+        abrirModulo(chave === 'injecao' ? 'injecao' : chave);
+        setTimeout(() => {
+            if (chave === 'injecao' && typeof exibirHistoricoModulo === 'function') exibirHistoricoModulo('injecao');
+            if (chave === 'bobines' && typeof moduloBobine === 'function') moduloBobine('historico');
+            if (chave === 'serra' && typeof listarHistoricoSerra === 'function') listarHistoricoSerra();
+            if (chave === 'embalagem' && typeof listarHistoricoEmbalagem === 'function') listarHistoricoEmbalagem();
+            if (chave === 'plano' && typeof listarHistoricoPlano === 'function') listarHistoricoPlano();
+        }, 150);
+        return;
+    }
+
+    if (tipo === 'calculadora') {
+        abrirModulo('bobines');
+        setTimeout(() => {
+            if (typeof moduloBobine === 'function') moduloBobine(chave === 'agro' ? 'calculadora_agro' : 'calculadora');
+        }, 150);
+    }
 }
 
 function fecharModal() {

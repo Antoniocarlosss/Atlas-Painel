@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v153-dashboard';
+const CACHE_NAME = 'atlas-v154-dashboard';
 const assets = [
   './',
   './index.html',

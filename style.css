@@ -277,7 +277,7 @@ header {
 }
 
 .atlas-header-clock {
-    min-width: 138px;
+    min-width: 158px;
     text-align: right;
 }
 
@@ -365,7 +365,7 @@ header {
 
 .atlas-status-grid {
     display: grid;
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 1.2fr) minmax(260px, .8fr);
     gap: 12px;
 }
 
@@ -375,6 +375,7 @@ header {
     border-radius: 8px;
     padding: 16px;
     min-height: 88px;
+    text-align: left;
 }
 
 .atlas-status-card span {
@@ -390,17 +391,30 @@ header {
     line-height: 1;
 }
 
-.atlas-status-card:nth-child(1) strong,
-.atlas-status-card:nth-child(4) strong {
-    color: #60a5fa;
+.atlas-status-card small {
+    display: block;
+    color: #64748b;
+    font-size: 12px;
+    margin-top: 8px;
 }
 
-.atlas-status-card:nth-child(2) strong {
+.atlas-status-card:nth-child(1) strong {
     color: #f59e0b;
 }
 
-.atlas-status-card:nth-child(3) strong {
-    color: #10b981;
+.atlas-clock-card strong {
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+}
+
+.atlas-status-click {
+    width: 100%;
+    cursor: pointer;
+}
+
+.atlas-status-click:hover {
+    border-color: var(--atlas-red);
+    background: #162033;
 }
 
 .atlas-quick-actions {
@@ -453,14 +467,15 @@ header {
 
 #grid-home.atlas-dashboard > .card {
     position: relative;
-    min-height: 188px;
-    padding: 20px;
+    min-height: 158px;
+    padding: 18px;
     text-align: left;
     border-radius: 8px;
     background: #111827;
     border-color: #334155;
     display: flex;
     flex-direction: column;
+    align-items: flex-start;
     justify-content: space-between;
     overflow: hidden;
 }
@@ -480,15 +495,15 @@ header {
 }
 
 #grid-home.atlas-dashboard > .card i {
-    font-size: 30px;
+    font-size: 26px;
     color: #f8fafc;
-    margin: 0 0 16px;
+    margin: 0 0 12px;
 }
 
 #grid-home.atlas-dashboard > .card span {
     color: #fff;
     display: block;
-    font-size: 18px;
+    font-size: 17px;
     line-height: 1.15;
     text-transform: none;
     margin-bottom: 8px;
@@ -499,7 +514,7 @@ header {
     display: block;
     font-size: 13px;
     line-height: 1.35;
-    margin-bottom: 16px;
+    margin-bottom: 12px;
 }
 
 #grid-home.atlas-dashboard > .card em {
@@ -512,6 +527,154 @@ header {
     font-style: normal;
     font-weight: 800;
     padding: 6px 10px;
+}
+
+.atlas-home-classico .atlas-dashboard-hero,
+.atlas-home-classico .atlas-status-grid,
+.atlas-home-classico .atlas-quick-actions,
+.atlas-home-classico .atlas-modules-title {
+    display: none;
+}
+
+.atlas-home-classico #grid-home.atlas-dashboard {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.atlas-home-classico #grid-home.atlas-dashboard > .card {
+    min-height: 150px;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 28px 18px;
+}
+
+.atlas-home-classico #grid-home.atlas-dashboard > .card small,
+.atlas-home-classico #grid-home.atlas-dashboard > .card em {
+    display: none;
+}
+
+.atlas-modal-home {
+    position: fixed;
+    inset: 0;
+    z-index: 60000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    background: rgba(2, 6, 23, .78);
+}
+
+.atlas-modal-home-box {
+    width: min(720px, 100%);
+    background: #111827;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    box-shadow: 0 22px 70px rgba(0, 0, 0, .5);
+    padding: 18px;
+}
+
+.atlas-modal-home-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 14px;
+    border-bottom: 1px solid #334155;
+    padding-bottom: 14px;
+    margin-bottom: 14px;
+}
+
+.atlas-modal-home-top h2 {
+    margin: 0 0 4px;
+    font-size: 20px;
+}
+
+.atlas-modal-home-top p {
+    margin: 0;
+    color: #94a3b8;
+    line-height: 1.4;
+}
+
+.atlas-modal-home-top button {
+    width: 44px;
+    min-width: 44px;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    background: #0b1120;
+    color: #fff;
+    cursor: pointer;
+}
+
+.atlas-modal-home-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.atlas-modal-home-grid button {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 70px;
+    text-align: left;
+    background: #0b1120;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    color: #fff;
+    padding: 14px;
+    cursor: pointer;
+    font-weight: 800;
+}
+
+.atlas-modal-home-grid button:hover {
+    border-color: var(--atlas-red);
+    background: #162033;
+}
+
+.atlas-modal-home-grid i {
+    color: #f87171;
+    font-size: 20px;
+    width: 24px;
+    text-align: center;
+}
+
+.atlas-modal-home-grid span {
+    display: block;
+}
+
+.atlas-modal-home-grid small {
+    display: block;
+    color: #94a3b8;
+    font-weight: 600;
+    margin-top: 3px;
+}
+
+.modulo-body > div[style*="display:grid"] > .card,
+#render-modulo > div[style*="display:grid"] > .card {
+    min-height: 126px;
+    padding: 22px 16px !important;
+    border-radius: 8px !important;
+    background: #111827 !important;
+    border: 1px solid #334155 !important;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    box-shadow: none;
+}
+
+.modulo-body > div[style*="display:grid"] > .card i,
+#render-modulo > div[style*="display:grid"] > .card i {
+    margin: 0;
+    color: #60a5fa;
+    font-size: 34px;
+}
+
+.modulo-body > div[style*="display:grid"] > .card span,
+#render-modulo > div[style*="display:grid"] > .card span {
+    font-size: 14px;
+    line-height: 1.2;
+    text-align: center;
 }
 
 /* --- RESPONSIVIDADE --- */
