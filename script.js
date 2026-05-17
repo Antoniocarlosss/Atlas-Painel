@@ -1446,6 +1446,8 @@ function atlasUsuarioDigitandoOuEditando() {
     const ativo = document.activeElement;
     const tag = String(ativo?.tagName || '').toLowerCase();
     if (['input', 'textarea', 'select'].includes(tag)) return true;
+    const ajustes = document.getElementById('conteudo-ajustes');
+    if (ajustes && ajustes.style.display === 'block') return true;
     const modal = document.getElementById('modal-edicao');
     return modal && modal.style.display && modal.style.display !== 'none';
 }

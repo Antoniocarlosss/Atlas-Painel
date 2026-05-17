@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v168-sync-light';
+const CACHE_NAME = 'atlas-v169-sessao-local';
 const assets = [
   './',
   './index.html',

@@ -67,7 +67,8 @@ function atlasFirebaseChaveTemporaria(chave) {
         "atlas_sistema_mostrar_atualizado",
         "atlas_sistema_forcar_recarregar_sem_cache",
         "atlas_dispositivo_ultimo_sync_ms",
-        "atlas_guias_editando_ate"
+        "atlas_guias_editando_ate",
+        "atlas_sessao_usuario_id"
     ].includes(chave)
         || String(chave || "").startsWith("atlas_update_")
         || String(chave || "").startsWith("atlas_sistema_cache_limpo_")
@@ -895,7 +896,7 @@ function atlasFirebaseMesclarValorBackup(chave, valorLocalBruto, valorNuvemBruto
 function atlasFirebaseMesclarBackups(localDados, nuvemDados) {
     const resultado = { ...(localDados || {}) };
     Object.keys(nuvemDados || {}).forEach(chave => {
-        if (chave === "atlas_guias_injecao" || chave === "atlas_usuarios") return;
+        if (!atlasFirebaseChaveSincronizada(chave) || chave === "atlas_guias_injecao" || chave === "atlas_usuarios") return;
         resultado[chave] = atlasFirebaseMesclarValorBackup(chave, resultado[chave], nuvemDados[chave]);
     });
     return resultado;
@@ -946,6 +947,7 @@ async function atlasEnviarBackupLocalStorage() {
             backup[chave] = localStorage.getItem(chave);
         }
     }
+    backup.atlas_sessao_usuario_id = null;
 
     const snapAtual = await getDoc(doc(atlasFirestore, "backups_localstorage", "ultimo_backup")).catch(() => null);
     const dadosAtuais = snapAtual?.exists() ? (snapAtual.data()?.dados || {}) : {};
@@ -1367,7 +1369,7 @@ window.atlasFirebaseRestaurarUltimoSnapshotLocal = async function() {
 };
 
 function atlasFirebaseAplicarBackupNuvem(dados, opcoes = {}) {
-    const chaves = Object.keys(dados || {}).filter(chave => chave !== "atlas_guias_injecao");
+    const chaves = Object.keys(dados || {}).filter(chave => atlasFirebaseChaveSincronizada(chave) && chave !== "atlas_guias_injecao");
     if (chaves.length === 0) return false;
     if (atlasFirebaseContarDadosBackup(dados) === 0 && atlasFirebaseContarDadosLocais() > 0) {
         console.warn("Backup vazio da nuvem ignorado para proteger dados locais.");
