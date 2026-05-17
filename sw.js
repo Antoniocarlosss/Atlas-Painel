@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v166-sem-abas-install';
+const CACHE_NAME = 'atlas-v167-firebase-sync';
 const assets = [
   './',
   './index.html',
@@ -7,16 +7,16 @@ const assets = [
   './historicos-admin.js',
   './atlas-ajustes-fachadas.js',
   './firebase-atlas.js',
-  './js/main.js',
-  './js/auth.js',
-  './js/serra.js',
-  './js/bobines.js',
-  './js/injecao.js',
-  './js/stock.js',
-  './js/pdf.js',
-  './js/firebase.js',
-  './js/permissoes.js',
-  './js/ui.js',
+  './main.js',
+  './auth.js',
+  './serra.js',
+  './bobines.js',
+  './injecao.js',
+  './stock.js',
+  './pdf.js',
+  './firebase.js',
+  './permissoes.js',
+  './ui.js',
   './manifest.json',
   './logo.png'
 ];

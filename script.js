@@ -6581,17 +6581,54 @@ function abrirAjustesBackup() {
         <div style="background:#3b1d1d; border:1px solid #ef4444; border-radius:12px; padding:20px; margin-top:15px;">
             <h3 style="margin-top:0; margin-bottom:10px; color:#fecaca;">Recuperacao de emergencia</h3>
             <p style="color:#fecaca; font-size:13px; margin-bottom:15px;">Tenta recuperar relatorios e stock salvos nas colecoes do Firebase quando o backup principal ficou vazio.</p>
-            <button onclick="window.atlasFirebaseRestaurarRelatoriosDaNuvem ? window.atlasFirebaseRestaurarRelatoriosDaNuvem() : alert('Firebase ainda nao carregou. Aguarde alguns segundos e tente novamente.')" style="width:100%; background:#dc2626; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold;">
+            <button onclick="atlasExecutarBackupFirebase('atlasFirebaseRestaurarRelatoriosDaNuvem')" style="width:100%; background:#dc2626; color:white; border:none; padding:12px; border-radius:8px; font-weight:bold;">
                 RESTAURAR RELATORIOS DA NUVEM
             </button>
-            <button onclick="window.atlasFirebaseDiagnosticarRecuperacao ? window.atlasFirebaseDiagnosticarRecuperacao() : alert('Firebase ainda nao carregou. Aguarde alguns segundos e tente novamente.')" style="width:100%; background:#7f1d1d; color:white; border:1px solid #fca5a5; padding:12px; border-radius:8px; font-weight:bold; margin-top:10px;">
+            <button onclick="atlasExecutarBackupFirebase('atlasFirebaseDiagnosticarRecuperacao')" style="width:100%; background:#7f1d1d; color:white; border:1px solid #fca5a5; padding:12px; border-radius:8px; font-weight:bold; margin-top:10px;">
                 VER DIAGNOSTICO DE DADOS
             </button>
-            <button onclick="window.atlasFirebaseRestaurarUltimoSnapshotLocal ? window.atlasFirebaseRestaurarUltimoSnapshotLocal() : alert('Firebase ainda nao carregou. Aguarde alguns segundos e tente novamente.')" style="width:100%; background:#991b1b; color:white; border:1px solid #fecaca; padding:12px; border-radius:8px; font-weight:bold; margin-top:10px;">
+            <button onclick="atlasExecutarBackupFirebase('atlasFirebaseRestaurarUltimoSnapshotLocal')" style="width:100%; background:#991b1b; color:white; border:1px solid #fecaca; padding:12px; border-radius:8px; font-weight:bold; margin-top:10px;">
                 RESTAURAR SNAPSHOT LOCAL
             </button>
         </div>
     `;
+}
+
+function atlasAguardarFirebaseBackup(nomeFuncao, limiteMs = 15000) {
+    if (typeof window[nomeFuncao] === 'function') return Promise.resolve(true);
+
+    return new Promise(resolve => {
+        const inicio = Date.now();
+        let timer = null;
+
+        const limpar = resultado => {
+            window.removeEventListener('atlasFirebasePronto', aoPronto);
+            clearInterval(timer);
+            resolve(resultado);
+        };
+
+        const verificar = () => {
+            if (typeof window[nomeFuncao] === 'function') {
+                limpar(true);
+                return;
+            }
+            if (Date.now() - inicio >= limiteMs) limpar(false);
+        };
+
+        const aoPronto = () => verificar();
+        window.addEventListener('atlasFirebasePronto', aoPronto);
+        timer = setInterval(verificar, 300);
+        verificar();
+    });
+}
+
+async function atlasExecutarBackupFirebase(nomeFuncao) {
+    const pronto = await atlasAguardarFirebaseBackup(nomeFuncao);
+    if (!pronto) {
+        alert('Firebase nao carregou. Atualize a pagina e confirme se o aparelho esta com internet.');
+        return;
+    }
+    return window[nomeFuncao]();
 }
 
 function abrirAjustesSistema() {
