@@ -1,4 +1,4 @@
-const CACHE_NAME = 'atlas-v167-firebase-sync';
+const CACHE_NAME = 'atlas-v168-sync-light';
 const assets = [
   './',
   './index.html',

@@ -18,7 +18,7 @@
         html.atlas-route-loading #tela-login { display: none !important; }
         html.atlas-route-loading #app-principal { display: block !important; }
     </style>
-    <link rel="stylesheet" href="style.css?v=20260517-firebase-sync-167">
+    <link rel="stylesheet" href="style.css?v=20260517-sync-light-168">
     <link rel="manifest" href="manifest.json">
 </head>
 <body>
@@ -184,8 +184,8 @@
             });
         })();
 
-        window.ATLAS_SISTEMA_VERSAO = '20260517-firebase-sync-167';
-        window.ATLAS_SISTEMA_BUILD = 167;
+        window.ATLAS_SISTEMA_VERSAO = '20260517-sync-light-168';
+        window.ATLAS_SISTEMA_BUILD = 168;
         window.atlasMostrarTelaAtualizacao = function atlasMostrarTelaAtualizacao(opcoes = {}) {
             const finalizado = opcoes.finalizado === true;
             let overlay = document.getElementById('atlas-update-screen');
@@ -399,10 +399,10 @@
             Promise.allSettled([limparCaches, atualizarWorker]);
         })();
     </script>
-    <script src="script.js?v=20260517-firebase-sync-167"></script>
-    <script src="historicos-admin.js?v=20260517-firebase-sync-167"></script>
-    <script src="atlas-ajustes-fachadas.js?v=20260517-firebase-sync-167"></script>
-    <script type="module" src="main.js?v=20260517-firebase-sync-167"></script>
+    <script src="script.js?v=20260517-sync-light-168"></script>
+    <script src="historicos-admin.js?v=20260517-sync-light-168"></script>
+    <script src="atlas-ajustes-fachadas.js?v=20260517-sync-light-168"></script>
+    <script type="module" src="main.js?v=20260517-sync-light-168"></script>
     <script>
         if ('serviceWorker' in navigator) {
             let atlasAtualizandoPWA = false;
@@ -413,7 +413,7 @@
             });
 
             window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js?v=20260517-firebase-sync-167')
+                navigator.serviceWorker.register('sw.js?v=20260517-sync-light-168')
                     .then(reg => {
                         console.log('Atlas PWA: Ativo!');
                         reg.update();

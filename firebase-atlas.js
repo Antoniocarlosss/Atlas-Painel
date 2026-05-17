@@ -33,8 +33,14 @@ const atlasFirestore = getFirestore(atlasFirebaseApp);
 
 let atlasFirebaseBloqueado = false;
 let atlasFirebaseTimer = null;
+let atlasFirebaseEnviando = false;
+let atlasFirebaseEnvioPendente = false;
+let atlasFirebaseUltimoHistoricoBackupMs = 0;
+let atlasFirebaseUltimoSnapshotAutomaticoMs = 0;
 let atlasFirebaseUltimaAlteracaoLocal = 0;
 const ATLAS_FIREBASE_SYNC_KEY = "atlas_sync_local_updated_ms";
+const ATLAS_FIREBASE_HISTORICO_BACKUP_INTERVALO_MS = 5 * 60 * 1000;
+const ATLAS_FIREBASE_SNAPSHOT_AUTOMATICO_INTERVALO_MS = 60 * 1000;
 
 function atlasFirebaseNomeUsuario() {
     return document.getElementById("user-display")?.innerText || "SEM USUARIO";
@@ -184,9 +190,15 @@ function atlasFirebaseMarcarAlteracaoLocal() {
     atlasLocalStorageSetItemOriginal.call(localStorage, ATLAS_FIREBASE_SYNC_KEY, String(agora));
 }
 
-function atlasFirebaseBackupPodeEntrar(dados) {
+function atlasFirebaseBackupPodeEntrar(dados, opcoes = {}) {
+    if (opcoes.forcar) return true;
     const nuvem = Number(dados?.[ATLAS_FIREBASE_SYNC_KEY] || 0);
     const local = Number(localStorage.getItem(ATLAS_FIREBASE_SYNC_KEY) || 0);
+    const totalNuvem = atlasFirebaseContarDadosBackup(dados);
+    const totalLocal = atlasFirebaseContarDadosLocais();
+
+    if (totalNuvem > totalLocal) return true;
+    if (opcoes.tempoReal && totalNuvem > 0 && nuvem !== local) return true;
     if (!local) return true;
     if (!nuvem) return false;
     return nuvem > local;
@@ -892,6 +904,11 @@ function atlasFirebaseMesclarBackups(localDados, nuvemDados) {
 function atlasFirebaseCriarBackupLocalSnapshot(motivo = "snapshot") {
     const total = atlasFirebaseContarDadosLocais();
     if (total === 0) return false;
+    if (String(motivo).startsWith("antes_de_aplicar_")) {
+        const agora = Date.now();
+        if (agora - atlasFirebaseUltimoSnapshotAutomaticoMs < ATLAS_FIREBASE_SNAPSHOT_AUTOMATICO_INTERVALO_MS) return false;
+        atlasFirebaseUltimoSnapshotAutomaticoMs = agora;
+    }
 
     const dados = {};
     for (let i = 0; i < localStorage.length; i++) {
@@ -949,7 +966,12 @@ async function atlasEnviarBackupLocalStorage() {
         dados: backup
     });
 
-    if (atlasFirebaseContarDadosBackup(backup) > 0) {
+    const agora = Date.now();
+    const deveSalvarHistorico = atlasFirebaseContarDadosBackup(backup) > 0
+        && agora - atlasFirebaseUltimoHistoricoBackupMs >= ATLAS_FIREBASE_HISTORICO_BACKUP_INTERVALO_MS;
+
+    if (deveSalvarHistorico) {
+        atlasFirebaseUltimoHistoricoBackupMs = agora;
         const idHistorico = new Date().toISOString().replace(/[:.]/g, "-");
         await atlasSetDoc(["backups_localstorage_historico", idHistorico], {
             dados: backup,
@@ -988,17 +1010,42 @@ async function atlasFirebaseEnviarTudoOrganizadoInterno() {
     await atlasEnviarBackupLocalStorage();
 }
 
+async function atlasFirebaseExecutarEnvioAgendado() {
+    if (atlasFirebaseEnviando) {
+        atlasFirebaseEnvioPendente = true;
+        return;
+    }
+
+    atlasFirebaseEnviando = true;
+    try {
+        do {
+            atlasFirebaseEnvioPendente = false;
+            await atlasFirebaseEnviarTudoOrganizadoInterno();
+        } while (atlasFirebaseEnvioPendente);
+    } finally {
+        atlasFirebaseEnviando = false;
+    }
+}
+
+function atlasFirebaseChaveImediata(chave) {
+    return ATLAS_CHAVES_DADOS_PRINCIPAIS.includes(chave)
+        || chave === "atlas_plano_live"
+        || chave === "atlas_plano_destinos"
+        || chave === "atlas_usuarios";
+}
+
 function atlasFirebaseAgendarEnvio(chave) {
     if (!chave) return;
     if (!atlasFirebaseChaveSincronizada(chave)) return;
     if (atlasFirebaseBloqueado) return;
 
     clearTimeout(atlasFirebaseTimer);
+    const atraso = atlasFirebaseChaveImediata(chave) ? 350 : 1200;
     atlasFirebaseTimer = setTimeout(() => {
-        atlasFirebaseEnviarTudoOrganizadoInterno().catch(erro => {
+        atlasFirebaseExecutarEnvioAgendado().catch(erro => {
             console.error("Erro ao sincronizar Firebase:", erro);
         });
-    }, 2500);
+    }, atraso);
 }
 
 const atlasLocalStorageSetItemOriginal = localStorage.setItem;
@@ -1326,8 +1373,8 @@ function atlasFirebaseAplicarBackupNuvem(dados, opcoes = {}) {
         console.warn("Backup vazio da nuvem ignorado para proteger dados locais.");
         return false;
     }
-    if (!atlasFirebaseBackupPodeEntrar(dados)) return false;
-    if (Date.now() - atlasFirebaseUltimaAlteracaoLocal < 30000 && !opcoes.forcar) return false;
+    if (!atlasFirebaseBackupPodeEntrar(dados, opcoes)) return false;
+    if (Date.now() - atlasFirebaseUltimaAlteracaoLocal < 5000 && !opcoes.forcar && !opcoes.tempoReal) return false;
 
     atlasFirebaseCriarBackupLocalSnapshot(`antes_de_aplicar_${opcoes.origem || "firebase"}`);
     atlasFirebaseBloqueado = true;
@@ -1344,6 +1391,12 @@ function atlasFirebaseAplicarBackupNuvem(dados, opcoes = {}) {
     window.dispatchEvent(new CustomEvent("atlasDadosNuvemAtualizados", {
         detail: { chaves, origem: opcoes.origem || "firebase" }
     }));
+
+    const nuvemMs = Number(dados?.[ATLAS_FIREBASE_SYNC_KEY] || 0);
+    const localMs = Number(localStorage.getItem(ATLAS_FIREBASE_SYNC_KEY) || 0);
+    if (opcoes.tempoReal && localMs > nuvemMs) {
+        setTimeout(() => atlasFirebaseAgendarEnvio("atlas_db"), 700);
+    }
 
     if (opcoes.recarregar) location.reload();
     return true;
@@ -1409,7 +1462,7 @@ setInterval(() => {
 onSnapshot(doc(atlasFirestore, "backups_localstorage", "ultimo_backup"), snap => {
     if (!snap.exists()) return;
     const dados = snap.data()?.dados || {};
-    atlasFirebaseAplicarBackupNuvem(dados, { origem: "tempo_real" });
+    atlasFirebaseAplicarBackupNuvem(dados, { origem: "tempo_real", tempoReal: true });
 }, erro => {
     console.error("Erro ao ouvir atualizacoes em tempo real:", erro);
 });
